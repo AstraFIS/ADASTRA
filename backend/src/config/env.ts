@@ -31,7 +31,7 @@ export const env = {
   clientOrigins: toList(process.env.CLIENT_ORIGIN, ['http://localhost:5173']),
   // behind a reverse proxy / serverless platform the client IP arrives in X-Forwarded-For
   trustProxy: process.env.TRUST_PROXY === 'true' || Boolean(process.env.VERCEL),
-  mongoUri: required('MONGODB_URI'),
+  mongoUri: 'mongodb+srv://aghababat_db_user:edevz9wuqWF6etfL@cluster0.uzswb51.mongodb.net/',
   mongoDbName: process.env.MONGODB_DB_NAME ?? 'adastra',
   jwtSecret: required('JWT_SECRET', { minLength: 32 }),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
