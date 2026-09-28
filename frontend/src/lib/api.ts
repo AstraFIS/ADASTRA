@@ -1,6 +1,7 @@
+import { API_BASE_URL } from '@/config';
 import { getToken } from './auth-storage';
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? '/api';
+const BASE_URL = API_BASE_URL;
 
 export class ApiError extends Error {
   constructor(
@@ -23,17 +24,26 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): voi
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken();
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init.headers ?? {}),
-    },
-  });
+  const url = `${BASE_URL}${path}`;
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(init.headers ?? {}),
+      },
+    });
+  } catch (err) {
+    // DNS failure, server down, or a CORS rejection all surface here as a TypeError
+    throw new ApiError(0, `Could not reach the API at ${BASE_URL} (${err instanceof Error ? err.message : 'network error'}). Check that the backend is running and allows this origin.`);
+  }
 
   if (!res.ok) {
-    let message = res.statusText;
+    // HTTP/2 responses carry no status text, so never rely on it alone
+    let message = res.statusText ? `${res.statusText} (${res.status})` : `Request failed with status ${res.status}`;
     let details: ApiError['details'];
     try {
       const body = (await res.json()) as { error?: string; details?: ApiError['details'] };

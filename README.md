@@ -53,7 +53,10 @@ npm run dev:frontend        # frontend only
 ```
 
 The Vite dev server proxies `/api/*` to the backend, so the frontend can call
-`/api/...` without CORS config in development.
+`/api/...` without CORS config in development. Production builds call the
+deployed backend (`PRODUCTION_API_URL` in `frontend/src/config.ts`) unless
+`VITE_API_URL` is set at build time. `frontend/vercel.json` rewrites deep
+links to `index.html` for SPA routing on Vercel.
 
 ## Deploying the backend to Vercel
 

@@ -7,10 +7,10 @@ export const authRouter = Router();
 
 const credentialLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 10,
+  limit: 20,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
-  message: { error: 'Too many attempts, please try again in 15 minutes' },
+  message: { error: 'Too many sign-in attempts from this address, please try again in 15 minutes' },
 });
 
 authRouter.get('/status', status);

@@ -19,7 +19,8 @@ export default function LoginPage() {
   const { status, login, setup } = useAuth();
   const navigate = useNavigate();
 
-  const [mode, setMode] = useState<'checking' | 'login' | 'setup'>('checking');
+  // The form is usable immediately; it only switches to setup mode if the API says no users exist.
+  const [mode, setMode] = useState<'login' | 'setup'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,10 +34,10 @@ export default function LoginPage() {
     api
       .get<AuthStatus>('/auth/status')
       .then((s) => {
-        if (!cancelled) setMode(s.needsSetup ? 'setup' : 'login');
+        if (!cancelled && s.needsSetup) setMode('setup');
       })
       .catch(() => {
-        if (!cancelled) setMode('login');
+        // status is only a convenience; a failure here must not block signing in
       });
     return () => {
       cancelled = true;
@@ -57,11 +58,14 @@ export default function LoginPage() {
 
     setSubmitting(true);
     try {
-      if (mode === 'setup') await setup({ name, email, password });
-      else await login(email, password);
+      const signedIn = mode === 'setup' ? await setup({ name, email, password }) : await login(email, password);
+      if (!signedIn) {
+        setError('The server did not return a session token.');
+        return;
+      }
       navigate('/', { replace: true });
     } catch (err) {
-      setError(errorMessage(err));
+      setError(errorMessage(err) || 'Sign in failed. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -74,7 +78,7 @@ export default function LoginPage() {
       <form
         onSubmit={handleSubmit}
         className="w-full max-w-sm space-y-4 rounded-xl border border-line bg-surface p-6"
-        aria-busy={mode === 'checking'}
+        aria-busy={submitting}
       >
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.12em] text-ink-3">ADASTRA admin</p>
@@ -110,7 +114,6 @@ export default function LoginPage() {
             onChange={(e) => setEmail(e.target.value)}
             required
             autoComplete="email"
-            disabled={mode === 'checking'}
             className={inputClass}
           />
         </label>
@@ -124,7 +127,6 @@ export default function LoginPage() {
             required
             minLength={isSetup ? 8 : 1}
             autoComplete={isSetup ? 'new-password' : 'current-password'}
-            disabled={mode === 'checking'}
             className={inputClass}
           />
         </label>
@@ -152,10 +154,10 @@ export default function LoginPage() {
 
         <button
           type="submit"
-          disabled={submitting || mode === 'checking'}
+          disabled={submitting}
           className="w-full rounded-lg bg-revenue px-4 py-2.5 text-sm font-bold text-canvas hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {submitting ? 'Please wait…' : isSetup ? 'Create account & sign in' : 'Sign in'}
+          {submitting ? 'Signing in…' : isSetup ? 'Create account & sign in' : 'Sign in'}
         </button>
       </form>
     </div>

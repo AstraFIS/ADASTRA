@@ -57,6 +57,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [signOut]);
 
   const acceptSession = useCallback((res: AuthResponse) => {
+    if (!res?.token || !res.user) {
+      throw new Error('The server did not return a session token.');
+    }
     setToken(res.token);
     setUser(res.user);
     setStatus('authenticated');
