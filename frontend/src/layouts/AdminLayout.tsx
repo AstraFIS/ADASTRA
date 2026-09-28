@@ -1,4 +1,5 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/auth/AuthContext';
 
 const navItems = [
   { to: '/', label: 'Overview', end: true },
@@ -6,43 +7,63 @@ const navItems = [
 ];
 
 export default function AdminLayout() {
-  return (
-    <div className="flex min-h-screen">
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-line bg-surface md:flex">
-        <div className="flex items-baseline gap-2 border-b border-line px-5 py-4">
-          <span className="text-lg font-bold tracking-tight text-ink">ADASTRA</span>
-          <span className="text-xs font-medium uppercase tracking-wide text-ink-3">Admin</span>
-        </div>
-        <nav className="flex-1 space-y-1 p-3">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                `block rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive ? 'bg-surface-2 text-ink' : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
-                }`
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
-      </aside>
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center justify-between border-b border-line bg-surface px-6">
-          <span className="text-sm font-semibold text-ink md:hidden">ADASTRA</span>
-          <span className="hidden text-sm text-ink-3 md:inline">Media performance admin</span>
-          <NavLink to="/login" className="text-sm font-medium text-ink-2 hover:text-ink">
-            Sign out
-          </NavLink>
-        </header>
-        <main className="flex-1 px-4 py-6 md:px-10 md:py-8">
-          <Outlet />
-        </main>
-      </div>
+  function handleSignOut() {
+    logout();
+    navigate('/login', { replace: true });
+  }
+
+  return (
+    <div className="flex min-h-screen flex-col">
+      <header className="sticky top-0 z-20 border-b border-line bg-surface/95 backdrop-blur">
+        <div className="flex h-14 items-center gap-6 px-4 md:px-10">
+          <Link to="/" className="flex items-baseline gap-2">
+            <span className="text-lg font-bold tracking-tight text-ink">ADASTRA</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-ink-3">Admin</span>
+          </Link>
+
+          <nav aria-label="Main" className="flex items-center gap-1">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  `rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    isActive ? 'bg-surface-2 text-ink' : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
+                  }`
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+
+          <div className="ml-auto flex items-center gap-4">
+            {user && (
+              <span className="hidden text-sm text-ink-2 sm:inline">
+                {user.name}
+                <span className="ml-1.5 rounded bg-surface-2 px-1.5 py-0.5 text-xs font-medium uppercase text-ink-3">
+                  {user.role}
+                </span>
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="text-sm font-medium text-ink-2 hover:text-ink"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 px-4 py-6 md:px-10 md:py-8">
+        <Outlet />
+      </main>
     </div>
   );
 }

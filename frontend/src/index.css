@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  /* 1700px: wide enough for the 7-tile KPI row next to the sidebar */
-  --breakpoint-3xl: 106.25rem;
+  /* 1640px: the 7-tile KPI row gets ≥ 205px per tile so labels don't truncate */
+  --breakpoint-3xl: 102.5rem;
 
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 

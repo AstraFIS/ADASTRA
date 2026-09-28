@@ -29,11 +29,13 @@ interface Props {
   className?: string;
 }
 
-const MARGIN = { top: 26, right: 12, bottom: 40 };
+const MARGIN = { top: 26, right: 12 };
+const LABEL_LINE_HEIGHT = 14;
+const LABEL_MAX_LINES = 3;
 const BAR_GAP = 6;
 const RADIUS = 4;
 const TICK_CHAR_WIDTH = 7.2;
-const LABEL_CHAR_WIDTH = 7;
+const LABEL_CHAR_EM = 0.55; // average glyph width as a fraction of font size (Inter, mixed case)
 const MIN_BAR_WIDTH_FOR_LABELS = 26;
 
 interface Hover {
@@ -59,6 +61,24 @@ function columnPath(x: number, top: number, width: number, height: number): stri
 function truncate(label: string, maxChars: number): string {
   if (label.length <= maxChars) return label;
   return `${label.slice(0, Math.max(1, maxChars - 1))}…`;
+}
+
+/** Break a label into up to LABEL_MAX_LINES lines at spaces or after "/", truncating what still overflows. */
+function wrapLabel(label: string, maxChars: number): string[] {
+  const words = label.split(/ +|(?<=\/)/).filter(Boolean);
+  const lines: string[] = [];
+  for (const word of words) {
+    const last = lines[lines.length - 1];
+    if (last !== undefined && `${last} ${word}`.length <= maxChars) {
+      lines[lines.length - 1] = `${last} ${word}`;
+    } else {
+      lines.push(word);
+    }
+  }
+  if (lines.length > LABEL_MAX_LINES) {
+    lines.splice(LABEL_MAX_LINES - 1, lines.length, lines.slice(LABEL_MAX_LINES - 1).join(' '));
+  }
+  return lines.map((l) => truncate(l, maxChars));
 }
 
 export default function BarChart({
@@ -88,12 +108,21 @@ export default function BarChart({
   const marginLeft = Math.max(...tickLabels.map((t) => t.length)) * TICK_CHAR_WIDTH + 20;
 
   const plotW = Math.max(width - marginLeft - MARGIN.right, 0);
-  const plotH = Math.max(chartHeight - MARGIN.top - MARGIN.bottom, 0);
+  const n = categories.length;
+  const groupW = n > 0 ? plotW / n : 0;
+
+  // x labels: smaller font in narrow groups, wrapped onto several lines when they don't fit
+  const labelFont = groupW < 70 ? 11 : 12;
+  const labelEvery = groupW > 0 && groupW < 36 ? Math.ceil(36 / groupW) : 1;
+  const maxLabelChars = Math.max(3, Math.floor((groupW * labelEvery - 6) / (labelFont * LABEL_CHAR_EM)));
+  const wrapped = categories.map((c) => wrapLabel(c, maxLabelChars));
+  const labelLines = Math.max(1, ...wrapped.map((w) => w.length));
+  const marginBottom = 24 + labelLines * LABEL_LINE_HEIGHT;
+
+  const plotH = Math.max(chartHeight - MARGIN.top - marginBottom, 0);
   const baseline = MARGIN.top + plotH;
   const yFor = (v: number) => baseline - (v / yMax) * plotH;
 
-  const n = categories.length;
-  const groupW = n > 0 ? plotW / n : 0;
   const s = series.length;
   const barW =
     s === 1
@@ -102,9 +131,6 @@ export default function BarChart({
   const clusterW = barW * s + BAR_GAP * (s - 1);
   // Labels on very thin bars collide with their neighbours; the tooltip still carries the value.
   const labelsVisible = showValueLabels && barW >= MIN_BAR_WIDTH_FOR_LABELS;
-
-  const labelEvery = groupW > 0 && groupW < 36 ? Math.ceil(36 / groupW) : 1;
-  const maxLabelChars = Math.max(3, Math.floor((groupW * labelEvery - 6) / LABEL_CHAR_WIDTH));
 
   function showTooltip(index: number, clientX: number, clientY: number) {
     const rect = wrapRef.current?.getBoundingClientRect();
@@ -209,13 +235,17 @@ export default function BarChart({
                 {i % labelEvery === 0 && (
                   <text
                     x={cx}
-                    y={chartHeight - 14}
+                    y={baseline + 22}
                     textAnchor="middle"
-                    fontSize={12}
+                    fontSize={labelFont}
                     fill="var(--color-ink-2)"
                   >
                     <title>{category}</title>
-                    {truncate(category, maxLabelChars)}
+                    {(wrapped[i] ?? [category]).map((line, li) => (
+                      <tspan key={li} x={cx} dy={li === 0 ? 0 : LABEL_LINE_HEIGHT}>
+                        {line}
+                      </tspan>
+                    ))}
                   </text>
                 )}
 

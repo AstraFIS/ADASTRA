@@ -1,13 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
+import BarChart from '@/components/BarChart';
 import ChartLegend from '@/components/ChartLegend';
 import CreativeTaxonomyCard from '@/components/CreativeTaxonomyCard';
+import DailyPerformanceTable from '@/components/DailyPerformanceTable';
 import FilterSelect from '@/components/FilterSelect';
 import LineChart from '@/components/LineChart';
 import StatCard, { type CaptionTone } from '@/components/StatCard';
 import { api, ApiError } from '@/lib/api';
-import { formatCurrency, formatDate, formatDayMonth, formatInteger, formatPercent } from '@/lib/format';
-import type { AdDetail, MetricComparison, ReadStatus } from '@/types/facebook';
+import {
+  formatCurrency,
+  formatDate,
+  formatDayMonth,
+  formatFixed,
+  formatInteger,
+  formatNumber,
+  formatPercent,
+} from '@/lib/format';
+import type { AdDetail, AudienceBucket, MetricComparison, ReadStatus } from '@/types/facebook';
 
 type State =
   | { kind: 'loading'; previous: AdDetail | null }
@@ -15,8 +25,17 @@ type State =
   | { kind: 'error'; message: string; notFound: boolean };
 
 const REVENUE_COLOR = 'var(--color-revenue)';
+const SPEND_COLOR = 'var(--color-spend)';
 const PROFIT_COLOR = 'var(--color-violet)';
 const LOSS_COLOR = 'var(--color-loss)';
+
+const FUNNEL_STAGES: { key: keyof AdDetail['ad']['funnel']; label: string }[] = [
+  { key: 'firstPageView', label: 'First Page View' },
+  { key: 'qs', label: 'Q.S.' },
+  { key: 'lead', label: 'Lead/Partial' },
+  { key: 'addToCart', label: 'Add To Cart' },
+  { key: 'purchase', label: 'Purchase' },
+];
 
 const STATUS_CLASSES: Record<ReadStatus, string> = {
   scale: 'border-revenue/60 text-revenue',
@@ -91,9 +110,18 @@ export default function FacebookAdDetailPage() {
   const data = state.kind === 'ok' ? state.data : state.previous;
   if (!data) return <AdDetailSkeleton />;
 
-  const { ad, comparisons, read, daily, taxonomy } = data;
+  const { ad, comparisons, read, daily, taxonomy, audience } = data;
   const busy = state.kind === 'loading';
   const period = data.dateRangeLabel;
+
+  // each stage as an independent share of link clicks (not a chained funnel)
+  const stageShares = FUNNEL_STAGES.map((st) => ({
+    label: st.label,
+    share: ad.linkClicks > 0 ? (ad.funnel[st.key] / ad.linkClicks) * 100 : 0,
+  }));
+  const weakest = stageShares.reduce((min, st) => (st.share < min.share ? st : min), stageShares[0]!);
+  const ageBuckets = audience.age.filter((b) => b.value > 0);
+  const genderBuckets = audience.gender.filter((b) => b.value > 0);
   const hollowDays = daily.map((d, i) => (d.spend > 0 && d.purchases === 0 ? i : -1)).filter((i) => i >= 0);
   const hasCacData = daily.some((d) => d.spend > 0);
 
@@ -183,6 +211,65 @@ export default function FacebookAdDetailPage() {
         </p>
       </section>
 
+      <section aria-label="Ad breakdowns" className="grid gap-6 md:grid-cols-2 3xl:grid-cols-4">
+        <ChartCard
+          title="Funnel Drop-off"
+          subtitle={FUNNEL_STAGES.map((st) => st.label).join(' → ')}
+        >
+          {ad.linkClicks === 0 ? (
+            <EmptyChart>No link clicks in this period.</EmptyChart>
+          ) : (
+            <>
+              <BarChart
+                className="mt-3"
+                height={230}
+                ariaLabel="Funnel stages as a share of link clicks"
+                categories={stageShares.map((st) => st.label)}
+                series={[
+                  { key: 'share', label: '% of link clicks', color: REVENUE_COLOR, values: stageShares.map((st) => st.share) },
+                ]}
+                formatValue={(v) => formatFixed(v, 2)}
+                formatTick={(v) => String(Math.round(v))}
+                formatTooltipValue={(v) => `${formatFixed(v, 2)}% of clicks`}
+                intervals={3}
+                headroom={1.2}
+                barMaxWidth={72}
+              />
+              <p className="mt-5 text-sm leading-relaxed text-ink-2">
+                Weakest signal: <span className="font-bold text-ink">{weakest.label}</span> (
+                {formatFixed(weakest.share, 2)}%). These are each an independent share of link
+                clicks from network tracking rather than a strict step-by-step funnel, so use them
+                to spot which stage lags — not as a literal drop-off chain.
+              </p>
+            </>
+          )}
+        </ChartCard>
+
+        <ChartCard title="Revenue vs. Amount Spent" caption={ad.adName}>
+          <BarChart
+            className="mt-3"
+            height={230}
+            ariaLabel={`Revenue versus amount spent for ${ad.adName}`}
+            categories={['Revenue', 'Amount Spent']}
+            series={[{ key: 'usd', label: 'USD', color: REVENUE_COLOR, values: [ad.revenue, ad.spend] }]}
+            formatValue={(v) => formatNumber(v, 1)}
+            formatTick={(v) => String(Math.round(v))}
+            formatTooltipValue={(v) => formatCurrency(v)}
+            intervals={3}
+            headroom={1.2}
+            barMaxWidth={180}
+          />
+        </ChartCard>
+
+        <AudienceMiniCard title="Audience by Age" caption={ad.adName} buckets={ageBuckets} color={REVENUE_COLOR} />
+        <AudienceMiniCard
+          title="Audience by Gender"
+          caption={ad.adName}
+          buckets={genderBuckets}
+          color={SPEND_COLOR}
+        />
+      </section>
+
       <CreativeTaxonomyCard taxonomy={taxonomy} />
 
       <section aria-labelledby="cac-heading" className="rounded-xl border border-line bg-surface p-7">
@@ -226,6 +313,7 @@ export default function FacebookAdDetailPage() {
               formatValue={(v) => formatCurrency(v, { whole: true })}
               intervals={3}
               headroom={1.2}
+              fallbackMax={100}
             />
             <p className="mt-3 text-xs text-ink-3">
               <span className="text-revenue" aria-hidden="true">●</span> = CAC that day ·{' '}
@@ -235,6 +323,8 @@ export default function FacebookAdDetailPage() {
           </>
         )}
       </section>
+
+      <DailyPerformanceTable daily={daily} />
 
       <section aria-labelledby="ad-trend-heading" className="rounded-xl border border-line bg-surface p-7">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
@@ -291,6 +381,66 @@ export default function FacebookAdDetailPage() {
   );
 }
 
+function ChartCard({
+  title,
+  caption,
+  subtitle,
+  children,
+}: {
+  title: string;
+  caption?: string;
+  subtitle?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col rounded-xl border border-line bg-surface p-6">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-lg font-bold text-ink">{title}</h2>
+        {caption && <p className="shrink-0 text-sm text-ink-2">{caption}</p>}
+      </div>
+      {subtitle && <p className="mt-1 text-sm text-ink-2">{subtitle}</p>}
+      {children}
+    </div>
+  );
+}
+
+function EmptyChart({ children }: { children: ReactNode }) {
+  return <div className="flex h-[230px] items-center justify-center text-sm text-ink-3">{children}</div>;
+}
+
+function AudienceMiniCard({
+  title,
+  caption,
+  buckets,
+  color,
+}: {
+  title: string;
+  caption: string;
+  buckets: AudienceBucket[];
+  color: string;
+}) {
+  return (
+    <ChartCard title={title} caption={caption}>
+      {buckets.length === 0 ? (
+        <EmptyChart>No audience data in this period.</EmptyChart>
+      ) : (
+        <BarChart
+          className="mt-3"
+          height={230}
+          ariaLabel={`${title} (link clicks)`}
+          categories={buckets.map((b) => b.label)}
+          series={[{ key: 'clicks', label: 'Link clicks', color, values: buckets.map((b) => b.value) }]}
+          formatValue={(v) => String(Math.round(v))}
+          formatTooltipValue={formatInteger}
+          intervals={3}
+          headroom={1.2}
+          barMaxWidth={120}
+        />
+      )}
+    </ChartCard>
+  );
+}
+
 function BackButton({ to }: { to: string }) {
   return (
     <Link
@@ -323,8 +473,14 @@ function AdDetailSkeleton() {
         ))}
       </div>
       <div className={`${block} h-64`} />
+      <div className="grid gap-6 md:grid-cols-2 3xl:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className={`${block} h-80`} />
+        ))}
+      </div>
       <div className={`${block} h-[440px]`} />
       <div className={`${block} h-[360px]`} />
+      <div className={`${block} h-[420px]`} />
       <div className={`${block} h-[400px]`} />
     </div>
   );

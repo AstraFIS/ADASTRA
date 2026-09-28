@@ -1,7 +1,18 @@
 import type { NextFunction, Request, Response } from 'express';
 import { User, type UserRole } from '../models/user.model.js';
 import { HttpError } from '../utils/httpError.js';
-import { verifyToken } from '../utils/jwt.js';
+import { verifyToken, type AuthUser } from '../utils/jwt.js';
+
+// Adds `req.user` to Express's Request type. It lives here (a module every
+// route imports) rather than in a standalone .d.ts so no build can skip it.
+declare global {
+  namespace Express {
+    interface Request {
+      /** Set by requireAuth after the Bearer token is verified. */
+      user?: AuthUser;
+    }
+  }
+}
 
 /** Requires a valid `Authorization: Bearer <token>` header and an active user. */
 export async function requireAuth(req: Request, _res: Response, next: NextFunction): Promise<void> {

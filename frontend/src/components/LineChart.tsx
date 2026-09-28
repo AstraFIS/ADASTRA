@@ -33,6 +33,8 @@ interface Props {
   height?: number;
   intervals?: number;
   headroom?: number;
+  /** Top of the y-axis when no series has a positive value (keeps the scale readable). */
+  fallbackMax?: number;
   ariaLabel: string;
   className?: string;
 }
@@ -58,6 +60,7 @@ export default function LineChart({
   height = 320,
   intervals = 3,
   headroom = 1.15,
+  fallbackMax = 1,
   ariaLabel,
   className = '',
 }: Props) {
@@ -68,7 +71,7 @@ export default function LineChart({
   const all = series.flatMap((s) => s.values).filter((v): v is number => v !== null);
   const rawMax = all.length ? Math.max(0, ...all) : 0;
   const rawMin = all.length ? Math.min(0, ...all) : 0;
-  const yMax = rawMax > 0 ? rawMax * headroom : rawMin < 0 ? 0 : 1;
+  const yMax = rawMax > 0 ? rawMax * headroom : rawMin < 0 ? 0 : fallbackMax;
   const yMin = rawMin < 0 ? rawMin * headroom : 0;
   const span = yMax - yMin || 1;
 

@@ -26,7 +26,10 @@ Then fill in `backend/.env`:
 | `CLIENT_ORIGIN`   | Allowed CORS origin, defaults to the Vite dev URL  |
 | `ADMIN_*`         | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` for the seed script only |
 
-Create the first admin account (user creation is admin-only, so this bootstraps it):
+Create the first admin account. The easiest way is the app itself: while no
+users exist, `/login` shows a one-time "Create the first admin account" form
+(backed by `POST /api/auth/setup`, which refuses once any user exists). The seed
+script does the same from the terminal:
 
 ```bash
 ADMIN_EMAIL=you@example.com ADMIN_PASSWORD='a-strong-password' npm run seed:admin -w backend
@@ -51,12 +54,15 @@ The Vite dev server proxies `/api/*` to the backend, so the frontend can call
 | Method | Path                      | Returns                                              |
 | ------ | ------------------------- | ---------------------------------------------------- |
 | GET    | `/api/health`             | `status`, `db` connection state, uptime              |
+| GET    | `/api/auth/status`        | `{ needsSetup }` — true while no user exists          |
+| POST   | `/api/auth/setup`         | First-run only: `{ name, email, password }` → `201 { token, user }` as admin; `409` afterwards |
 | POST   | `/api/auth/login`         | `{ email, password }` → `{ token, user }` (rate limited: 10 / 15 min) |
 | GET    | `/api/auth/me`            | Current user. Requires `Authorization: Bearer <token>` |
 | POST   | `/api/users`              | `{ name, email, password, role? }` → `201 { user }`. Admin only |
+| GET    | `/api/platforms/*`        | **All platform endpoints below require a Bearer token** (401 otherwise) |
 | GET    | `/api/platforms/overview` | Client/portfolio, totals, and per-platform summaries |
 | GET    | `/api/platforms/facebook/dashboard` | Facebook KPIs + provider fees. Query: `range` (`this_month`, `last_month`, `last_7_days`, `last_30_days`, `all_time`), `ad`, `offer` |
-| GET    | `/api/platforms/facebook/ads/:adName` | One ad for the `range`: metrics, account-average comparisons (CTR, CPC, CAC), a rule-based marketing read (`scale` / `monitor` / `review` / `low_sample` / `no_data`), its creative taxonomy (two field groups with per-field confidence) and a daily series covering every reporting day in the range (zeros when the ad did not run; `cac` is null on days without purchases). 404 for unknown ads |
+| GET    | `/api/platforms/facebook/ads/:adName` | One ad for the `range`: metrics, account-average comparisons (CTR, CPC, CAC), a rule-based marketing read (`scale` / `monitor` / `review` / `low_sample` / `no_data`), its creative taxonomy (two field groups with per-field confidence), its own audience buckets (link clicks by age / gender) and a daily series covering every reporting day in the range (zeros when the ad did not run; each day carries `funnel` counts, `cac` — null without purchases — and `roas` — null without spend). 404 for unknown ads |
 
 Errors are JSON: `{ error }`, plus `details: [{ path, message }]` on `400`
 validation failures. Roles are `admin` and `user`. Passwords are hashed with
@@ -83,23 +89,39 @@ computed client-side.
 
 ## Frontend pages
 
+Every route except `/login` sits behind `RequireAuth`
+(`src/auth/RequireAuth.tsx`): without a valid token the app redirects to
+`/login`, and signing in always lands on the home page. The token lives
+in `localStorage` (`adastra.token`), is attached to every API call by
+`src/lib/api.ts`, is re-validated against `/api/auth/me` on page load, and any
+`401` from the API signs the user out. `useAuth()` from `src/auth/AuthContext.tsx`
+exposes `user`, `status`, `login`, `setup` and `logout`.
+
 | Route              | Page                                                       |
 | ------------------ | ---------------------------------------------------------- |
 | `/`                | All Platforms Overview: tabs, KPI tiles, chart, platform cards |
 | `/platforms/facebook` | Ad Performance Dashboard: filters (URL-synced), 7 KPI tiles, provider fee cards, revenue-vs-spend by ad chart, audience by age / gender, daily revenue vs. gross profit trend, sortable funnel table by ad & offer |
-| `/platforms/facebook/ads/:adName` | Ad detail: KPI tiles with account-average comparisons, "Marketing read" card (status badge, bullets, recommended next step), Creative Taxonomy card, Cost of Acquisition daily trend (filled dot = CAC, hollow red ring = spend but no purchases, gap = no spend), the ad's revenue vs. gross profit trend. Linked from the funnel table |
+| `/platforms/facebook/ads/:adName` | Ad detail: KPI tiles with account-average comparisons, "Marketing read" card (status badge, bullets, recommended next step), a row of four mini charts (funnel stages as independent shares of link clicks with the weakest stage called out, revenue vs. spend, audience by age / gender for this ad), Creative Taxonomy card, Cost of Acquisition daily trend (filled dot = CAC, hollow red ring = spend but no purchases, gap = no spend), Daily Performance table (per-day funnel with step-over-step %, CAC, ROAS; idle days omitted), the ad's revenue vs. gross profit trend. Linked from the funnel table |
 | `/platforms/:slug` | Placeholder for platforms not yet connected                |
-| `/login`           | Sign-in placeholder                                        |
+| `/login`           | Sign in, or first-run admin setup when no users exist      |
 
 `src/components/BarChart.tsx` is the shared SVG bar chart (single or grouped
 series, value labels, hover/focus tooltip, screen-reader table). It sizes to its
-wrapper, so give it a fixed `height` or a `flex-1`/`min-h` wrapper.
+wrapper, so give it a fixed `height` or a `flex-1`/`min-h` wrapper. Category
+labels wrap onto up to three lines in narrow groups and the bottom margin grows
+to fit.
 `src/components/LineChart.tsx` is the matching multi-series line chart with a
 crosshair tooltip (hover, or focus + arrow keys), point labels that hide when
 points get dense, and a dashed zero line when values go negative. A `null`
 value breaks the line; `hollowAt` indexes draw a ring on the zero line.
 `src/components/CreativeTaxonomyCard.tsx` renders the taxonomy in two columns
-and flags fields under 70% confidence.
+and flags fields under 70% confidence. `src/components/DailyPerformanceTable.tsx`
+is the per-day funnel table on the ad page.
+
+Funnel stage naming: the source sheet's "Q.S." is the quiz-start stage and
+"Lead / Partial" is the quiz-end stage; the funnel table keeps the sheet's
+labels while the daily table uses Page Visit / Quiz Start / Quiz End / Add to
+Cart / Purchased for the same fields.
 `src/components/FunnelTable.tsx` is the sortable funnel table (click a header;
 "Hide inactive ads" toggle; ads under 10 clicks show "low sample"; clicking an
 ad name opens its detail page).
@@ -109,6 +131,9 @@ The marketing read is deterministic and lives in `buildRead()` in
 between −25% and 25% → Monitor, below −25% → Review; under 10 clicks → Low
 sample; no spend or clicks → No data. Comparisons use the account-wide blended
 CTR / CPC / CAC for the same period; within ±2% reads as "in line".
+
+`src/layouts/AdminLayout.tsx` is a top bar only (brand, Overview / Facebook
+links, current user, sign out) — there is no sidebar; pages use the full width.
 
 Theme tokens (surfaces, ink, `revenue` / `spend` / `loss` accents) are defined
 in `frontend/src/index.css` under `@theme` and used as Tailwind utilities

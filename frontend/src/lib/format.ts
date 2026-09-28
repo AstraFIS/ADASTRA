@@ -23,6 +23,23 @@ export function formatInteger(value: number): string {
   return integer.format(value);
 }
 
+/** 568.7 → "568.7", 675 → "675" — plain number with at most `maxDecimals` decimals */
+export function formatNumber(value: number, maxDecimals = 1): string {
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: maxDecimals })
+    .format(value)
+    .replace(/^-/, '\u2212');
+}
+
+/** 6.02 → "6.02", 57.5 → "57.50" — plain number with exactly `decimals` decimals */
+export function formatFixed(value: number, decimals = 2): string {
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })
+    .format(value)
+    .replace(/^-/, '\u2212');
+}
+
 const compactCurrency = new Intl.NumberFormat('en-US', {
   style: 'currency',
   currency: 'USD',
@@ -64,6 +81,12 @@ export function formatDate(isoDate: string, style: 'long' | 'medium' | 'short' =
         ? { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }
         : { month: 'short', day: 'numeric', timeZone: 'UTC' };
   return new Intl.DateTimeFormat('en-US', options).format(date);
+}
+
+/** "2026-09-13" → "13/09/2026" */
+export function formatDateNumeric(isoDate: string): string {
+  const [year, month, day] = isoDate.split('-');
+  return year && month && day ? `${day}/${month}/${year}` : isoDate;
 }
 
 /** "2026-09-01" → "01/09" (day/month) for compact axis labels */

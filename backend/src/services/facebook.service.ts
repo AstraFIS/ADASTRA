@@ -333,6 +333,8 @@ const emptyDay = (date: string): DailyPoint => ({
   linkClicks: 0,
   purchases: 0,
   cac: null,
+  roas: null,
+  funnel: { firstPageView: 0, qs: 0, lead: 0, addToCart: 0, purchase: 0 },
 });
 
 /**
@@ -349,6 +351,11 @@ function summariseDaily(rows: AdMetricRow[], dates?: string[]): DailyPoint[] {
     entry.spend += r.spend * (1 + feeRateFor(r.provider));
     entry.linkClicks += r.linkClicks;
     entry.purchases += r.purchase;
+    entry.funnel.firstPageView += r.landingPageViews;
+    entry.funnel.qs += r.qs;
+    entry.funnel.lead += r.lead;
+    entry.funnel.addToCart += r.addToCart;
+    entry.funnel.purchase += r.purchase;
     byDate.set(r.date, entry);
   }
   return [...byDate.values()]
@@ -365,6 +372,7 @@ function summariseDaily(rows: AdMetricRow[], dates?: string[]): DailyPoint[] {
         grossProfit: round2(revenue - spendBeforeFees),
         netProfit: round2(revenue - spend),
         cac: d.purchases > 0 ? round2(spend / d.purchases) : null,
+        roas: spend > 0 ? (revenue - spend) / spend : null,
       };
     });
 }
@@ -702,10 +710,12 @@ export function getFacebookAdDetail(adName: string, dateRange: DateRangeKey): Ad
 
   // every day the account reported on in this range, so gaps are visible per ad
   const reportingDays = [...new Set(rows.map((r) => r.date))].sort();
+  const adRows = rows.filter((r) => r.adName === adName);
 
   return {
     ad,
     taxonomy: getTaxonomy(adName),
+    audience: summariseAudience(adRows),
     dateRange,
     dateRangeLabel: DATE_RANGE_OPTIONS.find((o) => o.key === dateRange)?.label ?? dateRange,
     dateRangeOptions: DATE_RANGE_OPTIONS,
@@ -713,9 +723,6 @@ export function getFacebookAdDetail(adName: string, dateRange: DateRangeKey): Ad
     account,
     comparisons,
     read: buildRead(ad, comparisons),
-    daily: summariseDaily(
-      rows.filter((r) => r.adName === adName),
-      reportingDays,
-    ),
+    daily: summariseDaily(adRows, reportingDays),
   };
 }

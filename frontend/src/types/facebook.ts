@@ -39,14 +39,6 @@ export interface FacebookDashboardFilters {
   };
 }
 
-export interface AdFunnel {
-  firstPageView: number;
-  qs: number;
-  lead: number;
-  addToCart: number;
-  purchase: number;
-}
-
 export interface AdBreakdown {
   adName: string;
   offer: string;
@@ -75,6 +67,14 @@ export interface FacebookAudience {
   gender: AudienceBucket[];
 }
 
+export interface AdFunnel {
+  firstPageView: number;
+  qs: number;
+  lead: number;
+  addToCart: number;
+  purchase: number;
+}
+
 export interface DailyPoint {
   date: string;
   revenue: number;
@@ -85,6 +85,8 @@ export interface DailyPoint {
   linkClicks: number;
   purchases: number;
   cac: number | null;
+  roas: number | null;
+  funnel: AdFunnel;
 }
 
 export interface FacebookDashboard {
@@ -141,6 +143,7 @@ export interface CreativeTaxonomy {
 export interface AdDetail {
   ad: AdBreakdown;
   taxonomy: CreativeTaxonomy | null;
+  audience: FacebookAudience;
   dateRange: DateRangeKey;
   dateRangeLabel: string;
   dateRangeOptions: DateRangeOption[];

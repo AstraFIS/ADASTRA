@@ -23,11 +23,11 @@ export interface AdMetricRow {
   landingPageViews: number; // shown as "First Page View" in the funnel table
   linkClicks: number;
   impressions: number;
-  // funnel stages after the first page view
-  qs: number; // "Q.S." stage, as labelled in the source sheet
-  lead: number;
+  // funnel stages after the first page view (page visit)
+  qs: number; // "Q.S." = quiz start
+  lead: number; // "Lead / Partial" = quiz end
   addToCart: number;
-  purchase: number;
+  purchase: number; // verified conversion count (CV), used for CAC / ROAS
 }
 
 export interface ProviderFeeSummary {
@@ -64,14 +64,6 @@ export interface FacebookDashboardFilters {
   };
 }
 
-export interface AdFunnel {
-  firstPageView: number;
-  qs: number;
-  lead: number;
-  addToCart: number;
-  purchase: number;
-}
-
 /** Per-ad totals for the by-ad chart and the funnel table. */
 export interface AdBreakdown {
   adName: string;
@@ -102,7 +94,15 @@ export interface FacebookAudience {
   gender: AudienceBucket[];
 }
 
-/** One day's totals across the filtered rows, for the daily trend chart. */
+export interface AdFunnel {
+  firstPageView: number;
+  qs: number;
+  lead: number;
+  addToCart: number;
+  purchase: number;
+}
+
+/** One day's totals across the filtered rows, for the daily trend charts and table. */
 export interface DailyPoint {
   date: string; // YYYY-MM-DD
   revenue: number;
@@ -113,6 +113,8 @@ export interface DailyPoint {
   linkClicks: number;
   purchases: number;
   cac: number | null; // spend / purchases, null when there were no purchases
+  roas: number | null; // (revenue − spend) / spend, null when nothing was spent
+  funnel: AdFunnel;
 }
 
 export interface FacebookDashboard {
@@ -177,6 +179,8 @@ export interface CreativeTaxonomy {
 export interface AdDetail {
   ad: AdBreakdown;
   taxonomy: CreativeTaxonomy | null;
+  /** This ad's link clicks split by age and gender for the range. */
+  audience: FacebookAudience;
   dateRange: DateRangeKey;
   dateRangeLabel: string;
   dateRangeOptions: DateRangeOption[];
