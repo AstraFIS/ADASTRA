@@ -17,3 +17,12 @@ export interface FbStatisticsResult {
   statistics: FbStatistics;
   meta: { rows: number; ads: number; impressions: number; spend_before_fees: number; provider_fees: number };
 }
+
+export interface FbOptionsResult {
+  dateRanges: { key: DateRangeKey; label: string }[];
+  ads: string[];
+  offers: string[];
+  providers: string[];
+  dataThrough: string | null;
+  rows: number;
+}

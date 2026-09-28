@@ -60,7 +60,7 @@ const COLUMNS: Column[] = [
     source: 'ad_name',
     align: 'left',
     defaultDir: 'asc',
-    sortValue: (r) => r.ad_name.toLowerCase(),
+    sortValue: (r) => String(r.ad_name).toLowerCase(),
     render: (r) => <AdNameLink row={r} />,
   },
   {
@@ -69,7 +69,7 @@ const COLUMNS: Column[] = [
     source: 'offer_name',
     align: 'left',
     defaultDir: 'asc',
-    sortValue: (r) => r.offer_name.toLowerCase(),
+    sortValue: (r) => String(r.offer_name).toLowerCase(),
     render: (r) => <span className="text-ink">{r.offer_name}</span>,
   },
   {
@@ -150,7 +150,7 @@ const COLUMNS: Column[] = [
 function AdNameLink({ row }: { row: FunnelRow }) {
   const [params] = useSearchParams();
   const range = params.get('range');
-  const href = `/platforms/facebook/ads/${encodeURIComponent(row.ad_name)}${range ? `?range=${range}` : ''}`;
+  const href = `/platforms/facebook/ads/${encodeURIComponent(String(row.ad_name))}${range ? `?range=${range}` : ''}`;
   return (
     <Link
       to={href}
@@ -190,8 +190,8 @@ export default function FunnelTable({ rows: input, activeWindowDays }: Props) {
       .sort(
         (a, b) =>
           compare(column.sortValue(a), column.sortValue(b), sort.dir) ||
-          a.ad_name.localeCompare(b.ad_name) ||
-          a.offer_name.localeCompare(b.offer_name),
+          String(a.ad_name).localeCompare(String(b.ad_name)) ||
+          String(a.offer_name).localeCompare(String(b.offer_name)),
       );
   }, [input, hideInactive, sort]);
 

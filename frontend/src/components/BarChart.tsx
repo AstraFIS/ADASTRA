@@ -58,14 +58,16 @@ function columnPath(x: number, top: number, width: number, height: number): stri
   ].join(' ');
 }
 
-function truncate(label: string, maxChars: number): string {
+function truncate(raw: string, maxChars: number): string {
+  const label = String(raw);
   if (label.length <= maxChars) return label;
   return `${label.slice(0, Math.max(1, maxChars - 1))}…`;
 }
 
 /** Break a label into up to LABEL_MAX_LINES lines at spaces or after "/", truncating what still overflows. */
-function wrapLabel(label: string, maxChars: number): string[] {
-  const words = label.split(/ +|(?<=\/)/).filter(Boolean);
+function wrapLabel(raw: string, maxChars: number): string[] {
+  // categories may arrive as numbers (e.g. an ad literally named 3.1 stored as a number)
+  const words = String(raw ?? '').split(/ +|(?<=\/)/).filter(Boolean);
   const lines: string[] = [];
   for (const word of words) {
     const last = lines[lines.length - 1];
@@ -115,7 +117,7 @@ export default function BarChart({
   const labelFont = groupW < 70 ? 11 : 12;
   const labelEvery = groupW > 0 && groupW < 36 ? Math.ceil(36 / groupW) : 1;
   const maxLabelChars = Math.max(3, Math.floor((groupW * labelEvery - 6) / (labelFont * LABEL_CHAR_EM)));
-  const wrapped = categories.map((c) => wrapLabel(c, maxLabelChars));
+  const wrapped = categories.map((c) => wrapLabel(String(c ?? ''), maxLabelChars));
   const labelLines = Math.max(1, ...wrapped.map((w) => w.length));
   const marginBottom = 24 + labelLines * LABEL_LINE_HEIGHT;
 

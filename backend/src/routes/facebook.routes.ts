@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getCharts } from '../controllers/fbCharts.controller.js';
 import { getDailyTrend } from '../controllers/fbDailyTrend.controller.js';
 import { getFunnel } from '../controllers/fbFunnel.controller.js';
+import { getOptions } from '../controllers/fbOptions.controller.js';
 import { getStatistics } from '../controllers/fbStatistics.controller.js';
 import { getFacebookAdDetail, getFacebookDashboard } from '../services/facebook.service.js';
 import { DATE_RANGE_KEYS } from '../types/facebook.js';
@@ -31,6 +32,9 @@ facebookRouter.get('/daily-trend', getDailyTrend);
 
 /** GET /api/platforms/facebook/funnel — one row per ad × offer with funnel stage counts */
 facebookRouter.get('/funnel', getFunnel);
+
+/** GET /api/platforms/facebook/options — dropdown choices from the report collection */
+facebookRouter.get('/options', getOptions);
 
 /** GET /api/platforms/facebook/dashboard?range=this_month&ad=...&offer=... */
 facebookRouter.get('/dashboard', (req, res) => {

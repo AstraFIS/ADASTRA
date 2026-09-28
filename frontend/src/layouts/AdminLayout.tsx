@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthContext';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 const navItems = [
   { to: '/', label: 'Overview', end: true, adminOnly: false },
@@ -65,8 +66,10 @@ export default function AdminLayout() {
       </header>
 
       <main className="flex-1 px-4 py-6 md:px-10 md:py-8">
-        <Outlet />
-      </main>
+          <ErrorBoundary label="This page">
+            <Outlet />
+          </ErrorBoundary>
+        </main>
     </div>
   );
 }

@@ -29,7 +29,9 @@ export interface FbStatisticsResult {
   meta: { rows: number; ads: number; impressions: number; spend_before_fees: number; provider_fees: number };
 }
 
-type ReportFilter = QueryFilter<IFacebookAdReport>;
+/** Loose match object: filters may hold `$in` with mixed string/number values (see textMatch). */
+export type ReportFilter = Record<string, unknown>;
+const asQuery = (m: ReportFilter) => m as QueryFilter<IFacebookAdReport>;
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const toDate = (iso: string, endOfDay = false) => new Date(`${iso}T${endOfDay ? '23:59:59.999' : '00:00:00.000'}Z`);
@@ -46,11 +48,21 @@ const EMPTY: FbStatistics = {
 
 export type ReportBounds = { from: string; to: string } | null;
 
+/**
+ * Match a text field against a query value. Rows imported outside Mongoose may
+ * hold a number where we expect text (an ad literally named 3.1), so a numeric-
+ * looking value matches both representations.
+ */
+export function textMatch(value: string): unknown {
+  const asNumber = Number(value);
+  return value.trim() !== '' && Number.isFinite(asNumber) ? { $in: [value, asNumber] } : value;
+}
+
 /** Mongo match for the ad / offer part of a query. */
 export function reportBaseMatch(query: Pick<FbStatisticsQuery, 'ad' | 'offer'>): ReportFilter {
   const baseMatch: ReportFilter = {};
-  if (query.ad) baseMatch.ad_name = query.ad;
-  if (query.offer) baseMatch.offer_name = query.offer;
+  if (query.ad) baseMatch.ad_name = textMatch(query.ad);
+  if (query.offer) baseMatch.offer_name = textMatch(query.offer);
   return baseMatch;
 }
 
@@ -60,7 +72,7 @@ export function reportBaseMatch(query: Pick<FbStatisticsQuery, 'ad' | 'offer'>):
  * month the data was last updated, not the server clock.
  */
 export async function resolveReportBounds(query: FbStatisticsQuery, baseMatch: ReportFilter): Promise<ReportBounds> {
-  const latest = await FacebookAdReport.findOne(baseMatch).sort({ report_date: -1 }).select('report_date');
+  const latest = await FacebookAdReport.findOne(asQuery(baseMatch)).sort({ report_date: -1 }).select('report_date');
   if (query.from || query.to) {
     return {
       from: query.from ?? '0001-01-01',

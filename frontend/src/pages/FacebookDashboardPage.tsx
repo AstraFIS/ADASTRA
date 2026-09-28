@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import BarChart from '@/components/BarChart';
 import ChartLegend from '@/components/ChartLegend';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import FilterSelect from '@/components/FilterSelect';
 import FunnelTable from '@/components/FunnelTable';
 import LineChart from '@/components/LineChart';
@@ -20,7 +21,7 @@ import type { AudienceBucket, FacebookDashboard } from '@/types/facebook';
 import type { FbChartsResult } from '@/types/fbCharts';
 import type { FbDailyTrendResult } from '@/types/fbDailyTrend';
 import type { FbFunnelResult } from '@/types/fbFunnel';
-import type { FbStatisticsResult } from '@/types/fbStatistics';
+import type { FbOptionsResult, FbStatisticsResult } from '@/types/fbStatistics';
 
 type State =
   | { kind: 'loading'; previous: FacebookDashboard | null }
@@ -66,6 +67,23 @@ export default function FacebookDashboardPage() {
   const [charts, setCharts] = useState<ChartsState>({ kind: 'loading', previous: null });
   const [trend, setTrend] = useState<TrendState>({ kind: 'loading', previous: null });
   const [funnel, setFunnel] = useState<FunnelState>({ kind: 'loading', previous: null });
+  const [options, setOptions] = useState<FbOptionsResult | null>(null);
+
+  // dropdown choices come from the report collection; loaded once, independent of the filters
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get<FbOptionsResult>('/platforms/facebook/options')
+      .then((o) => {
+        if (!cancelled) setOptions(o);
+      })
+      .catch(() => {
+        // fall back to the dashboard's own option list
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [reloadKey, setReloadKey] = useState(0);
   const [showAllAds, setShowAllAds] = useState(false);
 
@@ -201,6 +219,12 @@ export default function FacebookDashboardPage() {
 
   const funnelData = funnel.kind === 'ok' ? funnel.data : funnel.kind === 'loading' ? funnel.previous : null;
   const funnelBusy = funnel.kind === 'loading';
+
+  // prefer the database's ad / offer lists; keep the current selection selectable even if it's not listed
+  const adOptions = options && options.rows > 0 ? options.ads : filters.options.ads;
+  const offerOptions = options && options.rows > 0 ? options.offers : filters.options.offers;
+  const withCurrent = (list: string[], current: string | null) =>
+    current && !list.includes(current) ? [current, ...list] : list;
   const roasCaption = `${roas === null ? 'n/a' : formatPercent(roas, 1)} ROAS · ${periodCaption}`;
 
   return (
@@ -235,7 +259,7 @@ export default function FacebookDashboardPage() {
           id="ad-name"
           label="Filter by Ad Name"
           value={filters.ad ?? ALL}
-          options={[{ value: ALL, label: 'All Ads' }, ...filters.options.ads.map((a) => ({ value: a, label: a }))]}
+          options={[{ value: ALL, label: 'All Ads' }, ...withCurrent(adOptions, filters.ad).map((a) => ({ value: a, label: a }))]}
           onChange={(v) => setFilter('ad', v)}
           className="w-full sm:w-auto sm:min-w-[360px]"
         />
@@ -245,7 +269,7 @@ export default function FacebookDashboardPage() {
           value={filters.offer ?? ALL}
           options={[
             { value: ALL, label: 'All Offers' },
-            ...filters.options.offers.map((o) => ({ value: o, label: o })),
+            ...withCurrent(offerOptions, filters.offer).map((o) => ({ value: o, label: o })),
           ]}
           onChange={(v) => setFilter('offer', v)}
           className="w-full flex-1 sm:min-w-[360px]"
@@ -338,6 +362,7 @@ export default function FacebookDashboardPage() {
         </div>
       </section>
 
+      <ErrorBoundary label="The by-ad and audience charts">
       <section
         aria-label="Breakdowns"
         aria-busy={chartsBusy}
@@ -411,7 +436,9 @@ export default function FacebookDashboardPage() {
           />
         </div>
       </section>
+      </ErrorBoundary>
 
+      <ErrorBoundary label="The daily trend chart">
       <section
         aria-labelledby="trend-heading"
         aria-busy={trendBusy}
@@ -477,7 +504,9 @@ export default function FacebookDashboardPage() {
           </>
         )}
       </section>
+      </ErrorBoundary>
 
+      <ErrorBoundary label="The funnel table">
       <section
         aria-labelledby="funnel-heading"
         aria-busy={funnelBusy}
@@ -500,6 +529,7 @@ export default function FacebookDashboardPage() {
           <FunnelTable rows={funnelData?.rows ?? []} activeWindowDays={funnelData?.meta.active_window_days} />
         )}
       </section>
+      </ErrorBoundary>
     </div>
   );
 }

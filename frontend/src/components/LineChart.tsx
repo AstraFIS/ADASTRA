@@ -190,14 +190,14 @@ export default function LineChart({
           {labels.map((label, i) =>
             i % axisEvery === 0 ? (
               <text
-                key={label + i}
+                key={String(label) + i}
                 x={xFor(i)}
                 y={height - 12}
                 textAnchor="middle"
                 fontSize={12}
                 fill="var(--color-ink-2)"
               >
-                {label}
+                {String(label)}
               </text>
             ) : null,
           )}

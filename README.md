@@ -127,6 +127,18 @@ npm run seed:facebook -w backend      # upserts 24 report rows + 240 audience ro
 
 Real data goes in through `FacebookAdReport.upsertRow(...)` and
 `FacebookAudienceReport.upsertRow(...)` (an import endpoint is the next step).
+Rows written directly into Mongo (mongoimport, Compass, a custom script) skip
+the model's casting; if text fields such as `ad_name` end up stored as numbers
+(an ad literally named `3.1`), run the normaliser:
+
+```bash
+npm run normalize:facebook -w backend              # dry run: reports what would change
+npm run normalize:facebook -w backend -- --apply   # converts numeric names to strings
+```
+
+The read endpoints tolerate mixed types anyway (`$toString` in aggregations and
+filters that match both `"3.1"` and `3.1`), but the unique index and upserts
+only work reliably once the types are consistent.
 Only the provider fee cards on that page still come from the in-memory seed.
 
 ## API
@@ -149,6 +161,7 @@ Only the provider fee cards on that page still come from the in-memory seed.
 | GET    | `/api/platforms/facebook/charts` | Chart data from the report collections with the same query params as statistics: `revenue_vs_spend_by_ad` (per ad: `revenue_usd`, `total_spend_usd`, `spend_usd`, `link_clicks`, sorted by total spend), `audience_by_age` and `audience_by_gender` (`bucket`, `label`, `link_clicks`, `impressions`; every bucket present, zeros included) |
 | GET    | `/api/platforms/facebook/daily-trend` | Per-day totals from the report collection with the same query params: `daily[]` of `date`, `revenue_usd`, `spend_usd`, `provider_fee_usd`, `total_spend_usd`, `gross_profit_usd` (revenue − spend), `net_profit_usd` (revenue − total spend), `link_clicks`, `conversions`, `cac_usd`; only days that have rows |
 | GET    | `/api/platforms/facebook/funnel` | "Funnel Performance by Ad Name & Offer": one row per `ad_name` × `offer_name` with `providers`, `first_date`/`last_date`/`days`, `active` (reported within the last 7 days of the result), `spend_usd`, `provider_fee_usd`, `total_spend_usd`, `impressions`, `clicks_all`, `link_clicks`, `ctr_all`, `cpc_usd`, the stage counts `first_page_views` → `questionnaire_starts` → `leads_partial` → `add_to_carts` → `purchase_events`, `conversions`, `revenue_usd`, `net_profit_usd`, `cac_usd`, `roas_pct`; same query params as statistics |
+| GET    | `/api/platforms/facebook/options` | Dropdown choices from the report collection: `ads`, `offers`, `providers` (distinct, as text, natural-sorted), `dateRanges`, `dataThrough`, `rows` |
 | GET    | `/api/platforms/facebook/dashboard` | Facebook KPIs + provider fees. Query: `range` (`this_month`, `last_month`, `last_7_days`, `last_30_days`, `all_time`), `ad`, `offer` |
 | GET    | `/api/platforms/facebook/ads/:adName` | One ad for the `range`: metrics, account-average comparisons (CTR, CPC, CAC), a rule-based marketing read (`scale` / `monitor` / `review` / `low_sample` / `no_data`), its creative taxonomy (two field groups with per-field confidence), its own audience buckets (link clicks by age / gender) and a daily series covering every reporting day in the range (zeros when the ad did not run; each day carries `funnel` counts, `cac` — null without purchases — and `roas` — null without spend). 404 for unknown ads |
 
@@ -203,6 +216,9 @@ to fit.
 crosshair tooltip (hover, or focus + arrow keys), point labels that hide when
 points get dense, and a dashed zero line when values go negative. A `null`
 value breaks the line; `hollowAt` indexes draw a ring on the zero line.
+`src/components/ErrorBoundary.tsx` wraps the routed page and each data-driven
+section of the Facebook page, so a render error shows an inline message with
+"Try again" instead of unmounting the whole app to a blank screen.
 `src/components/CreativeTaxonomyCard.tsx` renders the taxonomy in two columns
 and flags fields under 70% confidence. `src/components/DailyPerformanceTable.tsx`
 is the per-day funnel table on the ad page.

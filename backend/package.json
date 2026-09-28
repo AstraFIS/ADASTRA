@@ -10,7 +10,8 @@
     "start": "node dist/src/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "seed:admin": "tsx src/scripts/seed-admin.ts",
-    "seed:facebook": "tsx src/scripts/seed-facebook-reports.ts"
+    "seed:facebook": "tsx src/scripts/seed-facebook-reports.ts",
+    "normalize:facebook": "tsx src/scripts/normalize-facebook-reports.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

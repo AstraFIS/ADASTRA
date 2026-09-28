@@ -11,6 +11,7 @@ import {
   describeRange,
   reportBaseMatch,
   resolveReportBounds,
+  textMatch,
   type FbStatisticsQuery,
 } from './fbStatistics.service.js';
 
@@ -57,7 +58,8 @@ export async function getFbCharts(query: FbStatisticsQuery): Promise<FbChartsRes
     { $match: match },
     {
       $group: {
-        _id: '$ad_name',
+        // $toString: names imported as numbers (an ad called 3.1) must still group and render as text
+        _id: { $toString: '$ad_name' },
         revenue_usd: { $sum: '$revenue_usd' },
         total_spend_usd: { $sum: '$total_spend_usd' },
         spend_usd: { $sum: '$spend_usd' },
@@ -70,8 +72,10 @@ export async function getFbCharts(query: FbStatisticsQuery): Promise<FbChartsRes
 
   // ---- audience: same ads and days; an offer filter is applied through the ads that ran it ----
   const audienceMatch: Record<string, unknown> = { ...dateMatch(bounds) };
-  if (query.ad) audienceMatch.ad_name = query.ad;
-  else if (query.offer) audienceMatch.ad_name = { $in: byAd.map((a) => a._id) };
+  if (query.ad) audienceMatch.ad_name = textMatch(query.ad);
+  else if (query.offer) {
+    audienceMatch.ad_name = { $in: byAd.flatMap((a) => (Number.isFinite(Number(a._id)) ? [a._id, Number(a._id)] : [a._id])) };
+  }
 
   const audience = await FacebookAudienceReport.aggregate<{
     _id: { breakdown: AudienceBreakdown; bucket: string };
@@ -82,7 +86,7 @@ export async function getFbCharts(query: FbStatisticsQuery): Promise<FbChartsRes
     { $match: audienceMatch },
     {
       $group: {
-        _id: { breakdown: '$breakdown', bucket: '$bucket' },
+        _id: { breakdown: '$breakdown', bucket: { $toString: '$bucket' } },
         link_clicks: { $sum: '$link_clicks' },
         impressions: { $sum: '$impressions' },
         rows: { $sum: 1 },

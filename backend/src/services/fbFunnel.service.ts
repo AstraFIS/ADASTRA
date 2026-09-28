@@ -84,8 +84,9 @@ export async function getFbFunnel(query: FbStatisticsQuery): Promise<FbFunnelRes
     { $match: match },
     {
       $group: {
-        _id: { ad_name: '$ad_name', offer_name: '$offer_name' },
-        providers: { $addToSet: '$provider_name' },
+        // $toString: names imported as numbers (an ad called 3.1) must still group and render as text
+        _id: { ad_name: { $toString: '$ad_name' }, offer_name: { $toString: '$offer_name' } },
+        providers: { $addToSet: { $toString: '$provider_name' } },
         first_date: { $min: '$report_date' },
         last_date: { $max: '$report_date' },
         days: { $addToSet: '$report_date' },
@@ -119,7 +120,7 @@ export async function getFbFunnel(query: FbStatisticsQuery): Promise<FbFunnelRes
     return {
       ad_name: g._id.ad_name,
       offer_name: g._id.offer_name,
-      providers: g.providers.filter((p): p is string => Boolean(p)).sort(),
+      providers: g.providers.filter((p): p is string => Boolean(p) && p !== 'null').sort(),
       first_date: isoDay(g.first_date),
       last_date: isoDay(g.last_date),
       days: g.days.length,

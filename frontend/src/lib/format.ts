@@ -85,12 +85,12 @@ export function formatDate(isoDate: string, style: 'long' | 'medium' | 'short' =
 
 /** "2026-09-13" → "13/09/2026" */
 export function formatDateNumeric(isoDate: string): string {
-  const [year, month, day] = isoDate.split('-');
-  return year && month && day ? `${day}/${month}/${year}` : isoDate;
+  const [year, month, day] = String(isoDate ?? '').split('-');
+  return year && month && day ? `${day}/${month}/${year}` : String(isoDate ?? '');
 }
 
 /** "2026-09-01" → "01/09" (day/month) for compact axis labels */
 export function formatDayMonth(isoDate: string): string {
-  const [, month, day] = isoDate.split('-');
-  return month && day ? `${day}/${month}` : isoDate;
+  const [, month, day] = String(isoDate ?? '').split('-');
+  return month && day ? `${day}/${month}` : String(isoDate ?? '');
 }
