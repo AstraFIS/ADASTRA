@@ -18,11 +18,23 @@ import {
   formatPercent,
 } from '@/lib/format';
 import type { AdDetail, AudienceBucket, MetricComparison, ReadStatus } from '@/types/facebook';
+import type { FbAdStatisticsResult } from '@/types/fbAdStatistics';
+import type { FbDailyTrendResult } from '@/types/fbDailyTrend';
 
 type State =
   | { kind: 'loading'; previous: AdDetail | null }
   | { kind: 'ok'; data: AdDetail }
   | { kind: 'error'; message: string; notFound: boolean };
+
+type StatsState =
+  | { kind: 'loading'; previous: FbAdStatisticsResult | null }
+  | { kind: 'ok'; data: FbAdStatisticsResult }
+  | { kind: 'error'; message: string; notFound: boolean };
+
+type TrendState =
+  | { kind: 'loading'; previous: FbDailyTrendResult | null }
+  | { kind: 'ok'; data: FbDailyTrendResult }
+  | { kind: 'error'; message: string };
 
 const REVENUE_COLOR = 'var(--color-revenue)';
 const SPEND_COLOR = 'var(--color-spend)';
@@ -54,6 +66,8 @@ export default function FacebookAdDetailPage() {
   const range = params.get('range') ?? 'this_month';
 
   const [state, setState] = useState<State>({ kind: 'loading', previous: null });
+  const [stats, setStats] = useState<StatsState>({ kind: 'loading', previous: null });
+  const [trend, setTrend] = useState<TrendState>({ kind: 'loading', previous: null });
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -70,6 +84,34 @@ export default function FacebookAdDetailPage() {
         const notFound = err instanceof ApiError && err.status === 404;
         setState({ kind: 'error', message: err instanceof Error ? err.message : 'Unknown error', notFound });
       });
+
+    // KPI tiles come from the report collection (per-ad statistics), same range
+    setStats((s) => ({ kind: 'loading', previous: s.kind === 'ok' ? s.data : s.kind === 'loading' ? s.previous : null }));
+    api
+      .get<FbAdStatisticsResult>(
+        `/platforms/facebook/ads/${encodeURIComponent(adName)}/statistics?range=${encodeURIComponent(range)}`,
+      )
+      .then((data) => {
+        if (!cancelled) setStats({ kind: 'ok', data });
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        const notFound = err instanceof ApiError && err.status === 404;
+        setStats({ kind: 'error', message: err instanceof Error ? err.message : 'Unknown error', notFound });
+      });
+
+    // daily trend + daily performance table come from the report collection, filtered to this ad
+    setTrend((s) => ({ kind: 'loading', previous: s.kind === 'ok' ? s.data : s.kind === 'loading' ? s.previous : null }));
+    api
+      .get<FbDailyTrendResult>(
+        `/platforms/facebook/daily-trend?ad=${encodeURIComponent(adName)}&range=${encodeURIComponent(range)}`,
+      )
+      .then((data) => {
+        if (!cancelled) setTrend({ kind: 'ok', data });
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setTrend({ kind: 'error', message: err instanceof Error ? err.message : 'Unknown error' });
+      });
     return () => {
       cancelled = true;
     };
@@ -84,16 +126,19 @@ export default function FacebookAdDetailPage() {
 
   const backHref = `/platforms/facebook${range !== 'this_month' ? `?range=${range}` : ''}`;
 
-  if (state.kind === 'error') {
+  const statsData = stats.kind === 'ok' ? stats.data : stats.kind === 'loading' ? stats.previous : null;
+  const statsBusy = stats.kind === 'loading';
+
+  if (state.kind === 'error' && stats.kind === 'error') {
     return (
       <div className="space-y-6">
         <BackButton to={backHref} />
         <div className="rounded-xl border border-loss/40 bg-surface p-6">
           <p className="font-semibold text-loss">
-            {state.notFound ? `No ad named "${adName}"` : 'Could not load this ad'}
+            {state.notFound && stats.notFound ? `No ad named "${adName}"` : 'Could not load this ad'}
           </p>
-          <p className="mt-1 text-sm text-ink-2">{state.message}</p>
-          {!state.notFound && (
+          <p className="mt-1 text-sm text-ink-2">{stats.message}</p>
+          {!(state.notFound && stats.notFound) && (
             <button
               type="button"
               onClick={() => setReloadKey((k) => k + 1)}
@@ -107,23 +152,35 @@ export default function FacebookAdDetailPage() {
     );
   }
 
-  const data = state.kind === 'ok' ? state.data : state.previous;
-  if (!data) return <AdDetailSkeleton />;
+  const data = state.kind === 'ok' ? state.data : state.kind === 'loading' ? state.previous : null;
+  if (!data && !statsData) return <AdDetailSkeleton />;
 
-  const { ad, comparisons, read, daily, taxonomy, audience } = data;
-  const busy = state.kind === 'loading';
-  const period = data.dateRangeLabel;
+  // header + tiles prefer the report collection; the remaining sections use the detail
+  // endpoint and are simply omitted for ads it does not know about
+  const busy = state.kind === 'loading' || statsBusy;
+  const rangeOptions = statsData
+    ? [
+        { key: 'this_month', label: 'This Month' },
+        { key: 'last_month', label: 'Last Month' },
+        { key: 'last_7_days', label: 'Last 7 Days' },
+        { key: 'last_30_days', label: 'Last 30 Days' },
+        { key: 'all_time', label: 'All Time' },
+      ]
+    : (data?.dateRangeOptions ?? []);
+  const period = statsData?.range.label ?? data?.dateRangeLabel ?? 'Selected period';
+  const headerName = statsData?.ad.ad_name ?? data?.ad.adName ?? adName;
+  const headerOffer = statsData ? statsData.ad.offers.join(', ') || '—' : (data?.ad.offer ?? '—');
+  const headerActive = statsData ? statsData.ad.active : (data?.ad.active ?? true);
+  const k = statsData?.statistics ?? null;
+  const cmp = statsData?.comparisons ?? null;
+  const NA = '—';
 
-  // each stage as an independent share of link clicks (not a chained funnel)
-  const stageShares = FUNNEL_STAGES.map((st) => ({
-    label: st.label,
-    share: ad.linkClicks > 0 ? (ad.funnel[st.key] / ad.linkClicks) * 100 : 0,
-  }));
-  const weakest = stageShares.reduce((min, st) => (st.share < min.share ? st : min), stageShares[0]!);
-  const ageBuckets = audience.age.filter((b) => b.value > 0);
-  const genderBuckets = audience.gender.filter((b) => b.value > 0);
-  const hollowDays = daily.map((d, i) => (d.spend > 0 && d.purchases === 0 ? i : -1)).filter((i) => i >= 0);
-  const hasCacData = daily.some((d) => d.spend > 0);
+  const trendData = trend.kind === 'ok' ? trend.data : trend.kind === 'loading' ? trend.previous : null;
+  const trendBusy = trend.kind === 'loading';
+  const dailyRows = trendData?.daily ?? [];
+  const hollowDays = dailyRows.map((d, i) => (d.total_spend_usd > 0 && d.conversions === 0 ? i : -1)).filter((i) => i >= 0);
+  const hasCacData = dailyRows.some((d) => d.total_spend_usd > 0);
+
 
   return (
     <div className={`space-y-8 transition-opacity ${busy ? 'opacity-60' : ''}`} aria-busy={busy}>
@@ -135,19 +192,19 @@ export default function FacebookAdDetailPage() {
               Ad detail · Charts only
             </p>
             <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-ink">
-              {ad.adName}
-              {!ad.active && (
+              {headerName}
+              {!headerActive && (
                 <span className="ml-3 align-middle text-sm font-medium text-ink-3">inactive</span>
               )}
             </h1>
-            <p className="mt-1 text-base text-ink-2">Offer: {ad.offer}</p>
+            <p className="mt-1 text-base text-ink-2">Offer: {headerOffer}</p>
           </div>
         </div>
         <FilterSelect
           id="ad-date-range"
           label="Date Range"
-          value={data.dateRange}
-          options={data.dateRangeOptions.map((r) => ({ value: r.key, label: r.label }))}
+          value={range}
+          options={rangeOptions.map((r) => ({ value: r.key, label: r.label }))}
           onChange={setRange}
           className="w-full sm:w-auto sm:min-w-[320px]"
         />
@@ -155,41 +212,211 @@ export default function FacebookAdDetailPage() {
 
       <section
         aria-label="Key metrics"
-        className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4 3xl:grid-cols-7"
+        aria-busy={statsBusy}
+        className={`grid grid-cols-2 gap-5 transition-opacity md:grid-cols-3 xl:grid-cols-4 3xl:grid-cols-7 ${statsBusy ? 'opacity-70' : ''}`}
       >
-        <StatCard size="md" tone="spend" label="Amount Spent" value={formatCurrency(ad.spend)} caption={period} />
-        <StatCard size="md" label="Link Clicks" value={formatInteger(ad.linkClicks)} caption={period} />
+        <StatCard size="md" tone="spend" label="Amount Spent" value={k ? formatCurrency(k.amount_spent) : NA} caption={period} />
+        <StatCard size="md" label="Link Clicks" value={k ? formatInteger(k.link_clicks) : NA} caption={period} />
         <StatCard
           size="md"
           label="CTR (All)"
-          value={ad.ctr === null ? '—' : formatPercent(ad.ctr, 2)}
-          caption={comparisons.ctr?.label ?? 'no account average yet'}
-          captionTone={captionToneFor(comparisons.ctr)}
+          value={k?.ctr == null ? NA : formatPercent(k.ctr / 100, 2)}
+          caption={cmp?.ctr?.label ?? 'no account average yet'}
+          captionTone={captionToneFor(cmp?.ctr ?? null)}
         />
         <StatCard
           size="md"
           label="CPC (All)"
-          value={ad.cpc === null ? '—' : formatCurrency(ad.cpc)}
-          caption={comparisons.cpc?.label ?? 'no account average yet'}
-          captionTone={captionToneFor(comparisons.cpc)}
+          value={k?.cpc == null ? NA : formatCurrency(k.cpc)}
+          caption={cmp?.cpc?.label ?? 'no account average yet'}
+          captionTone={captionToneFor(cmp?.cpc ?? null)}
         />
         <StatCard
           size="md"
           label="CAC"
-          value={ad.cac === null ? '—' : formatCurrency(ad.cac)}
-          caption={comparisons.cac?.label ?? (ad.cac === null ? 'no purchases yet' : 'no account average yet')}
-          captionTone={captionToneFor(comparisons.cac)}
+          value={k?.cac == null ? NA : formatCurrency(k.cac)}
+          caption={cmp?.cac?.label ?? (k && k.cac === null ? 'no purchases yet' : 'no account average yet')}
+          captionTone={captionToneFor(cmp?.cac ?? null)}
         />
         <StatCard
           size="md"
-          tone={ad.roas === null ? 'neutral' : ad.roas < 0 ? 'loss' : 'revenue'}
+          tone={k?.roas == null ? 'neutral' : k.roas < 0 ? 'loss' : 'revenue'}
           label="ROAS"
-          value={ad.roas === null ? '—' : formatPercent(ad.roas, 2)}
+          value={k?.roas == null ? NA : formatPercent(k.roas / 100, 2)}
           caption="net return vs. spend"
         />
-        <StatCard size="md" tone="revenue" label="Revenue" value={formatCurrency(ad.revenue)} caption={period} />
+        <StatCard size="md" tone="revenue" label="Revenue" value={k ? formatCurrency(k.revenue) : NA} caption={period} />
       </section>
 
+      {stats.kind === 'error' && (
+        <p role="alert" className="-mt-4 text-sm text-loss">
+          Statistics unavailable: {stats.message}
+        </p>
+      )}
+      {stats.kind === 'ok' && stats.data.meta.rows === 0 && (
+        <p className="-mt-4 text-sm text-ink-3">This ad has no report rows in the selected period.</p>
+      )}
+
+      {data ? (
+        <AdDetailSeedSections data={data} />
+      ) : (
+        <p className="rounded-xl border border-line bg-surface p-6 text-sm text-ink-3">
+          Marketing read and creative taxonomy are not available for this ad yet.
+        </p>
+      )}
+
+      <section
+        aria-labelledby="cac-heading"
+        aria-busy={trendBusy}
+        className={`rounded-xl border border-line bg-surface p-7 transition-opacity ${trendBusy ? 'opacity-70' : ''}`}
+      >
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <h2 id="cac-heading" className="text-lg font-bold text-ink">
+            Cost of Acquisition — Daily Trend
+          </h2>
+          <p className="text-sm text-ink-2">
+            {period} · {headerName}
+          </p>
+        </div>
+        {trend.kind === 'error' ? (
+          <div className="flex items-center justify-center py-16 text-sm text-loss">
+            Trend data unavailable: {trend.message}
+          </div>
+        ) : !hasCacData ? (
+          <div className="flex items-center justify-center py-16 text-sm text-ink-3">
+            {trendData ? 'No spend recorded for this ad in the selected period.' : 'Loading…'}
+          </div>
+        ) : (
+          <>
+            <LineChart
+              className="mt-4"
+              height={280}
+              ariaLabel={`Daily cost of acquisition for ${headerName}`}
+              labels={dailyRows.map((d) => formatDayMonth(d.date))}
+              tooltipLabels={dailyRows.map((d) => formatDate(d.date, 'medium'))}
+              series={[
+                {
+                  key: 'cac',
+                  label: 'CAC',
+                  color: REVENUE_COLOR,
+                  values: dailyRows.map((d) => d.cac_usd),
+                  labelSide: 'above',
+                  hollowAt: hollowDays,
+                  hollowColor: LOSS_COLOR,
+                  hollowText: 'spent, no purchases',
+                  emptyText: 'no spend',
+                },
+              ]}
+              tooltipExtras={[
+                { label: 'Spend (with fees)', values: dailyRows.map((d) => d.total_spend_usd), format: (v) => formatCurrency(v) },
+                { label: 'Conversions', values: dailyRows.map((d) => d.conversions), format: formatInteger },
+              ]}
+              formatValue={(v) => formatCurrency(v, { whole: true })}
+              intervals={3}
+              headroom={1.2}
+              fallbackMax={100}
+            />
+            <p className="mt-3 text-xs text-ink-3">
+              <span className="text-revenue" aria-hidden="true">●</span> = CAC that day ·{' '}
+              <span className="text-loss" aria-hidden="true">○</span> = spent, zero purchases that day ·
+              gap = no spend at all
+            </p>
+          </>
+        )}
+      </section>
+
+
+      <DailyPerformanceTable
+        daily={dailyRows}
+        busy={trendBusy}
+        notice={
+          trend.kind === 'error' ? (
+            <span className="text-loss">Daily data unavailable: {trend.message}</span>
+          ) : !trendData ? (
+            <span className="text-ink-3">Loading…</span>
+          ) : undefined
+        }
+      />
+
+      <section
+        aria-labelledby="ad-trend-heading"
+        aria-busy={trendBusy}
+        className={`rounded-xl border border-line bg-surface p-7 transition-opacity ${trendBusy ? 'opacity-70' : ''}`}
+      >
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <h2 id="ad-trend-heading" className="text-lg font-bold text-ink">
+            Revenue vs. Gross Profit — Daily Trend
+          </h2>
+          <p className="text-sm text-ink-2">
+            {period} · {headerName}
+          </p>
+        </div>
+        {trend.kind === 'error' ? (
+          <div className="flex items-center justify-center py-16 text-sm text-loss">
+            Trend data unavailable: {trend.message}
+          </div>
+        ) : dailyRows.length === 0 ? (
+          <div className="flex items-center justify-center py-16 text-sm text-ink-3">
+            {trendData ? 'No report rows for this ad in the selected period.' : 'Loading…'}
+          </div>
+        ) : (
+          <>
+            <LineChart
+              className="mt-4"
+              height={300}
+              ariaLabel={`Daily revenue and gross profit for ${headerName}`}
+              labels={dailyRows.map((d) => formatDayMonth(d.date))}
+              tooltipLabels={dailyRows.map((d) => formatDate(d.date, 'medium'))}
+              series={[
+                { key: 'revenue', label: 'Revenue', color: REVENUE_COLOR, values: dailyRows.map((d) => d.revenue_usd), labelSide: 'above' },
+                {
+                  key: 'grossProfit',
+                  label: 'Gross Profit',
+                  color: PROFIT_COLOR,
+                  values: dailyRows.map((d) => d.gross_profit_usd),
+                  labelSide: 'below',
+                  labelColor: (v) => (v < 0 ? LOSS_COLOR : PROFIT_COLOR),
+                },
+              ]}
+              tooltipExtras={[
+                { label: 'Spend (before fees)', values: dailyRows.map((d) => d.spend_usd) },
+                { label: 'Spend (with fees)', values: dailyRows.map((d) => d.total_spend_usd) },
+                { label: 'Net profit', values: dailyRows.map((d) => d.net_profit_usd) },
+              ]}
+              formatValue={(v) => formatCurrency(v, { whole: true })}
+              intervals={3}
+              headroom={1.15}
+              fallbackMax={100}
+            />
+            <div className="mt-3">
+              <ChartLegend
+                items={[
+                  { label: 'Revenue', color: REVENUE_COLOR },
+                  { label: 'Gross Profit (Revenue − Spend)', color: PROFIT_COLOR },
+                ]}
+              />
+            </div>
+          </>
+        )}
+      </section>
+    </div>
+  );
+}
+
+/** The sections still served by the seed-based detail endpoint. */
+function AdDetailSeedSections({ data }: { data: AdDetail }) {
+  const { ad, read, taxonomy, audience } = data;
+  // each stage as an independent share of link clicks (not a chained funnel)
+  const stageShares = FUNNEL_STAGES.map((st) => ({
+    label: st.label,
+    share: ad.linkClicks > 0 ? (ad.funnel[st.key] / ad.linkClicks) * 100 : 0,
+  }));
+  const weakest = stageShares.reduce((min, st) => (st.share < min.share ? st : min), stageShares[0]!);
+  const ageBuckets = audience.age.filter((b) => b.value > 0);
+  const genderBuckets = audience.gender.filter((b) => b.value > 0);
+
+  return (
+    <>
       <section aria-labelledby="read-heading" className="rounded-xl border border-line bg-surface p-7">
         <div className="flex flex-wrap items-center gap-4">
           <span
@@ -272,112 +499,7 @@ export default function FacebookAdDetailPage() {
 
       <CreativeTaxonomyCard taxonomy={taxonomy} />
 
-      <section aria-labelledby="cac-heading" className="rounded-xl border border-line bg-surface p-7">
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h2 id="cac-heading" className="text-lg font-bold text-ink">
-            Cost of Acquisition — Daily Trend
-          </h2>
-          <p className="text-sm text-ink-2">
-            {period} · {ad.adName}
-          </p>
-        </div>
-        {!hasCacData ? (
-          <div className="flex items-center justify-center py-16 text-sm text-ink-3">
-            No spend recorded for this ad in the selected period.
-          </div>
-        ) : (
-          <>
-            <LineChart
-              className="mt-4"
-              height={280}
-              ariaLabel={`Daily cost of acquisition for ${ad.adName}`}
-              labels={daily.map((d) => formatDayMonth(d.date))}
-              tooltipLabels={daily.map((d) => formatDate(d.date, 'medium'))}
-              series={[
-                {
-                  key: 'cac',
-                  label: 'CAC',
-                  color: REVENUE_COLOR,
-                  values: daily.map((d) => d.cac),
-                  labelSide: 'above',
-                  hollowAt: hollowDays,
-                  hollowColor: LOSS_COLOR,
-                  hollowText: 'spent, no purchases',
-                  emptyText: 'no spend',
-                },
-              ]}
-              tooltipExtras={[
-                { label: 'Spend (with fees)', values: daily.map((d) => d.spend), format: (v) => formatCurrency(v) },
-                { label: 'Purchases', values: daily.map((d) => d.purchases), format: formatInteger },
-              ]}
-              formatValue={(v) => formatCurrency(v, { whole: true })}
-              intervals={3}
-              headroom={1.2}
-              fallbackMax={100}
-            />
-            <p className="mt-3 text-xs text-ink-3">
-              <span className="text-revenue" aria-hidden="true">●</span> = CAC that day ·{' '}
-              <span className="text-loss" aria-hidden="true">○</span> = spent, zero purchases that day ·
-              gap = no spend at all
-            </p>
-          </>
-        )}
-      </section>
-
-      <DailyPerformanceTable daily={daily} />
-
-      <section aria-labelledby="ad-trend-heading" className="rounded-xl border border-line bg-surface p-7">
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h2 id="ad-trend-heading" className="text-lg font-bold text-ink">
-            Revenue vs. Gross Profit — Daily Trend
-          </h2>
-          <p className="text-sm text-ink-2">
-            {period} · {ad.adName}
-          </p>
-        </div>
-        {daily.length === 0 ? (
-          <div className="flex items-center justify-center py-16 text-sm text-ink-3">
-            No daily data for this ad in the selected period.
-          </div>
-        ) : (
-          <>
-            <LineChart
-              className="mt-4"
-              height={300}
-              ariaLabel={`Daily revenue and gross profit for ${ad.adName}`}
-              labels={daily.map((d) => formatDayMonth(d.date))}
-              tooltipLabels={daily.map((d) => formatDate(d.date, 'medium'))}
-              series={[
-                { key: 'revenue', label: 'Revenue', color: REVENUE_COLOR, values: daily.map((d) => d.revenue), labelSide: 'above' },
-                {
-                  key: 'grossProfit',
-                  label: 'Gross Profit',
-                  color: PROFIT_COLOR,
-                  values: daily.map((d) => d.grossProfit),
-                  labelSide: 'below',
-                  labelColor: (v) => (v < 0 ? LOSS_COLOR : PROFIT_COLOR),
-                },
-              ]}
-              tooltipExtras={[
-                { label: 'Spend (before fees)', values: daily.map((d) => d.spendBeforeFees) },
-                { label: 'Spend (with fees)', values: daily.map((d) => d.spend) },
-              ]}
-              formatValue={(v) => formatCurrency(v, { whole: true })}
-              intervals={3}
-              headroom={1.15}
-            />
-            <div className="mt-3">
-              <ChartLegend
-                items={[
-                  { label: 'Revenue', color: REVENUE_COLOR },
-                  { label: 'Gross Profit (Revenue − Spend)', color: PROFIT_COLOR },
-                ]}
-              />
-            </div>
-          </>
-        )}
-      </section>
-    </div>
+    </>
   );
 }
 

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { getAdStatistics } from '../controllers/fbAdStatistics.controller.js';
 import { getCharts } from '../controllers/fbCharts.controller.js';
 import { getDailyTrend } from '../controllers/fbDailyTrend.controller.js';
 import { getFunnel } from '../controllers/fbFunnel.controller.js';
@@ -44,6 +45,9 @@ facebookRouter.get('/dashboard', (req, res) => {
 
 const adParamsSchema = z.object({ adName: z.string().trim().min(1).max(120) });
 const adQuerySchema = z.object({ range: rangeSchema });
+
+/** GET /api/platforms/facebook/ads/:adName/statistics — one ad's KPIs from the report collection */
+facebookRouter.get('/ads/:adName/statistics', getAdStatistics);
 
 /** GET /api/platforms/facebook/ads/:adName?range=this_month */
 facebookRouter.get('/ads/:adName', (req, res) => {

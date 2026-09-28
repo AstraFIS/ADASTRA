@@ -382,7 +382,7 @@ const INLINE_THRESHOLD = 0.02; // within ±2 % counts as "in line"
 const SCALE_ROAS = 0.25; // net return ≥ 25 % of spend → scale
 const REVIEW_ROAS = -0.25; // net return ≤ −25 % of spend → review
 
-function compareMetric(
+export function compareMetric(
   value: number | null,
   accountValue: number | null,
   higherIsBetter: boolean,

@@ -18,9 +18,19 @@ export interface DailyTrendPoint {
   total_spend_usd: number; // spend_usd + provider_fee_usd
   gross_profit_usd: number; // revenue_usd − spend_usd
   net_profit_usd: number; // revenue_usd − total_spend_usd
+  impressions: number;
+  clicks_all: number;
   link_clicks: number;
-  conversions: number;
+  landing_page_views: number;
+  // funnel stages
+  first_page_views: number;
+  questionnaire_starts: number;
+  leads_partial: number;
+  add_to_carts: number;
+  purchase_events: number;
+  conversions: number; // verified conversions (CV) used for CAC / ROAS
   cac_usd: number | null; // total_spend_usd ÷ conversions
+  roas_pct: number | null; // net_profit_usd ÷ total_spend_usd × 100
   rows: number;
 }
 
@@ -36,7 +46,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export async function getFbDailyTrend(query: FbStatisticsQuery): Promise<FbDailyTrendResult> {
   const baseMatch = reportBaseMatch(query);
-  const bounds = await resolveReportBounds(query, baseMatch);
+  const bounds = await resolveReportBounds(query);
   const match = { ...baseMatch, ...dateMatch(bounds) };
 
   const days = await FacebookAdReport.aggregate<{
@@ -45,7 +55,15 @@ export async function getFbDailyTrend(query: FbStatisticsQuery): Promise<FbDaily
     spend_usd: number;
     provider_fee_usd: number;
     total_spend_usd: number;
+    impressions: number;
+    clicks_all: number;
     link_clicks: number;
+    landing_page_views: number;
+    first_page_views: number;
+    questionnaire_starts: number;
+    leads_partial: number;
+    add_to_carts: number;
+    purchase_events: number;
     conversions: number;
     rows: number;
   }>([
@@ -57,7 +75,15 @@ export async function getFbDailyTrend(query: FbStatisticsQuery): Promise<FbDaily
         spend_usd: { $sum: '$spend_usd' },
         provider_fee_usd: { $sum: '$provider_fee_usd' },
         total_spend_usd: { $sum: '$total_spend_usd' },
+        impressions: { $sum: '$impressions' },
+        clicks_all: { $sum: '$clicks_all' },
         link_clicks: { $sum: '$link_clicks' },
+        landing_page_views: { $sum: '$landing_page_views' },
+        first_page_views: { $sum: '$first_page_views' },
+        questionnaire_starts: { $sum: '$questionnaire_starts' },
+        leads_partial: { $sum: '$leads_partial' },
+        add_to_carts: { $sum: '$add_to_carts' },
+        purchase_events: { $sum: '$purchase_events' },
         conversions: { $sum: '$conversions' },
         rows: { $sum: 1 },
       },
@@ -69,6 +95,7 @@ export async function getFbDailyTrend(query: FbStatisticsQuery): Promise<FbDaily
     const revenue_usd = round2(d.revenue_usd);
     const spend_usd = round2(d.spend_usd);
     const total_spend_usd = round2(d.total_spend_usd);
+    const net_profit_usd = round2(revenue_usd - total_spend_usd);
     return {
       date: isoDay(d._id),
       revenue_usd,
@@ -76,10 +103,19 @@ export async function getFbDailyTrend(query: FbStatisticsQuery): Promise<FbDaily
       provider_fee_usd: round2(d.provider_fee_usd),
       total_spend_usd,
       gross_profit_usd: round2(revenue_usd - spend_usd),
-      net_profit_usd: round2(revenue_usd - total_spend_usd),
+      net_profit_usd,
+      impressions: d.impressions,
+      clicks_all: d.clicks_all,
       link_clicks: d.link_clicks,
+      landing_page_views: d.landing_page_views,
+      first_page_views: d.first_page_views,
+      questionnaire_starts: d.questionnaire_starts,
+      leads_partial: d.leads_partial,
+      add_to_carts: d.add_to_carts,
+      purchase_events: d.purchase_events,
       conversions: d.conversions,
       cac_usd: d.conversions > 0 ? round2(total_spend_usd / d.conversions) : null,
+      roas_pct: total_spend_usd > 0 ? round2((net_profit_usd / total_spend_usd) * 100) : null,
       rows: d.rows,
     };
   });

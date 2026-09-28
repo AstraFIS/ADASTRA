@@ -8,9 +8,18 @@ export interface DailyTrendPoint {
   total_spend_usd: number;
   gross_profit_usd: number;
   net_profit_usd: number;
+  impressions: number;
+  clicks_all: number;
   link_clicks: number;
+  landing_page_views: number;
+  first_page_views: number;
+  questionnaire_starts: number;
+  leads_partial: number;
+  add_to_carts: number;
+  purchase_events: number;
   conversions: number;
   cac_usd: number | null;
+  roas_pct: number | null;
   rows: number;
 }
 

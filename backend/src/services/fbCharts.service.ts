@@ -43,7 +43,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export async function getFbCharts(query: FbStatisticsQuery): Promise<FbChartsResult> {
   const baseMatch = reportBaseMatch(query);
-  const bounds = await resolveReportBounds(query, baseMatch);
+  const bounds = await resolveReportBounds(query);
   const match = { ...baseMatch, ...dateMatch(bounds) };
 
   // ---- revenue vs spend per ad ----

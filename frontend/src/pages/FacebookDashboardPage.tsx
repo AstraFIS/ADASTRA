@@ -492,6 +492,7 @@ export default function FacebookDashboardPage() {
               formatValue={(v) => formatCurrency(v, { whole: true })}
               intervals={3}
               headroom={1.15}
+              fallbackMax={100}
             />
             <div className="mt-3">
               <ChartLegend

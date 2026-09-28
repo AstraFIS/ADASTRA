@@ -1,6 +1,7 @@
 import { FacebookAdReport } from '../models/facebookAdReport.model.js';
 import type { DateRangeOption } from '../types/facebook.js';
 import { DATE_RANGE_OPTIONS, isoDay } from '../utils/dateRange.js';
+import { latestReportDate } from './fbStatistics.service.js';
 
 export interface FbOptionsResult {
   dateRanges: DateRangeOption[];
@@ -27,7 +28,7 @@ export async function getFbOptions(): Promise<FbOptionsResult> {
     distinctText('ad_name'),
     distinctText('offer_name'),
     distinctText('provider_name'),
-    FacebookAdReport.findOne().sort({ report_date: -1 }).select('report_date'),
+    latestReportDate({}),
     FacebookAdReport.estimatedDocumentCount(),
   ]);
   return {
@@ -35,7 +36,7 @@ export async function getFbOptions(): Promise<FbOptionsResult> {
     ads,
     offers,
     providers,
-    dataThrough: latest ? isoDay(latest.report_date) : null,
+    dataThrough: latest ? isoDay(latest) : null,
     rows,
   };
 }

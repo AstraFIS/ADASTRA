@@ -39,7 +39,7 @@ interface Props {
   className?: string;
 }
 
-const MARGIN = { top: 30, right: 28, bottom: 36 };
+const MARGIN = { top: 30, right: 28, bottom: 50 }; // bottom leaves room for a 'below' label on a baseline point
 const INNER_PAD = 28;
 const TICK_CHAR_WIDTH = 7.2;
 const MIN_SPACING_FOR_LABELS = 44;

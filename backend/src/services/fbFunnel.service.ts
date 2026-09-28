@@ -58,7 +58,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 export async function getFbFunnel(query: FbStatisticsQuery): Promise<FbFunnelResult> {
   const baseMatch = reportBaseMatch(query);
-  const bounds = await resolveReportBounds(query, baseMatch);
+  const bounds = await resolveReportBounds(query);
   const match = { ...baseMatch, ...dateMatch(bounds) };
 
   const groups = await FacebookAdReport.aggregate<{

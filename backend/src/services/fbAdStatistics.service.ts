@@ -1,0 +1,169 @@
+import { FacebookAdReport } from '../models/facebookAdReport.model.js';
+import type { DateRangeKey, MetricComparison } from '../types/facebook.js';
+import { isoDay } from '../utils/dateRange.js';
+import { compareMetric } from './facebook.service.js';
+import { ACTIVE_WINDOW_DAYS } from './fbFunnel.service.js';
+import {
+  dateMatch,
+  describeRange,
+  latestReportDate,
+  resolveReportBounds,
+  textMatch,
+  type FbStatisticsQuery,
+} from './fbStatistics.service.js';
+
+export interface AdStatistics {
+  amount_spent: number; // Σ total_spend_usd (incl. provider fees)
+  link_clicks: number;
+  ctr: number | null; // link_clicks ÷ impressions × 100
+  cpc: number | null; // Σ spend_usd ÷ link_clicks (before fees)
+  cac: number | null; // amount_spent ÷ conversions
+  roas: number | null; // net_profit ÷ amount_spent × 100
+  revenue: number; // Σ revenue_usd
+  // supporting numbers
+  spend_before_fees: number;
+  provider_fees: number;
+  net_profit: number;
+  impressions: number;
+  clicks_all: number;
+  conversions: number;
+  landing_page_views: number;
+}
+
+export interface FbAdStatisticsResult {
+  ad: {
+    ad_name: string;
+    offers: string[];
+    providers: string[];
+    campaigns: string[];
+    first_date: string | null; // within the range
+    last_date: string | null;
+    days: number; // distinct reporting days within the range
+    active: boolean; // reported within ACTIVE_WINDOW_DAYS of the collection's latest day
+  };
+  range: { key: DateRangeKey; label: string; from: string | null; to: string | null };
+  statistics: AdStatistics;
+  /** Blended values over every ad in the same range. */
+  account: { ctr: number | null; cpc: number | null; cac: number | null };
+  comparisons: { ctr: MetricComparison | null; cpc: MetricComparison | null; cac: MetricComparison | null };
+  meta: { rows: number; account_rows: number };
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+const ratio = (num: number, den: number, scale = 1): number | null => (den > 0 ? round2((num / den) * scale) : null);
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+interface Totals {
+  revenue_usd: number;
+  spend_usd: number;
+  provider_fee_usd: number;
+  total_spend_usd: number;
+  impressions: number;
+  clicks_all: number;
+  link_clicks: number;
+  landing_page_views: number;
+  conversions: number;
+  rows: number;
+  days: Date[];
+  first_date: Date | null;
+  last_date: Date | null;
+  offers: string[];
+  providers: (string | null)[];
+  campaigns: string[];
+}
+
+async function totals(match: Record<string, unknown>): Promise<Totals | null> {
+  const [t] = await FacebookAdReport.aggregate<Totals>([
+    { $match: match },
+    {
+      $group: {
+        _id: null,
+        revenue_usd: { $sum: '$revenue_usd' },
+        spend_usd: { $sum: '$spend_usd' },
+        provider_fee_usd: { $sum: '$provider_fee_usd' },
+        total_spend_usd: { $sum: '$total_spend_usd' },
+        impressions: { $sum: '$impressions' },
+        clicks_all: { $sum: '$clicks_all' },
+        link_clicks: { $sum: '$link_clicks' },
+        landing_page_views: { $sum: '$landing_page_views' },
+        conversions: { $sum: '$conversions' },
+        rows: { $sum: 1 },
+        days: { $addToSet: '$report_date' },
+        first_date: { $min: '$report_date' },
+        last_date: { $max: '$report_date' },
+        offers: { $addToSet: { $toString: '$offer_name' } },
+        providers: { $addToSet: { $toString: '$provider_name' } },
+        campaigns: { $addToSet: { $toString: '$campaign_name' } },
+      },
+    },
+  ]);
+  return t ?? null;
+}
+
+const stats = (t: Totals | null): AdStatistics => {
+  const revenue = round2(t?.revenue_usd ?? 0);
+  const amount_spent = round2(t?.total_spend_usd ?? 0);
+  const net_profit = round2(revenue - amount_spent);
+  return {
+    amount_spent,
+    link_clicks: t?.link_clicks ?? 0,
+    ctr: ratio(t?.link_clicks ?? 0, t?.impressions ?? 0, 100),
+    cpc: ratio(t?.spend_usd ?? 0, t?.link_clicks ?? 0),
+    cac: ratio(amount_spent, t?.conversions ?? 0),
+    roas: ratio(net_profit, amount_spent, 100),
+    revenue,
+    spend_before_fees: round2(t?.spend_usd ?? 0),
+    provider_fees: round2(t?.provider_fee_usd ?? 0),
+    net_profit,
+    impressions: t?.impressions ?? 0,
+    clicks_all: t?.clicks_all ?? 0,
+    conversions: t?.conversions ?? 0,
+    landing_page_views: t?.landing_page_views ?? 0,
+  };
+};
+
+const clean = (values: (string | null)[] | undefined) =>
+  (values ?? []).filter((v): v is string => typeof v === 'string' && v !== '' && v !== 'null').sort();
+
+/** Returns null when the ad has never reported (→ 404). */
+export async function getFbAdStatistics(adName: string, query: FbStatisticsQuery): Promise<FbAdStatisticsResult | null> {
+  const adMatch = { ad_name: textMatch(adName) };
+  const everReported = await latestReportDate(adMatch);
+  if (!everReported) return null;
+
+  // ranges are anchored on the whole collection's latest day, so "This Month" means the same thing on every page
+  const bounds = await resolveReportBounds(query);
+  const inRange = dateMatch(bounds);
+
+  const [ad, account, latestOverall] = await Promise.all([
+    totals({ ...adMatch, ...inRange }),
+    totals(inRange),
+    latestReportDate({}),
+  ]);
+
+  const adStats = stats(ad);
+  const accountStats = stats(account);
+  const activeSince = (latestOverall?.getTime() ?? 0) - ACTIVE_WINDOW_DAYS * DAY_MS;
+
+  return {
+    ad: {
+      ad_name: adName,
+      offers: clean(ad?.offers),
+      providers: clean(ad?.providers),
+      campaigns: clean(ad?.campaigns),
+      first_date: ad?.first_date ? isoDay(ad.first_date) : null,
+      last_date: ad?.last_date ? isoDay(ad.last_date) : null,
+      days: ad?.days.length ?? 0,
+      active: everReported.getTime() >= activeSince,
+    },
+    range: describeRange(query, bounds),
+    statistics: adStats,
+    account: { ctr: accountStats.ctr, cpc: accountStats.cpc, cac: accountStats.cac },
+    comparisons: {
+      ctr: compareMetric(adStats.ctr, accountStats.ctr, true),
+      cpc: compareMetric(adStats.cpc, accountStats.cpc, false),
+      cac: compareMetric(adStats.cac, accountStats.cac, false),
+    },
+    meta: { rows: ad?.rows ?? 0, account_rows: account?.rows ?? 0 },
+  };
+}
