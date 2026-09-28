@@ -18,6 +18,8 @@ import {
 } from '@/lib/format';
 import type { AudienceBucket, FacebookDashboard } from '@/types/facebook';
 import type { FbChartsResult } from '@/types/fbCharts';
+import type { FbDailyTrendResult } from '@/types/fbDailyTrend';
+import type { FbFunnelResult } from '@/types/fbFunnel';
 import type { FbStatisticsResult } from '@/types/fbStatistics';
 
 type State =
@@ -33,6 +35,16 @@ type StatsState =
 type ChartsState =
   | { kind: 'loading'; previous: FbChartsResult | null }
   | { kind: 'ok'; data: FbChartsResult }
+  | { kind: 'error'; message: string };
+
+type TrendState =
+  | { kind: 'loading'; previous: FbDailyTrendResult | null }
+  | { kind: 'ok'; data: FbDailyTrendResult }
+  | { kind: 'error'; message: string };
+
+type FunnelState =
+  | { kind: 'loading'; previous: FbFunnelResult | null }
+  | { kind: 'ok'; data: FbFunnelResult }
   | { kind: 'error'; message: string };
 
 const ALL = '';
@@ -52,6 +64,8 @@ export default function FacebookDashboardPage() {
   const [state, setState] = useState<State>({ kind: 'loading', previous: null });
   const [stats, setStats] = useState<StatsState>({ kind: 'loading', previous: null });
   const [charts, setCharts] = useState<ChartsState>({ kind: 'loading', previous: null });
+  const [trend, setTrend] = useState<TrendState>({ kind: 'loading', previous: null });
+  const [funnel, setFunnel] = useState<FunnelState>({ kind: 'loading', previous: null });
   const [reloadKey, setReloadKey] = useState(0);
   const [showAllAds, setShowAllAds] = useState(false);
 
@@ -99,6 +113,32 @@ export default function FacebookDashboardPage() {
           setCharts({ kind: 'error', message: err instanceof Error ? err.message : 'Unknown error' });
         }
       });
+
+    // the daily trend comes from the daily-trend API (report collection), same filters
+    setTrend((s) => ({ kind: 'loading', previous: s.kind === 'ok' ? s.data : s.kind === 'loading' ? s.previous : null }));
+    api
+      .get<FbDailyTrendResult>(`/platforms/facebook/daily-trend?${qs.toString()}`)
+      .then((data) => {
+        if (!cancelled) setTrend({ kind: 'ok', data });
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setTrend({ kind: 'error', message: err instanceof Error ? err.message : 'Unknown error' });
+        }
+      });
+
+    // the funnel table comes from the funnel API (report collection), same filters
+    setFunnel((s) => ({ kind: 'loading', previous: s.kind === 'ok' ? s.data : s.kind === 'loading' ? s.previous : null }));
+    api
+      .get<FbFunnelResult>(`/platforms/facebook/funnel?${qs.toString()}`)
+      .then((data) => {
+        if (!cancelled) setFunnel({ kind: 'ok', data });
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setFunnel({ kind: 'error', message: err instanceof Error ? err.message : 'Unknown error' });
+        }
+      });
     return () => {
       cancelled = true;
     };
@@ -131,7 +171,7 @@ export default function FacebookDashboardPage() {
   const data = state.kind === 'ok' ? state.data : state.previous;
   if (!data) return <FacebookSkeleton />;
 
-  const { providers, filters, byAd, daily } = data;
+  const { providers, filters } = data;
   const busy = state.kind === 'loading';
 
   const statsData = stats.kind === 'ok' ? stats.data : stats.kind === 'loading' ? stats.previous : null;
@@ -154,6 +194,13 @@ export default function FacebookDashboardPage() {
   const ageBuckets = (chartsData?.audience_by_age ?? []).map((b) => ({ label: b.label, value: b.link_clicks }));
   const genderBuckets = (chartsData?.audience_by_gender ?? []).map((b) => ({ label: b.label, value: b.link_clicks }));
   const chartsEmpty = chartsData !== null && chartsData.meta.report_rows === 0;
+
+  const trendData = trend.kind === 'ok' ? trend.data : trend.kind === 'loading' ? trend.previous : null;
+  const trendBusy = trend.kind === 'loading';
+  const daily = trendData?.daily ?? [];
+
+  const funnelData = funnel.kind === 'ok' ? funnel.data : funnel.kind === 'loading' ? funnel.previous : null;
+  const funnelBusy = funnel.kind === 'loading';
   const roasCaption = `${roas === null ? 'n/a' : formatPercent(roas, 1)} ROAS · ${periodCaption}`;
 
   return (
@@ -365,7 +412,11 @@ export default function FacebookDashboardPage() {
         </div>
       </section>
 
-      <section aria-labelledby="trend-heading" className="rounded-xl border border-line bg-surface p-7">
+      <section
+        aria-labelledby="trend-heading"
+        aria-busy={trendBusy}
+        className={`rounded-xl border border-line bg-surface p-7 transition-opacity ${trendBusy ? 'opacity-70' : ''}`}
+      >
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <h2 id="trend-heading" className="text-lg font-bold text-ink">
             Revenue vs. Gross Profit — Daily Trend
@@ -373,9 +424,13 @@ export default function FacebookDashboardPage() {
           <p className="text-sm text-ink-2">{trendCaption}</p>
         </div>
 
-        {daily.length === 0 ? (
+        {trend.kind === 'error' ? (
+          <div className="flex items-center justify-center py-20 text-sm text-loss">
+            Trend data unavailable: {trend.message}
+          </div>
+        ) : daily.length === 0 ? (
           <div className="flex items-center justify-center py-20 text-sm text-ink-3">
-            No daily data for the selected filters.
+            {trendData ? 'No report rows in the database for this selection yet.' : 'Loading…'}
           </div>
         ) : (
           <>
@@ -390,21 +445,22 @@ export default function FacebookDashboardPage() {
                   key: 'revenue',
                   label: 'Revenue',
                   color: REVENUE_COLOR,
-                  values: daily.map((d) => d.revenue),
+                  values: daily.map((d) => d.revenue_usd),
                   labelSide: 'above',
                 },
                 {
                   key: 'grossProfit',
                   label: 'Gross Profit',
                   color: PROFIT_COLOR,
-                  values: daily.map((d) => d.grossProfit),
+                  values: daily.map((d) => d.gross_profit_usd),
                   labelSide: 'below',
                   labelColor: (v) => (v < 0 ? LOSS_COLOR : PROFIT_COLOR),
                 },
               ]}
               tooltipExtras={[
-                { label: 'Spend (before fees)', values: daily.map((d) => d.spendBeforeFees) },
-                { label: 'Spend (with fees)', values: daily.map((d) => d.spend) },
+                { label: 'Spend (before fees)', values: daily.map((d) => d.spend_usd) },
+                { label: 'Spend (with fees)', values: daily.map((d) => d.total_spend_usd) },
+                { label: 'Net profit', values: daily.map((d) => d.net_profit_usd) },
               ]}
               formatValue={(v) => formatCurrency(v, { whole: true })}
               intervals={3}
@@ -422,7 +478,11 @@ export default function FacebookDashboardPage() {
         )}
       </section>
 
-      <section aria-labelledby="funnel-heading" className="rounded-xl border border-line bg-surface p-7">
+      <section
+        aria-labelledby="funnel-heading"
+        aria-busy={funnelBusy}
+        className={`rounded-xl border border-line bg-surface p-7 transition-opacity ${funnelBusy ? 'opacity-70' : ''}`}
+      >
         <h2 id="funnel-heading" className="text-lg font-bold text-ink">
           Funnel Performance by Ad Name &amp; Offer
         </h2>
@@ -434,7 +494,11 @@ export default function FacebookDashboardPage() {
           when the previous stage is 0) · ads with under 10 clicks show &quot;low sample&quot; · click a
           column to sort
         </p>
-        <FunnelTable ads={byAd} />
+        {funnel.kind === 'error' ? (
+          <p className="mt-6 text-sm text-loss">Funnel data unavailable: {funnel.message}</p>
+        ) : (
+          <FunnelTable rows={funnelData?.rows ?? []} activeWindowDays={funnelData?.meta.active_window_days} />
+        )}
       </section>
     </div>
   );

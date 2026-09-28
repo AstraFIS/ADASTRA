@@ -127,8 +127,7 @@ npm run seed:facebook -w backend      # upserts 24 report rows + 240 audience ro
 
 Real data goes in through `FacebookAdReport.upsertRow(...)` and
 `FacebookAudienceReport.upsertRow(...)` (an import endpoint is the next step).
-The provider fee cards, daily trend and funnel table on that page still come
-from the in-memory seed until they are switched to the collections.
+Only the provider fee cards on that page still come from the in-memory seed.
 
 ## API
 
@@ -148,6 +147,8 @@ from the in-memory seed until they are switched to the collections.
 | GET    | `/api/platforms/overview` | Client/portfolio, totals, and per-platform summaries |
 | GET    | `/api/platforms/facebook/statistics` | KPIs computed from the `facebook_ad_reports` collection: `total_revenue`, `total_amount_spend` (incl. provider fees), `net_profit`, `landing_page_views`, `link_clicks`, `cpc` (spend before fees ÷ link clicks), `ctr` (link clicks ÷ impressions, %). Query: `range` (anchored on the latest reported day), or explicit `from`/`to` (YYYY-MM-DD), plus `ad`, `offer`. Also returns `meta` (rows, ads, impressions, spend before fees, provider fees) |
 | GET    | `/api/platforms/facebook/charts` | Chart data from the report collections with the same query params as statistics: `revenue_vs_spend_by_ad` (per ad: `revenue_usd`, `total_spend_usd`, `spend_usd`, `link_clicks`, sorted by total spend), `audience_by_age` and `audience_by_gender` (`bucket`, `label`, `link_clicks`, `impressions`; every bucket present, zeros included) |
+| GET    | `/api/platforms/facebook/daily-trend` | Per-day totals from the report collection with the same query params: `daily[]` of `date`, `revenue_usd`, `spend_usd`, `provider_fee_usd`, `total_spend_usd`, `gross_profit_usd` (revenue − spend), `net_profit_usd` (revenue − total spend), `link_clicks`, `conversions`, `cac_usd`; only days that have rows |
+| GET    | `/api/platforms/facebook/funnel` | "Funnel Performance by Ad Name & Offer": one row per `ad_name` × `offer_name` with `providers`, `first_date`/`last_date`/`days`, `active` (reported within the last 7 days of the result), `spend_usd`, `provider_fee_usd`, `total_spend_usd`, `impressions`, `clicks_all`, `link_clicks`, `ctr_all`, `cpc_usd`, the stage counts `first_page_views` → `questionnaire_starts` → `leads_partial` → `add_to_carts` → `purchase_events`, `conversions`, `revenue_usd`, `net_profit_usd`, `cac_usd`, `roas_pct`; same query params as statistics |
 | GET    | `/api/platforms/facebook/dashboard` | Facebook KPIs + provider fees. Query: `range` (`this_month`, `last_month`, `last_7_days`, `last_30_days`, `all_time`), `ad`, `offer` |
 | GET    | `/api/platforms/facebook/ads/:adName` | One ad for the `range`: metrics, account-average comparisons (CTR, CPC, CAC), a rule-based marketing read (`scale` / `monitor` / `review` / `low_sample` / `no_data`), its creative taxonomy (two field groups with per-field confidence), its own audience buckets (link clicks by age / gender) and a daily series covering every reporting day in the range (zeros when the ad did not run; each day carries `funnel` counts, `cac` — null without purchases — and `roas` — null without spend). 404 for unknown ads |
 
@@ -187,7 +188,7 @@ exposes `user`, `status`, `login`, `setup` and `logout`.
 | Route              | Page                                                       |
 | ------------------ | ---------------------------------------------------------- |
 | `/`                | All Platforms Overview: tabs, KPI tiles, chart, platform cards |
-| `/platforms/facebook` | Ad Performance Dashboard: filters (URL-synced), 7 KPI tiles **fed by `/api/platforms/facebook/statistics`**, provider fee cards, revenue-vs-spend by ad chart and audience by age / gender **fed by `/api/platforms/facebook/charts`** (both from the report collections), daily revenue vs. gross profit trend, sortable funnel table by ad & offer |
+| `/platforms/facebook` | Ad Performance Dashboard: filters (URL-synced), 7 KPI tiles **fed by `/api/platforms/facebook/statistics`**, provider fee cards, revenue-vs-spend by ad chart and audience by age / gender **fed by `/api/platforms/facebook/charts`**, daily revenue vs. gross profit trend **fed by `/api/platforms/facebook/daily-trend`**, funnel table **fed by `/api/platforms/facebook/funnel`** (all from the report collections), daily revenue vs. gross profit trend, sortable funnel table by ad & offer |
 | `/platforms/facebook/ads/:adName` | Ad detail: KPI tiles with account-average comparisons, "Marketing read" card (status badge, bullets, recommended next step), a row of four mini charts (funnel stages as independent shares of link clicks with the weakest stage called out, revenue vs. spend, audience by age / gender for this ad), Creative Taxonomy card, Cost of Acquisition daily trend (filled dot = CAC, hollow red ring = spend but no purchases, gap = no spend), Daily Performance table (per-day funnel with step-over-step %, CAC, ROAS; idle days omitted), the ad's revenue vs. gross profit trend. Linked from the funnel table |
 | `/platforms/:slug` | Placeholder for platforms not yet connected                |
 | `/login`           | Sign in, or first-run admin setup when no users exist      |
@@ -210,9 +211,11 @@ Funnel stage naming: the source sheet's "Q.S." is the quiz-start stage and
 "Lead / Partial" is the quiz-end stage; the funnel table keeps the sheet's
 labels while the daily table uses Page Visit / Quiz Start / Quiz End / Add to
 Cart / Purchased for the same fields.
-`src/components/FunnelTable.tsx` is the sortable funnel table (click a header;
-"Hide inactive ads" toggle; ads under 10 clicks show "low sample"; clicking an
-ad name opens its detail page).
+`src/components/FunnelTable.tsx` is the sortable funnel table over the
+`/funnel` rows (click a header; hovering a header shows the source field and
+formula; "Hide inactive ads" toggle; ads under 10 clicks show "low sample";
+clicking an ad name opens its detail page). CTR (all) and CPC (all) in this
+table use `clicks_all`, as in the model; the KPI tiles use link clicks.
 
 The marketing read is deterministic and lives in `buildRead()` in
 `backend/src/services/facebook.service.ts`: net ROAS ≥ 25% → Scale,

@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { getCharts } from '../controllers/fbCharts.controller.js';
+import { getDailyTrend } from '../controllers/fbDailyTrend.controller.js';
+import { getFunnel } from '../controllers/fbFunnel.controller.js';
 import { getStatistics } from '../controllers/fbStatistics.controller.js';
 import { getFacebookAdDetail, getFacebookDashboard } from '../services/facebook.service.js';
 import { DATE_RANGE_KEYS } from '../types/facebook.js';
@@ -23,6 +25,12 @@ facebookRouter.get('/statistics', getStatistics);
 
 /** GET /api/platforms/facebook/charts — by-ad revenue/spend + audience buckets from the report collections */
 facebookRouter.get('/charts', getCharts);
+
+/** GET /api/platforms/facebook/daily-trend — per-day revenue / spend / profit from the report collection */
+facebookRouter.get('/daily-trend', getDailyTrend);
+
+/** GET /api/platforms/facebook/funnel — one row per ad × offer with funnel stage counts */
+facebookRouter.get('/funnel', getFunnel);
 
 /** GET /api/platforms/facebook/dashboard?range=this_month&ad=...&offer=... */
 facebookRouter.get('/dashboard', (req, res) => {
