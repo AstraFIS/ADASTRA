@@ -62,7 +62,7 @@ const MID_SKEW = [0, 0.05, 0.1, 0.2, 0.33, 0.32, 0];
 const MOSTLY_MALE = [0.87, 0.125, 0.005];
 const MIXED = [0.7, 0.29, 0.01];
 
-const ADS: Record<string, AdProfile> = {
+export const SEED_AD_PROFILES: Record<string, AdProfile> = {
   '3.1': { offer: OFFER_TRIAL, provider: 'BlueGlow', active: true, age: OLDER_SKEW, gender: MOSTLY_MALE },
   spydirect2: { offer: OFFER_MONTHLY, provider: 'BlueGlow', active: true, age: MID_SKEW, gender: MOSTLY_MALE },
   spydirect3: { offer: OFFER_MONTHLY, provider: 'BlueGlow', active: true, age: MID_SKEW, gender: MIXED },
@@ -115,7 +115,7 @@ const SEED: SeedRow[] = [
 
 export const SEED_ROWS: AdMetricRow[] = SEED.map(
   ([date, adName, spend, revenue, lpv, clicks, impressions, qs, lead, addToCart, purchase]) => {
-    const profile = ADS[adName];
+    const profile = SEED_AD_PROFILES[adName];
     if (!profile) throw new Error(`Seed row references unknown ad "${adName}"`);
     return {
       date,
@@ -201,7 +201,7 @@ function summariseByAd(rows: AdMetricRow[]): AdBreakdown[] {
       adName: r.adName,
       offer: r.offer,
       provider: r.provider,
-      active: ADS[r.adName]?.active ?? true,
+      active: SEED_AD_PROFILES[r.adName]?.active ?? true,
       revenue: 0,
       spendBeforeFees: 0,
       spend: 0,
@@ -244,7 +244,7 @@ function summariseByAd(rows: AdMetricRow[]): AdBreakdown[] {
 }
 
 /** Split an integer total across weights so the parts sum exactly to the total (largest remainder). */
-function apportion(total: number, weights: number[]): number[] {
+export function apportion(total: number, weights: number[]): number[] {
   const weightSum = weights.reduce((a, b) => a + b, 0);
   if (total <= 0 || weightSum <= 0) return weights.map(() => 0);
 
@@ -268,7 +268,7 @@ function summariseAudience(rows: AdMetricRow[]): FacebookAudience {
   const gender = GENDER_BUCKETS.map(() => 0);
 
   for (const r of rows) {
-    const profile = ADS[r.adName];
+    const profile = SEED_AD_PROFILES[r.adName];
     if (!profile) continue;
     apportion(r.linkClicks, profile.age).forEach((n, i) => (age[i]! += n));
     apportion(r.linkClicks, profile.gender).forEach((n, i) => (gender[i]! += n));
@@ -361,8 +361,8 @@ export function getFacebookDashboard(query: FacebookDashboardQuery): FacebookDas
       offer: query.offer ?? null,
       options: {
         dateRanges: DATE_RANGE_OPTIONS,
-        ads: Object.keys(ADS).sort((a, b) => a.localeCompare(b)),
-        offers: [...new Set(Object.values(ADS).map((a) => a.offer))].sort(),
+        ads: Object.keys(SEED_AD_PROFILES).sort((a, b) => a.localeCompare(b)),
+        offers: [...new Set(Object.values(SEED_AD_PROFILES).map((a) => a.offer))].sort(),
       },
     },
     kpis: computeKpis(rows, providers),
@@ -631,7 +631,7 @@ function getTaxonomy(adName: string): CreativeTaxonomy | null {
 }
 
 export function getFacebookAdDetail(adName: string, dateRange: DateRangeKey): AdDetail | null {
-  if (!ADS[adName]) return null;
+  if (!SEED_AD_PROFILES[adName]) return null;
 
   const rows = filterRows({ dateRange });
   const byAd = summariseByAd(rows);

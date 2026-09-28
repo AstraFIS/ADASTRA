@@ -44,27 +44,46 @@ const EMPTY: FbStatistics = {
   ctr: null,
 };
 
-export async function getFbStatistics(query: FbStatisticsQuery): Promise<FbStatisticsResult> {
+export type ReportBounds = { from: string; to: string } | null;
+
+/** Mongo match for the ad / offer part of a query. */
+export function reportBaseMatch(query: Pick<FbStatisticsQuery, 'ad' | 'offer'>): ReportFilter {
   const baseMatch: ReportFilter = {};
   if (query.ad) baseMatch.ad_name = query.ad;
   if (query.offer) baseMatch.offer_name = query.offer;
+  return baseMatch;
+}
 
-  // Named ranges are anchored on the latest reported day (within the same ad/offer filter),
-  // so "This Month" means the month the data was last updated, not the server clock.
-  let bounds: { from: string; to: string } | null;
+/**
+ * Inclusive day bounds for a query. Named ranges are anchored on the latest
+ * reported day (within the same ad / offer filter), so "This Month" means the
+ * month the data was last updated, not the server clock.
+ */
+export async function resolveReportBounds(query: FbStatisticsQuery, baseMatch: ReportFilter): Promise<ReportBounds> {
+  const latest = await FacebookAdReport.findOne(baseMatch).sort({ report_date: -1 }).select('report_date');
   if (query.from || query.to) {
-    const latest = await FacebookAdReport.findOne(baseMatch).sort({ report_date: -1 }).select('report_date');
-    bounds = {
+    return {
       from: query.from ?? '0001-01-01',
       to: query.to ?? (latest ? isoDay(latest.report_date) : '9999-12-31'),
     };
-  } else {
-    const latest = await FacebookAdReport.findOne(baseMatch).sort({ report_date: -1 }).select('report_date');
-    bounds = latest ? resolveRange(query.range, isoDay(latest.report_date)) : null;
   }
+  return latest ? resolveRange(query.range, isoDay(latest.report_date)) : null;
+}
 
-  const match: ReportFilter = { ...baseMatch };
-  if (bounds) match.report_date = { $gte: toDate(bounds.from), $lte: toDate(bounds.to, true) };
+/** `report_date` condition for the bounds, or nothing for all time. */
+export function dateMatch(bounds: ReportBounds): Record<string, unknown> {
+  return bounds ? { report_date: { $gte: toDate(bounds.from), $lte: toDate(bounds.to, true) } } : {};
+}
+
+export function describeRange(query: FbStatisticsQuery, bounds: ReportBounds) {
+  const label = DATE_RANGE_OPTIONS.find((o) => o.key === query.range)?.label ?? query.range;
+  return { key: query.range, label, from: bounds?.from ?? null, to: bounds?.to ?? null };
+}
+
+export async function getFbStatistics(query: FbStatisticsQuery): Promise<FbStatisticsResult> {
+  const baseMatch = reportBaseMatch(query);
+  const bounds = await resolveReportBounds(query, baseMatch);
+  const match: ReportFilter = { ...baseMatch, ...dateMatch(bounds) };
 
   const [agg] = await FacebookAdReport.aggregate<{
     total_revenue: number;
@@ -94,8 +113,7 @@ export async function getFbStatistics(query: FbStatisticsQuery): Promise<FbStati
     },
   ]);
 
-  const label = DATE_RANGE_OPTIONS.find((o) => o.key === query.range)?.label ?? query.range;
-  const range = { key: query.range, label, from: bounds?.from ?? null, to: bounds?.to ?? null };
+  const range = describeRange(query, bounds);
   const filters = { ad: query.ad ?? null, offer: query.offer ?? null };
 
   if (!agg) {

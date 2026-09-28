@@ -17,6 +17,7 @@ import {
   formatPercent,
 } from '@/lib/format';
 import type { AudienceBucket, FacebookDashboard } from '@/types/facebook';
+import type { FbChartsResult } from '@/types/fbCharts';
 import type { FbStatisticsResult } from '@/types/fbStatistics';
 
 type State =
@@ -27,6 +28,11 @@ type State =
 type StatsState =
   | { kind: 'loading'; previous: FbStatisticsResult | null }
   | { kind: 'ok'; data: FbStatisticsResult }
+  | { kind: 'error'; message: string };
+
+type ChartsState =
+  | { kind: 'loading'; previous: FbChartsResult | null }
+  | { kind: 'ok'; data: FbChartsResult }
   | { kind: 'error'; message: string };
 
 const ALL = '';
@@ -45,6 +51,7 @@ export default function FacebookDashboardPage() {
 
   const [state, setState] = useState<State>({ kind: 'loading', previous: null });
   const [stats, setStats] = useState<StatsState>({ kind: 'loading', previous: null });
+  const [charts, setCharts] = useState<ChartsState>({ kind: 'loading', previous: null });
   const [reloadKey, setReloadKey] = useState(0);
   const [showAllAds, setShowAllAds] = useState(false);
 
@@ -79,6 +86,19 @@ export default function FacebookDashboardPage() {
           setStats({ kind: 'error', message: err instanceof Error ? err.message : 'Unknown error' });
         }
       });
+
+    // the by-ad and audience charts come from the charts API (report collections), same filters
+    setCharts((s) => ({ kind: 'loading', previous: s.kind === 'ok' ? s.data : s.kind === 'loading' ? s.previous : null }));
+    api
+      .get<FbChartsResult>(`/platforms/facebook/charts?${qs.toString()}`)
+      .then((data) => {
+        if (!cancelled) setCharts({ kind: 'ok', data });
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setCharts({ kind: 'error', message: err instanceof Error ? err.message : 'Unknown error' });
+        }
+      });
     return () => {
       cancelled = true;
     };
@@ -111,7 +131,7 @@ export default function FacebookDashboardPage() {
   const data = state.kind === 'ok' ? state.data : state.previous;
   if (!data) return <FacebookSkeleton />;
 
-  const { providers, filters, byAd, audience, daily } = data;
+  const { providers, filters, byAd, daily } = data;
   const busy = state.kind === 'loading';
 
   const statsData = stats.kind === 'ok' ? stats.data : stats.kind === 'loading' ? stats.previous : null;
@@ -126,7 +146,14 @@ export default function FacebookDashboardPage() {
   const periodCaption = `across all ads · ${periodLabel}`;
   const audienceCaption = `${filters.ad ?? 'All ads'} · ${periodLabel}`;
   const trendCaption = `${filters.options.dateRanges.find((r) => r.key === filters.dateRange)?.label ?? 'Selected period'} · ${filters.ad ?? 'all ads'}`;
-  const visibleAds = showAllAds ? byAd : byAd.slice(0, TOP_ADS);
+
+  const chartsData = charts.kind === 'ok' ? charts.data : charts.kind === 'loading' ? charts.previous : null;
+  const chartsBusy = charts.kind === 'loading';
+  const adsChart = chartsData?.revenue_vs_spend_by_ad ?? [];
+  const visibleAds = showAllAds ? adsChart : adsChart.slice(0, TOP_ADS);
+  const ageBuckets = (chartsData?.audience_by_age ?? []).map((b) => ({ label: b.label, value: b.link_clicks }));
+  const genderBuckets = (chartsData?.audience_by_gender ?? []).map((b) => ({ label: b.label, value: b.link_clicks }));
+  const chartsEmpty = chartsData !== null && chartsData.meta.report_rows === 0;
   const roasCaption = `${roas === null ? 'n/a' : formatPercent(roas, 1)} ROAS · ${periodCaption}`;
 
   return (
@@ -264,7 +291,11 @@ export default function FacebookDashboardPage() {
         </div>
       </section>
 
-      <section aria-label="Breakdowns" className="grid gap-6 2xl:grid-cols-3">
+      <section
+        aria-label="Breakdowns"
+        aria-busy={chartsBusy}
+        className={`grid gap-6 transition-opacity 2xl:grid-cols-3 ${chartsBusy ? 'opacity-70' : ''}`}
+      >
         <div className="flex flex-col rounded-xl border border-line bg-surface p-7 2xl:col-span-2">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <h2 className="text-lg font-bold text-ink">Revenue vs. Amount Spent by Ad Name</h2>
@@ -275,30 +306,36 @@ export default function FacebookDashboardPage() {
                   { label: 'Amount Spent', color: SPEND_COLOR },
                 ]}
               />
-              {byAd.length > TOP_ADS && (
+              {adsChart.length > TOP_ADS && (
                 <button
                   type="button"
                   onClick={() => setShowAllAds((v) => !v)}
                   className="rounded-full bg-surface-2 px-4 py-1.5 text-sm font-bold text-revenue transition-colors hover:bg-line"
                 >
-                  {showAllAds ? `Show top ${TOP_ADS}` : `Show all ${byAd.length} ads →`}
+                  {showAllAds ? `Show top ${TOP_ADS}` : `Show all ${adsChart.length} ads →`}
                 </button>
               )}
             </div>
           </div>
 
-          {byAd.length === 0 ? (
+          {charts.kind === 'error' ? (
+            <div className="flex flex-1 items-center justify-center py-20 text-sm text-loss">
+              Chart data unavailable: {charts.message}
+            </div>
+          ) : adsChart.length === 0 ? (
             <div className="flex flex-1 items-center justify-center py-20 text-sm text-ink-3">
-              No ads have data for the selected filters.
+              {chartsData
+                ? 'No report rows in the database for this selection yet.'
+                : 'Loading…'}
             </div>
           ) : (
             <BarChart
               className="mt-6 min-h-[380px] flex-1"
               ariaLabel="Revenue and amount spent by ad name"
-              categories={visibleAds.map((a) => a.adName)}
+              categories={visibleAds.map((a) => a.ad_name)}
               series={[
-                { key: 'revenue', label: 'Revenue', color: REVENUE_COLOR, values: visibleAds.map((a) => a.revenue) },
-                { key: 'spend', label: 'Amount Spent', color: SPEND_COLOR, values: visibleAds.map((a) => a.spend) },
+                { key: 'revenue', label: 'Revenue', color: REVENUE_COLOR, values: visibleAds.map((a) => a.revenue_usd) },
+                { key: 'spend', label: 'Amount Spent', color: SPEND_COLOR, values: visibleAds.map((a) => a.total_spend_usd) },
               ]}
               formatValue={formatCompactCurrency}
               formatTick={(v) => formatCurrency(v, { whole: true })}
@@ -314,14 +351,16 @@ export default function FacebookDashboardPage() {
           <AudienceCard
             title="Audience by Age"
             caption={audienceCaption}
-            buckets={audience.age}
+            buckets={ageBuckets}
             color={REVENUE_COLOR}
+            empty={chartsEmpty}
           />
           <AudienceCard
             title="Audience by Gender"
             caption={audienceCaption}
-            buckets={audience.gender}
+            buckets={genderBuckets}
             color={SPEND_COLOR}
+            empty={chartsEmpty}
           />
         </div>
       </section>
@@ -406,11 +445,13 @@ function AudienceCard({
   caption,
   buckets,
   color,
+  empty = false,
 }: {
   title: string;
   caption: string;
   buckets: AudienceBucket[];
   color: string;
+  empty?: boolean;
 }) {
   return (
     <div className="rounded-xl border border-line bg-surface p-7">
@@ -418,6 +459,11 @@ function AudienceCard({
         <h2 className="text-lg font-bold text-ink">{title}</h2>
         <p className="text-sm text-ink-2">{caption}</p>
       </div>
+      {empty || buckets.length === 0 ? (
+        <div className="flex h-[250px] items-center justify-center text-sm text-ink-3">
+          {empty ? 'No audience rows in the database for this selection yet.' : 'Loading…'}
+        </div>
+      ) : (
       <BarChart
         className="mt-4"
         height={250}
@@ -430,6 +476,7 @@ function AudienceCard({
         headroom={1.2}
         barMaxWidth={150}
       />
+      )}
     </div>
   );
 }

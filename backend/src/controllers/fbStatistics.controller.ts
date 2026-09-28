@@ -6,7 +6,8 @@ import { DATE_RANGE_KEYS } from '../types/facebook.js';
 const emptyToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD');
 
-const statisticsQuerySchema = z
+/** Shared by every endpoint that reads the report collections. */
+export const reportQuerySchema = z
   .object({
     range: z.preprocess(emptyToUndefined, z.enum(DATE_RANGE_KEYS).default('this_month')),
     from: z.preprocess(emptyToUndefined, isoDate.optional()),
@@ -25,6 +26,6 @@ const statisticsQuerySchema = z
  *   ctr (link clicks ÷ impressions, %).
  */
 export async function getStatistics(req: Request, res: Response): Promise<void> {
-  const q = statisticsQuerySchema.parse(req.query);
+  const q = reportQuerySchema.parse(req.query);
   res.json(await getFbStatistics(q));
 }

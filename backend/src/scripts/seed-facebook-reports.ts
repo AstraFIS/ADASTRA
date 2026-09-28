@@ -8,7 +8,8 @@
 import 'dotenv/config';
 import { connectDb, disconnectDb } from '../config/db.js';
 import { FacebookAdReport } from '../models/facebookAdReport.model.js';
-import { SEED_PROVIDERS, SEED_ROWS } from '../services/facebook.service.js';
+import { AGE_BUCKETS, FacebookAudienceReport, GENDER_BUCKETS } from '../models/facebookAudienceReport.model.js';
+import { SEED_AD_PROFILES, SEED_PROVIDERS, SEED_ROWS, apportion } from '../services/facebook.service.js';
 
 await connectDb();
 try {
@@ -41,7 +42,38 @@ try {
     });
     (await FacebookAdReport.countDocuments()) > before ? inserted++ : updated++;
   }
-  console.log(`[seed:facebook] ${inserted} inserted, ${updated} updated, ${await FacebookAdReport.countDocuments()} rows total`);
+  console.log(`[seed:facebook] reports: ${inserted} inserted, ${updated} updated, ${await FacebookAdReport.countDocuments()} rows total`);
+
+  // audience breakdown rows: each day's link clicks / impressions split by the ad's demographic profile
+  let audienceRows = 0;
+  for (const r of SEED_ROWS) {
+    const profile = SEED_AD_PROFILES[r.adName];
+    if (!profile) continue;
+    const date = new Date(`${r.date}T00:00:00Z`);
+    const splits: [('age' | 'gender'), { key: string }[], number[]][] = [
+      ['age', AGE_BUCKETS, profile.age],
+      ['gender', GENDER_BUCKETS, profile.gender],
+    ];
+    for (const [breakdown, buckets, weights] of splits) {
+      const clicks = apportion(r.linkClicks, weights);
+      const impressions = apportion(r.impressions, weights);
+      const spend = apportion(Math.round(r.spend * 100), weights);
+      for (let i = 0; i < buckets.length; i++) {
+        await FacebookAudienceReport.upsertRow({
+          report_date: date,
+          ad_name: r.adName,
+          breakdown,
+          bucket: buckets[i]!.key,
+          impressions: impressions[i] ?? 0,
+          clicks_all: clicks[i] ?? 0,
+          link_clicks: clicks[i] ?? 0,
+          spend_usd: (spend[i] ?? 0) / 100,
+        });
+        audienceRows++;
+      }
+    }
+  }
+  console.log(`[seed:facebook] audience: ${audienceRows} rows upserted, ${await FacebookAudienceReport.countDocuments()} rows total`);
 } finally {
   await disconnectDb();
 }
