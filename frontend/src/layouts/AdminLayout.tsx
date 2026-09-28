@@ -2,8 +2,9 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthContext';
 
 const navItems = [
-  { to: '/', label: 'Overview', end: true },
-  { to: '/platforms/facebook', label: 'Facebook', end: false },
+  { to: '/', label: 'Overview', end: true, adminOnly: false },
+  { to: '/platforms/facebook', label: 'Facebook', end: false, adminOnly: false },
+  { to: '/users', label: 'Users', end: false, adminOnly: true },
 ];
 
 export default function AdminLayout() {
@@ -25,7 +26,9 @@ export default function AdminLayout() {
           </Link>
 
           <nav aria-label="Main" className="flex items-center gap-1">
-            {navItems.map((item) => (
+            {navItems
+              .filter((item) => !item.adminOnly || user?.role === 'admin')
+              .map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -38,7 +41,7 @@ export default function AdminLayout() {
               >
                 {item.label}
               </NavLink>
-            ))}
+              ))}
           </nav>
 
           <div className="ml-auto flex items-center gap-4">

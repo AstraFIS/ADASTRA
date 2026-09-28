@@ -96,7 +96,11 @@ means the connection string or the Atlas allow-list is wrong.
 | POST   | `/api/auth/setup`         | First-run only: `{ name, email, password }` → `201 { token, user }` as admin; `409` afterwards |
 | POST   | `/api/auth/login`         | `{ email, password }` → `{ token, user }` (rate limited: 10 / 15 min) |
 | GET    | `/api/auth/me`            | Current user. Requires `Authorization: Bearer <token>` |
+| GET    | `/api/users`              | List all users. Admin only |
 | POST   | `/api/users`              | `{ name, email, password, role? }` → `201 { user }`. Admin only |
+| GET    | `/api/users/:id`          | One user. Admin only |
+| PATCH  | `/api/users/:id`          | Any of `name`, `email`, `password`, `role`, `isActive`. Admin only. Refuses to remove your own admin access, to deactivate yourself, or to demote/deactivate the last active admin |
+| DELETE | `/api/users/:id`          | `204`. Admin only. Refuses your own account and the last active admin |
 | GET    | `/api/platforms/*`        | **All platform endpoints below require a Bearer token** (401 otherwise) |
 | GET    | `/api/platforms/overview` | Client/portfolio, totals, and per-platform summaries |
 | GET    | `/api/platforms/facebook/dashboard` | Facebook KPIs + provider fees. Query: `range` (`this_month`, `last_month`, `last_7_days`, `last_30_days`, `all_time`), `ad`, `offer` |
@@ -142,6 +146,7 @@ exposes `user`, `status`, `login`, `setup` and `logout`.
 | `/platforms/facebook/ads/:adName` | Ad detail: KPI tiles with account-average comparisons, "Marketing read" card (status badge, bullets, recommended next step), a row of four mini charts (funnel stages as independent shares of link clicks with the weakest stage called out, revenue vs. spend, audience by age / gender for this ad), Creative Taxonomy card, Cost of Acquisition daily trend (filled dot = CAC, hollow red ring = spend but no purchases, gap = no spend), Daily Performance table (per-day funnel with step-over-step %, CAC, ROAS; idle days omitted), the ad's revenue vs. gross profit trend. Linked from the funnel table |
 | `/platforms/:slug` | Placeholder for platforms not yet connected                |
 | `/login`           | Sign in, or first-run admin setup when no users exist      |
+| `/users`           | Admin only (`RequireRole`): list, add, edit, activate/deactivate, delete users. Nav link shows only for admins |
 
 `src/components/BarChart.tsx` is the shared SVG bar chart (single or grouped
 series, value labels, hover/focus tooltip, screen-reader table). It sizes to its
