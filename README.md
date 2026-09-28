@@ -14,9 +14,9 @@ npm install                 # installs both workspaces
 ```
 
 Backend configuration lives in `backend/src/config/settings.ts` and is
-checked in, so no environment variables are needed to run or deploy. Fill in
-the two `PASTE_*` values there (`MONGODB_URI`, `JWT_SECRET`) once. Because
-these are live credentials inside Git, keep the repository private.
+checked in, so no environment variables are needed to run or deploy. Because
+it contains live credentials (MongoDB URI, JWT secret), keep the repository
+private.
 
 Environment variables are optional overrides (a local `backend/.env` is read by
 the dev server and the seed script; hosting platforms can set them too):
