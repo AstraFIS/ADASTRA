@@ -23,7 +23,8 @@ Then fill in `backend/.env`:
 | `JWT_SECRET`      | Signing secret, 32+ chars (`openssl rand -hex 32`) |
 | `JWT_EXPIRES_IN`  | Token lifetime, defaults to `7d`                   |
 | `PORT`            | Backend port, defaults to `4000`                   |
-| `CLIENT_ORIGIN`   | Allowed CORS origin, defaults to the Vite dev URL  |
+| `CLIENT_ORIGIN`   | Comma-separated allowed browser origins, defaults to the Vite dev URL |
+| `TRUST_PROXY`     | `true` behind a reverse proxy; Vercel is detected automatically |
 | `ADMIN_*`         | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` for the seed script only |
 
 Create the first admin account. The easiest way is the app itself: while no
@@ -48,6 +49,25 @@ npm run dev:frontend        # frontend only
 
 The Vite dev server proxies `/api/*` to the backend, so the frontend can call
 `/api/...` without CORS config in development.
+
+## Deploying the backend to Vercel
+
+`backend/` deploys as a single serverless function: `backend/vercel.json`
+rewrites every path to `backend/api/index.ts`, which opens (and caches) the
+Mongo connection and hands the request to the Express app. `src/index.ts` is
+only used for local / long-running hosting.
+
+Vercel project settings:
+
+- **Root Directory**: `backend`
+- **Environment variables**: `MONGODB_URI`, `MONGODB_DB_NAME`, `JWT_SECRET`
+  (32+ chars), `JWT_EXPIRES_IN`, `CLIENT_ORIGIN` (the deployed frontend origin,
+  comma-separate several), `NODE_ENV=production`. The function crashes at
+  startup if `MONGODB_URI` or `JWT_SECRET` is missing.
+- **MongoDB Atlas → Network Access** must allow connections from anywhere
+  (`0.0.0.0/0`); Vercel functions do not have fixed IPs.
+
+Check it with `GET /api/health` → `{"status":"ok","db":"connected",...}`.
 
 ## API
 

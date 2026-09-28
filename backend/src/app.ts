@@ -11,8 +11,11 @@ export function createApp() {
   const app = express();
 
   app.disable('x-powered-by');
+  // needed on Vercel / behind any proxy so rate limiting sees the real client IP
+  if (env.trustProxy) app.set('trust proxy', 1);
+
   app.use(helmet());
-  app.use(cors({ origin: env.clientOrigin, credentials: true }));
+  app.use(cors({ origin: env.clientOrigins, credentials: true }));
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
   app.use(morgan(isProd ? 'combined' : 'dev'));
