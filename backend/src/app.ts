@@ -15,7 +15,19 @@ export function createApp() {
   if (env.trustProxy) app.set('trust proxy', 1);
 
   app.use(helmet());
-  app.use(cors({ origin: env.clientOrigins, credentials: true }));
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        // non-browser clients (curl, server-to-server) send no Origin header
+        if (!origin) return callback(null, true);
+        const allowed =
+          env.clientOrigins.includes(origin) ||
+          (env.allowVercelOrigins && /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin));
+        callback(null, allowed);
+      },
+      credentials: true,
+    }),
+  );
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
   app.use(morgan(isProd ? 'combined' : 'dev'));

@@ -5,6 +5,7 @@
  *
  * Values can also live in backend/.env. Safe to re-run: it skips if the email exists.
  */
+import 'dotenv/config';
 import { connectDb, disconnectDb } from '../config/db.js';
 import { User } from '../models/user.model.js';
 

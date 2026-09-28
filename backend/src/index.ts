@@ -1,8 +1,10 @@
+import 'dotenv/config'; // optional local overrides; settings.ts holds the defaults
 import { createApp } from './app.js';
 import { connectDb, disconnectDb } from './config/db.js';
-import { env } from './config/env.js';
+import { assertEnv, env } from './config/env.js';
 
 async function main() {
+  assertEnv();
   await connectDb();
 
   const app = createApp();

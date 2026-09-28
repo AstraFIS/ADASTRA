@@ -11,10 +11,15 @@ Monorepo with two npm workspaces:
 
 ```bash
 npm install                 # installs both workspaces
-cp backend/.env.example backend/.env
 ```
 
-Then fill in `backend/.env`:
+Backend configuration lives in `backend/src/config/settings.ts` and is
+checked in, so no environment variables are needed to run or deploy. Fill in
+the two `PASTE_*` values there (`MONGODB_URI`, `JWT_SECRET`) once. Because
+these are live credentials inside Git, keep the repository private.
+
+Environment variables are optional overrides (a local `backend/.env` is read by
+the dev server and the seed script; hosting platforms can set them too):
 
 | Variable          | Purpose                                            |
 | ----------------- | -------------------------------------------------- |
@@ -64,14 +69,20 @@ other path to the function.
 Vercel project settings:
 
 - **Root Directory**: `backend`
-- **Environment variables**: `MONGODB_URI`, `MONGODB_DB_NAME`, `JWT_SECRET`
-  (32+ chars), `JWT_EXPIRES_IN`, `CLIENT_ORIGIN` (the deployed frontend origin,
-  comma-separate several), `NODE_ENV=production`. The function crashes at
-  startup if `MONGODB_URI` or `JWT_SECRET` is missing.
+- **Environment variables**: none required — values come from
+  `src/config/settings.ts`. Set any of `MONGODB_URI`, `MONGODB_DB_NAME`,
+  `JWT_SECRET`, `JWT_EXPIRES_IN`, `CLIENT_ORIGIN`, `NODE_ENV` only to override.
+  CORS allows the origins in `SETTINGS.CLIENT_ORIGINS` plus every
+  `https://*.vercel.app` origin, so a Vercel-hosted frontend works without
+  further config.
 - **MongoDB Atlas → Network Access** must allow connections from anywhere
   (`0.0.0.0/0`); Vercel functions do not have fixed IPs.
 
 Check it with `GET /api/health` → `{"status":"ok","db":"connected",...}`.
+If the function cannot start it answers with JSON instead of Vercel's generic
+error page: `500 {"error":"Server is not configured","problems":[...]}` lists
+the missing variables, and `503 {"error":"Database unavailable","reason":...}`
+means the connection string or the Atlas allow-list is wrong.
 
 ## API
 
