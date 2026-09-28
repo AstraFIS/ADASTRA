@@ -56,9 +56,10 @@ The Vite dev server proxies `/api/*` to the backend, so the frontend can call
 rewrites every path to `backend/api/index.ts`, which opens (and caches) the
 Mongo connection and hands the request to the Express app. `src/index.ts` is
 only used for local / long-running hosting. The build command there runs
-`tsc` as a type-check gate and creates an empty `public/` folder, because
-Vercel's framework-less mode insists on a static output directory even for an
-API-only project.
+`tsc` as a type-check gate. Vercel's framework-less mode insists on a non-empty
+static output directory even for an API-only project, so `backend/public/`
+holds a `robots.txt` (disallow all) and nothing else; the rewrite sends every
+other path to the function.
 
 Vercel project settings:
 
