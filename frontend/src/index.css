@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@theme {
+  /* 1700px: wide enough for the 7-tile KPI row next to the sidebar */
+  --breakpoint-3xl: 106.25rem;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* surfaces */
+  --color-canvas: #0f1319;
+  --color-surface: #171b24;
+  --color-surface-2: #1e232e;
+  --color-line: #262c38;
+  --color-line-strong: #343b49;
+  --color-grid: #272d39;
+
+  /* ink */
+  --color-ink: #f1f3f7;
+  --color-ink-2: #aeb6c4;
+  --color-ink-3: #7b8494;
+
+  /* data / accents */
+  --color-revenue: #7fdcc3;
+  --color-spend: #f2b471;
+  --color-loss: #ef7d7d;
+  --color-violet: #8b7cf6;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-canvas text-ink antialiased;
+}
+
+/* diagonal hatch used for "no data" placeholders */
+@utility hatch {
+  background-color: var(--color-surface);
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--color-surface-2) 0 10px,
+    transparent 10px 22px
+  );
+}
