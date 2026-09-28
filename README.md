@@ -87,6 +87,28 @@ error page: `500 {"error":"Server is not configured","problems":[...]}` lists
 the missing variables, and `503 {"error":"Database unavailable","reason":...}`
 means the connection string or the Atlas allow-list is wrong.
 
+## Data models
+
+- `backend/src/models/user.model.ts` — accounts (see Auth).
+- `backend/src/models/facebookAdReport.model.ts` — `FacebookAdReport`, one
+  document per reporting row (a Facebook ad on one day within one campaign /
+  ad set), collection `facebook_ad_reports`. Field names are snake_case to
+  match the source sheet: `report_date`, `ad_name`, `offer_name`,
+  `campaign_name`, `ad_set_name`, `provider_name` (null when none),
+  `spend_usd`, `provider_fee_pct`, `provider_fee_usd`, `total_spend_usd`,
+  `impressions`, `clicks_all`, `link_clicks`, `landing_page_views`, `ctr_all`,
+  `cpc_usd`, `presell_visits`, `first_page_views`, `questionnaire_starts`,
+  `leads_partial`, `add_to_carts`, `purchase_events`, `conversions`,
+  `revenue_usd`, `gross_profit_usd`, `net_profit_usd`, `roas_pct`, `cac_usd`.
+  Derived on every save: fee = spend × pct ÷ 100, total = spend + fee,
+  ctr_all = clicks_all ÷ impressions × 100, cpc_usd = spend ÷ clicks_all,
+  gross profit = revenue − spend, net profit = revenue − total spend,
+  roas_pct = net profit ÷ total spend × 100, cac_usd = total spend ÷
+  conversions (null when a denominator is 0; the fee is forced to 0 without a
+  provider). Unique per (report_date, ad_name, campaign_name, ad_set_name), so
+  `FacebookAdReport.upsertRow(input)` makes re-imports idempotent;
+  `toPublicFacebookAdReport(doc)` is the API shape.
+
 ## API
 
 | Method | Path                      | Returns                                              |
@@ -103,6 +125,7 @@ means the connection string or the Atlas allow-list is wrong.
 | DELETE | `/api/users/:id`          | `204`. Admin only. Refuses your own account and the last active admin |
 | GET    | `/api/platforms/*`        | **All platform endpoints below require a Bearer token** (401 otherwise) |
 | GET    | `/api/platforms/overview` | Client/portfolio, totals, and per-platform summaries |
+| GET    | `/api/platforms/facebook/statistics` | KPIs computed from the `facebook_ad_reports` collection: `total_revenue`, `total_amount_spend` (incl. provider fees), `net_profit`, `landing_page_views`, `link_clicks`, `cpc` (spend before fees ÷ link clicks), `ctr` (link clicks ÷ impressions, %). Query: `range` (anchored on the latest reported day), or explicit `from`/`to` (YYYY-MM-DD), plus `ad`, `offer`. Also returns `meta` (rows, ads, impressions, spend before fees, provider fees) |
 | GET    | `/api/platforms/facebook/dashboard` | Facebook KPIs + provider fees. Query: `range` (`this_month`, `last_month`, `last_7_days`, `last_30_days`, `all_time`), `ad`, `offer` |
 | GET    | `/api/platforms/facebook/ads/:adName` | One ad for the `range`: metrics, account-average comparisons (CTR, CPC, CAC), a rule-based marketing read (`scale` / `monitor` / `review` / `low_sample` / `no_data`), its creative taxonomy (two field groups with per-field confidence), its own audience buckets (link clicks by age / gender) and a daily series covering every reporting day in the range (zeros when the ad did not run; each day carries `funnel` counts, `cac` — null without purchases — and `roas` — null without spend). 404 for unknown ads |
 

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { getStatistics } from '../controllers/fbStatistics.controller.js';
 import { getFacebookAdDetail, getFacebookDashboard } from '../services/facebook.service.js';
 import { DATE_RANGE_KEYS } from '../types/facebook.js';
 import { HttpError } from '../utils/httpError.js';
@@ -15,6 +16,9 @@ const dashboardQuerySchema = z.object({
   ad: z.preprocess(emptyToUndefined, z.string().trim().max(120).optional()),
   offer: z.preprocess(emptyToUndefined, z.string().trim().max(120).optional()),
 });
+
+/** GET /api/platforms/facebook/statistics — KPIs computed from the facebook_ad_reports collection */
+facebookRouter.get('/statistics', getStatistics);
 
 /** GET /api/platforms/facebook/dashboard?range=this_month&ad=...&offer=... */
 facebookRouter.get('/dashboard', (req, res) => {

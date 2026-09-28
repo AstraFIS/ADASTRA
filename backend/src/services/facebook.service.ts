@@ -1,6 +1,6 @@
+import { DATE_RANGE_OPTIONS, isDateRangeKey, isoDay, resolveRange } from '../utils/dateRange.js';
 import { formatCurrency, formatPercent } from '../utils/format.js';
 import {
-  DATE_RANGE_KEYS,
   type AdBreakdown,
   type AdDetail,
   type AdMetricRow,
@@ -8,7 +8,6 @@ import {
   type CreativeTaxonomy,
   type DailyPoint,
   type DateRangeKey,
-  type DateRangeOption,
   type FacebookAudience,
   type FacebookDashboard,
   type FacebookKpis,
@@ -136,45 +135,7 @@ const ROWS: AdMetricRow[] = SEED.map(
   },
 );
 
-// ---------------------------------------------------------------------------
-// Date ranges — anchored to the last day we have data for, so "This Month"
-// means the month of the latest data point rather than the server's clock.
-// ---------------------------------------------------------------------------
-
-export const DATE_RANGE_OPTIONS: DateRangeOption[] = [
-  { key: 'this_month', label: 'This Month' },
-  { key: 'last_month', label: 'Last Month' },
-  { key: 'last_7_days', label: 'Last 7 Days' },
-  { key: 'last_30_days', label: 'Last 30 Days' },
-  { key: 'all_time', label: 'All Time' },
-];
-
-export function isDateRangeKey(value: unknown): value is DateRangeKey {
-  return typeof value === 'string' && (DATE_RANGE_KEYS as readonly string[]).includes(value);
-}
-
-const iso = (d: Date) => d.toISOString().slice(0, 10);
-const utc = (y: number, m: number, d: number) => new Date(Date.UTC(y, m, d));
-
-function resolveRange(key: DateRangeKey, anchorIso: string): { from: string; to: string } | null {
-  const anchor = new Date(`${anchorIso}T00:00:00Z`);
-  const y = anchor.getUTCFullYear();
-  const m = anchor.getUTCMonth();
-  const d = anchor.getUTCDate();
-
-  switch (key) {
-    case 'this_month':
-      return { from: iso(utc(y, m, 1)), to: anchorIso };
-    case 'last_month':
-      return { from: iso(utc(y, m - 1, 1)), to: iso(utc(y, m, 0)) };
-    case 'last_7_days':
-      return { from: iso(utc(y, m, d - 6)), to: anchorIso };
-    case 'last_30_days':
-      return { from: iso(utc(y, m, d - 29)), to: anchorIso };
-    case 'all_time':
-      return null;
-  }
-}
+export { DATE_RANGE_OPTIONS, isDateRangeKey };
 
 // ---------------------------------------------------------------------------
 // Aggregation
