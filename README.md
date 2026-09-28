@@ -55,7 +55,10 @@ The Vite dev server proxies `/api/*` to the backend, so the frontend can call
 `backend/` deploys as a single serverless function: `backend/vercel.json`
 rewrites every path to `backend/api/index.ts`, which opens (and caches) the
 Mongo connection and hands the request to the Express app. `src/index.ts` is
-only used for local / long-running hosting.
+only used for local / long-running hosting. The build command there runs
+`tsc` as a type-check gate and creates an empty `public/` folder, because
+Vercel's framework-less mode insists on a static output directory even for an
+API-only project.
 
 Vercel project settings:
 

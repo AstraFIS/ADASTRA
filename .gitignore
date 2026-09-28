@@ -5,3 +5,5 @@ dist/
 !.env.example
 .DS_Store
 *.log
+# empty static folder Vercel requires; created by the build command
+backend/public/
