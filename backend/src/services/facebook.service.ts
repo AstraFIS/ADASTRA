@@ -35,7 +35,7 @@ const META = {
     'Test_ED_Orkhan_Project_3.xlsx — rebuilt from Test_FB_sheet (Aug 5–Sep 19) + Test_partner, spend grossed up by Providers Fee where a provider is attached',
 };
 
-const PROVIDERS: { name: string; feeRate: number }[] = [
+export const SEED_PROVIDERS: { name: string; feeRate: number }[] = [
   { name: 'Ad_Term_White', feeRate: 0.0417 },
   { name: 'BlueGlow', feeRate: 0.0638 },
 ];
@@ -113,7 +113,7 @@ const SEED: SeedRow[] = [
   ['2026-09-24', '3.1', 305.92, 360, 26, 37, 905, 8, 3, 3, 2],
 ];
 
-const ROWS: AdMetricRow[] = SEED.map(
+export const SEED_ROWS: AdMetricRow[] = SEED.map(
   ([date, adName, spend, revenue, lpv, clicks, impressions, qs, lead, addToCart, purchase]) => {
     const profile = ADS[adName];
     if (!profile) throw new Error(`Seed row references unknown ad "${adName}"`);
@@ -148,10 +148,10 @@ export interface FacebookDashboardQuery {
 }
 
 const feeRateFor = (provider: string | null) =>
-  PROVIDERS.find((p) => p.name === provider)?.feeRate ?? 0;
+  SEED_PROVIDERS.find((p) => p.name === provider)?.feeRate ?? 0;
 
 function summariseProviders(rows: AdMetricRow[]): ProviderFeeSummary[] {
-  return PROVIDERS.map((p) => {
+  return SEED_PROVIDERS.map((p) => {
     const amountSpent = round2(
       rows.filter((r) => r.provider === p.name).reduce((sum, r) => sum + r.spend, 0),
     );
@@ -340,7 +340,7 @@ function summariseDaily(rows: AdMetricRow[], dates?: string[]): DailyPoint[] {
 
 function filterRows(query: FacebookDashboardQuery): AdMetricRow[] {
   const range = resolveRange(query.dateRange, META.dataThrough);
-  return ROWS.filter((r) => {
+  return SEED_ROWS.filter((r) => {
     if (range && (r.date < range.from || r.date > range.to)) return false;
     if (query.ad && r.adName !== query.ad) return false;
     if (query.offer && r.offer !== query.offer) return false;
@@ -639,7 +639,7 @@ export function getFacebookAdDetail(adName: string, dateRange: DateRangeKey): Ad
     byAd.find((a) => a.adName === adName) ??
     // known ad with no rows in this range: return an empty summary so the page still renders
     summariseByAd(
-      ROWS.filter((r) => r.adName === adName).map((r) => ({
+      SEED_ROWS.filter((r) => r.adName === adName).map((r) => ({
         ...r,
         spend: 0,
         revenue: 0,

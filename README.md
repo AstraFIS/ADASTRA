@@ -109,6 +109,20 @@ means the connection string or the Atlas allow-list is wrong.
   `FacebookAdReport.upsertRow(input)` makes re-imports idempotent;
   `toPublicFacebookAdReport(doc)` is the API shape.
 
+### Loading Facebook data
+
+The KPI tiles on the Facebook page read from the `facebook_ad_reports`
+collection, which starts empty (the tiles then show zero with a hint). To load
+the demo rows that the rest of the dashboard uses:
+
+```bash
+npm run seed:facebook -w backend      # upserts 24 demo rows; safe to re-run
+```
+
+Real data goes in through `FacebookAdReport.upsertRow(...)` (an import
+endpoint is the next step). The charts, provider cards and tables on that page
+still come from the in-memory seed until they are switched to the collection.
+
 ## API
 
 | Method | Path                      | Returns                                              |
@@ -165,7 +179,7 @@ exposes `user`, `status`, `login`, `setup` and `logout`.
 | Route              | Page                                                       |
 | ------------------ | ---------------------------------------------------------- |
 | `/`                | All Platforms Overview: tabs, KPI tiles, chart, platform cards |
-| `/platforms/facebook` | Ad Performance Dashboard: filters (URL-synced), 7 KPI tiles, provider fee cards, revenue-vs-spend by ad chart, audience by age / gender, daily revenue vs. gross profit trend, sortable funnel table by ad & offer |
+| `/platforms/facebook` | Ad Performance Dashboard: filters (URL-synced), 7 KPI tiles **fed by `/api/platforms/facebook/statistics` (the `facebook_ad_reports` collection)**, provider fee cards, revenue-vs-spend by ad chart, audience by age / gender, daily revenue vs. gross profit trend, sortable funnel table by ad & offer |
 | `/platforms/facebook/ads/:adName` | Ad detail: KPI tiles with account-average comparisons, "Marketing read" card (status badge, bullets, recommended next step), a row of four mini charts (funnel stages as independent shares of link clicks with the weakest stage called out, revenue vs. spend, audience by age / gender for this ad), Creative Taxonomy card, Cost of Acquisition daily trend (filled dot = CAC, hollow red ring = spend but no purchases, gap = no spend), Daily Performance table (per-day funnel with step-over-step %, CAC, ROAS; idle days omitted), the ad's revenue vs. gross profit trend. Linked from the funnel table |
 | `/platforms/:slug` | Placeholder for platforms not yet connected                |
 | `/login`           | Sign in, or first-run admin setup when no users exist      |

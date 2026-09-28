@@ -17,10 +17,16 @@ import {
   formatPercent,
 } from '@/lib/format';
 import type { AudienceBucket, FacebookDashboard } from '@/types/facebook';
+import type { FbStatisticsResult } from '@/types/fbStatistics';
 
 type State =
   | { kind: 'loading'; previous: FacebookDashboard | null }
   | { kind: 'ok'; data: FacebookDashboard }
+  | { kind: 'error'; message: string };
+
+type StatsState =
+  | { kind: 'loading'; previous: FbStatisticsResult | null }
+  | { kind: 'ok'; data: FbStatisticsResult }
   | { kind: 'error'; message: string };
 
 const ALL = '';
@@ -38,6 +44,7 @@ export default function FacebookDashboardPage() {
   const offer = params.get('offer') ?? ALL;
 
   const [state, setState] = useState<State>({ kind: 'loading', previous: null });
+  const [stats, setStats] = useState<StatsState>({ kind: 'loading', previous: null });
   const [reloadKey, setReloadKey] = useState(0);
   const [showAllAds, setShowAllAds] = useState(false);
 
@@ -57,6 +64,19 @@ export default function FacebookDashboardPage() {
       .catch((err: unknown) => {
         if (!cancelled) {
           setState({ kind: 'error', message: err instanceof Error ? err.message : 'Unknown error' });
+        }
+      });
+
+    // KPI tiles come from the statistics API (facebook_ad_reports collection), same filters
+    setStats((s) => ({ kind: 'loading', previous: s.kind === 'ok' ? s.data : s.kind === 'loading' ? s.previous : null }));
+    api
+      .get<FbStatisticsResult>(`/platforms/facebook/statistics?${qs.toString()}`)
+      .then((data) => {
+        if (!cancelled) setStats({ kind: 'ok', data });
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setStats({ kind: 'error', message: err instanceof Error ? err.message : 'Unknown error' });
         }
       });
     return () => {
@@ -91,8 +111,14 @@ export default function FacebookDashboardPage() {
   const data = state.kind === 'ok' ? state.data : state.previous;
   if (!data) return <FacebookSkeleton />;
 
-  const { kpis, providers, filters, byAd, audience, daily } = data;
+  const { providers, filters, byAd, audience, daily } = data;
   const busy = state.kind === 'loading';
+
+  const statsData = stats.kind === 'ok' ? stats.data : stats.kind === 'loading' ? stats.previous : null;
+  const statsBusy = stats.kind === 'loading';
+  const kpi = statsData?.statistics ?? null;
+  const roas = kpi && kpi.total_amount_spend > 0 ? kpi.net_profit / kpi.total_amount_spend : null;
+  const NA = '—';
 
   const periodLabel =
     filters.options.dateRanges.find((r) => r.key === filters.dateRange)?.label.toLowerCase() ??
@@ -101,7 +127,7 @@ export default function FacebookDashboardPage() {
   const audienceCaption = `${filters.ad ?? 'All ads'} · ${periodLabel}`;
   const trendCaption = `${filters.options.dateRanges.find((r) => r.key === filters.dateRange)?.label ?? 'Selected period'} · ${filters.ad ?? 'all ads'}`;
   const visibleAds = showAllAds ? byAd : byAd.slice(0, TOP_ADS);
-  const roasCaption = `${kpis.roas === null ? 'n/a' : formatPercent(kpis.roas, 1)} ROAS · ${periodCaption}`;
+  const roasCaption = `${roas === null ? 'n/a' : formatPercent(roas, 1)} ROAS · ${periodCaption}`;
 
   return (
     <div className={`space-y-8 transition-opacity ${busy ? 'opacity-60' : ''}`} aria-busy={busy}>
@@ -158,54 +184,71 @@ export default function FacebookDashboardPage() {
 
       <section
         aria-label="Key metrics"
-        className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4 3xl:grid-cols-7"
+        aria-busy={statsBusy}
+        className={`grid grid-cols-2 gap-5 transition-opacity md:grid-cols-3 xl:grid-cols-4 3xl:grid-cols-7 ${statsBusy ? 'opacity-70' : ''}`}
       >
         <StatCard
           size="md"
           tone="revenue"
           label="Total Revenue"
-          value={formatCurrency(kpis.revenue)}
+          value={kpi ? formatCurrency(kpi.total_revenue) : NA}
           caption={periodCaption}
         />
         <StatCard
           size="md"
           tone="spend"
           label="Total Amount Spent"
-          value={formatCurrency(kpis.spend)}
-          caption={`${periodCaption} · incl. ${formatCurrency(kpis.providerFees)} provider fees`}
+          value={kpi ? formatCurrency(kpi.total_amount_spend) : NA}
+          caption={
+            statsData
+              ? `${periodCaption} · incl. ${formatCurrency(statsData.meta.provider_fees)} provider fees`
+              : periodCaption
+          }
         />
         <StatCard
           size="md"
-          tone={kpis.netProfit < 0 ? 'spend' : 'revenue'}
+          tone={kpi && kpi.net_profit < 0 ? 'spend' : 'revenue'}
           label="Net Profit / ROAS"
-          value={formatCurrency(kpis.netProfit)}
+          value={kpi ? formatCurrency(kpi.net_profit) : NA}
           caption={roasCaption}
         />
         <StatCard
           size="md"
           label="Landing Page Views"
-          value={formatInteger(kpis.landingPageViews)}
+          value={kpi ? formatInteger(kpi.landing_page_views) : NA}
           caption="across all ads"
         />
         <StatCard
           size="md"
           label="Link Clicks"
-          value={formatInteger(kpis.linkClicks)}
+          value={kpi ? formatInteger(kpi.link_clicks) : NA}
           caption="across all ads"
         />
         <StatCard
           size="md"
           label="CPC (All)"
-          value={kpis.cpc === null ? '—' : formatCurrency(kpis.cpc)}
+          value={kpi?.cpc == null ? NA : formatCurrency(kpi.cpc)}
           caption="blended, spend ÷ link clicks"
         />
         <StatCard
           size="md"
           label="CTR (All)"
-          value={kpis.ctr === null ? '—' : formatPercent(kpis.ctr, 2)}
+          value={kpi?.ctr == null ? NA : formatPercent(kpi.ctr / 100, 2)}
           caption="weighted by link clicks"
         />
       </section>
+
+      {stats.kind === 'error' && (
+        <p role="alert" className="-mt-4 text-sm text-loss">
+          Statistics unavailable: {stats.message}
+        </p>
+      )}
+      {stats.kind === 'ok' && stats.data.meta.rows === 0 && (
+        <p className="-mt-4 text-sm text-ink-3">
+          No report rows in the database for this selection yet — the tiles show zero until Facebook data is
+          imported.
+        </p>
+      )}
 
       <section aria-labelledby="provider-fees-heading" className="space-y-5">
         <h2
