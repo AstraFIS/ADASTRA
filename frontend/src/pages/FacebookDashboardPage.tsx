@@ -189,12 +189,29 @@ export default function FacebookDashboardPage() {
   const data = state.kind === 'ok' ? state.data : state.previous;
   if (!data) return <FacebookSkeleton />;
 
-  const { providers, filters } = data;
+  const { filters } = data;
   const busy = state.kind === 'loading';
 
   const statsData = stats.kind === 'ok' ? stats.data : stats.kind === 'loading' ? stats.previous : null;
   const statsBusy = stats.kind === 'loading';
   const kpi = statsData?.statistics ?? null;
+  // provider cards: from the statistics API when the collection has rows, else the seed dashboard's list
+  const providerCards =
+    statsData && statsData.meta.rows > 0
+      ? statsData.providers.map((p) => ({
+          name: p.provider_name,
+          feeRate: p.fee_pct === null ? null : p.fee_pct / 100,
+          amountSpent: p.amount_spent,
+          providerFee: p.provider_fee,
+          totalWithFee: p.total_with_fee,
+        }))
+      : data.providers.map((p) => ({
+          name: p.name,
+          feeRate: p.feeRate,
+          amountSpent: p.amountSpent,
+          providerFee: p.providerFee,
+          totalWithFee: p.totalWithFee,
+        }));
   const roas = kpi && kpi.total_amount_spend > 0 ? kpi.net_profit / kpi.total_amount_spend : null;
   const NA = '—';
 
@@ -241,8 +258,10 @@ export default function FacebookDashboardPage() {
           <span className="text-spend"> — {data.subtitle}</span>
         </h1>
         <p className="mt-2 text-base text-ink-2">
-          Data last updated: {formatDate(data.lastUpdated, 'long')} · data through{' '}
-          {formatDate(data.dataThrough, 'short')} · Source: {data.sourceNote}
+          {options?.dataThrough
+            ? <>Data through {formatDate(options.dataThrough, 'long')} · {formatInteger(options.rows)} report rows</>
+            : <>Data last updated: {formatDate(data.lastUpdated, 'long')} · data through {formatDate(data.dataThrough, 'short')}</>}
+          {' '}· Source: {data.sourceNote}
         </p>
       </header>
 
@@ -355,8 +374,10 @@ export default function FacebookDashboardPage() {
         >
           Ad Platform Provider Fees
         </h2>
-        <div className="mx-auto grid max-w-[820px] gap-6 md:grid-cols-2">
-          {providers.map((p) => (
+        <div
+          className={`mx-auto grid max-w-[1240px] gap-6 transition-opacity md:grid-cols-2 ${providerCards.length > 2 ? 'xl:grid-cols-3' : ''} ${statsBusy ? 'opacity-70' : ''}`}
+        >
+          {providerCards.map((p) => (
             <ProviderFeeCard key={p.name} provider={p} />
           ))}
         </div>

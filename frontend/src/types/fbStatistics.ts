@@ -11,10 +11,21 @@ export interface FbStatistics {
   ctr: number | null;
 }
 
+export interface ProviderFeeStat {
+  provider_name: string;
+  /** Percentage number, e.g. 6.38 */
+  fee_pct: number | null;
+  amount_spent: number;
+  provider_fee: number;
+  total_with_fee: number;
+  rows: number;
+}
+
 export interface FbStatisticsResult {
   range: { key: DateRangeKey; label: string; from: string | null; to: string | null };
   filters: { ad: string | null; offer: string | null };
   statistics: FbStatistics;
+  providers: ProviderFeeStat[];
   meta: { rows: number; ads: number; impressions: number; spend_before_fees: number; provider_fees: number };
 }
 

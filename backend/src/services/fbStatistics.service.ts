@@ -21,10 +21,22 @@ export interface FbStatistics {
   ctr: number | null; // Σ link_clicks ÷ Σ impressions × 100, null without impressions
 }
 
+/** "Ad platform provider fees" card: one provider's spend and fee over the selection. */
+export interface ProviderFeeStat {
+  provider_name: string;
+  fee_pct: number | null; // provider_fee_usd ÷ spend_usd × 100 (the rate actually applied), null without spend
+  amount_spent: number; // Σ spend_usd (before fee)
+  provider_fee: number; // Σ provider_fee_usd
+  total_with_fee: number; // Σ total_spend_usd
+  rows: number;
+}
+
 export interface FbStatisticsResult {
   range: { key: DateRangeKey; label: string; from: string | null; to: string | null };
   filters: { ad: string | null; offer: string | null };
   statistics: FbStatistics;
+  /** Every provider seen in the whole collection, with its totals for this selection (zeros if none). */
+  providers: ProviderFeeStat[];
   meta: { rows: number; ads: number; impressions: number; spend_before_fees: number; provider_fees: number };
 }
 
@@ -142,12 +154,14 @@ export async function getFbStatistics(query: FbStatisticsQuery): Promise<FbStati
 
   const range = describeRange(query, bounds);
   const filters = { ad: query.ad ?? null, offer: query.offer ?? null };
+  const providers = await providerFees(match);
 
   if (!agg) {
     return {
       range,
       filters,
       statistics: EMPTY,
+      providers,
       meta: { rows: 0, ads: 0, impressions: 0, spend_before_fees: 0, provider_fees: 0 },
     };
   }
@@ -158,6 +172,7 @@ export async function getFbStatistics(query: FbStatisticsQuery): Promise<FbStati
   return {
     range,
     filters,
+    providers,
     statistics: {
       total_revenue,
       total_amount_spend,
@@ -175,4 +190,54 @@ export async function getFbStatistics(query: FbStatisticsQuery): Promise<FbStati
       provider_fees: round2(agg.provider_fees),
     },
   };
+}
+
+/**
+ * Per-provider spend / fee totals for a selection. Providers are listed from
+ * the whole collection so a card still appears (with zeros) when a provider
+ * had no spend in the selected period.
+ */
+async function providerFees(match: ReportFilter): Promise<ProviderFeeStat[]> {
+  const [known, inRange] = await Promise.all([
+    FacebookAdReport.aggregate<{ _id: string | null }>([
+      { $group: { _id: { $toString: '$provider_name' } } },
+    ]),
+    FacebookAdReport.aggregate<{
+      _id: string | null;
+      spend_usd: number;
+      provider_fee_usd: number;
+      total_spend_usd: number;
+      rows: number;
+    }>([
+      { $match: match },
+      {
+        $group: {
+          _id: { $toString: '$provider_name' },
+          spend_usd: { $sum: '$spend_usd' },
+          provider_fee_usd: { $sum: '$provider_fee_usd' },
+          total_spend_usd: { $sum: '$total_spend_usd' },
+          rows: { $sum: 1 },
+        },
+      },
+    ]),
+  ]);
+  const isProvider = (v: string | null): v is string => typeof v === 'string' && v !== '' && v !== 'null';
+  const byName = new Map(inRange.filter((p) => isProvider(p._id)).map((p) => [p._id as string, p]));
+  return known
+    .map((p) => p._id)
+    .filter(isProvider)
+    .sort((a, b) => a.localeCompare(b))
+    .map((name) => {
+      const p = byName.get(name);
+      const amount_spent = round2(p?.spend_usd ?? 0);
+      const provider_fee = round2(p?.provider_fee_usd ?? 0);
+      return {
+        provider_name: name,
+        fee_pct: amount_spent > 0 ? round2((provider_fee / amount_spent) * 100) : null,
+        amount_spent,
+        provider_fee,
+        total_with_fee: round2(p?.total_spend_usd ?? 0),
+        rows: p?.rows ?? 0,
+      };
+    });
 }

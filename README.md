@@ -139,7 +139,10 @@ npm run normalize:facebook -w backend -- --apply   # converts numeric names to s
 The read endpoints tolerate mixed types anyway (`$toString` in aggregations and
 filters that match both `"3.1"` and `3.1`), but the unique index and upserts
 only work reliably once the types are consistent.
-Only the provider fee cards on that page still come from the in-memory seed.
+The Facebook page is fully database-driven; the provider fee cards use
+`providers[]` from `/statistics` and the header shows the collection's latest
+report day. Note that "Last 30 Days" can legitimately equal "This Month" when
+the extra days at the end of the previous month had no spend.
 
 ## API
 
@@ -157,7 +160,7 @@ Only the provider fee cards on that page still come from the in-memory seed.
 | DELETE | `/api/users/:id`          | `204`. Admin only. Refuses your own account and the last active admin |
 | GET    | `/api/platforms/*`        | **All platform endpoints below require a Bearer token** (401 otherwise) |
 | GET    | `/api/platforms/overview` | Client/portfolio, totals, and per-platform summaries |
-| GET    | `/api/platforms/facebook/statistics` | KPIs computed from the `facebook_ad_reports` collection: `total_revenue`, `total_amount_spend` (incl. provider fees), `net_profit`, `landing_page_views`, `link_clicks`, `cpc` (spend before fees ÷ link clicks), `ctr` (link clicks ÷ impressions, %). Query: `range` (anchored on the latest day in the whole collection, so it is the same window for every ad / offer filter), or explicit `from`/`to` (YYYY-MM-DD), plus `ad`, `offer`. Also returns `meta` (rows, ads, impressions, spend before fees, provider fees) |
+| GET    | `/api/platforms/facebook/statistics` | KPIs computed from the `facebook_ad_reports` collection: `total_revenue`, `total_amount_spend` (incl. provider fees), `net_profit`, `landing_page_views`, `link_clicks`, `cpc` (spend before fees ÷ link clicks), `ctr` (link clicks ÷ impressions, %). Query: `range` (anchored on the latest day in the whole collection, so it is the same window for every ad / offer filter), or explicit `from`/`to` (YYYY-MM-DD), plus `ad`, `offer`. Also returns `providers[]` (every provider in the collection with `amount_spent`, `provider_fee`, `fee_pct` actually applied, `total_with_fee` for the selection) and `meta` (rows, ads, impressions, spend before fees, provider fees) |
 | GET    | `/api/platforms/facebook/charts` | Chart data from the report collections with the same query params as statistics: `revenue_vs_spend_by_ad` (per ad: `revenue_usd`, `total_spend_usd`, `spend_usd`, `link_clicks`, sorted by total spend), `audience_by_age` and `audience_by_gender` (`bucket`, `label`, `link_clicks`, `impressions`; every bucket present, zeros included) |
 | GET    | `/api/platforms/facebook/daily-trend` | Per-day totals from the report collection with the same query params: `daily[]` of `date`, `revenue_usd`, `spend_usd`, `provider_fee_usd`, `total_spend_usd`, `gross_profit_usd` (revenue − spend), `net_profit_usd` (revenue − total spend), `impressions`, `clicks_all`, `link_clicks`, `landing_page_views`, the funnel stages `first_page_views` → `questionnaire_starts` → `leads_partial` → `add_to_carts` → `purchase_events`, `conversions`, `cac_usd`, `roas_pct`; only days that have rows. With `ad=` it feeds the ad page's Daily Performance table and trend |
 | GET    | `/api/platforms/facebook/funnel` | "Funnel Performance by Ad Name & Offer": one row per `ad_name` × `offer_name` with `providers`, `first_date`/`last_date`/`days`, `active` (reported within the last 7 days of the result), `spend_usd`, `provider_fee_usd`, `total_spend_usd`, `impressions`, `clicks_all`, `link_clicks`, `ctr_all`, `cpc_usd`, the stage counts `first_page_views` → `questionnaire_starts` → `leads_partial` → `add_to_carts` → `purchase_events`, `conversions`, `revenue_usd`, `net_profit_usd`, `cac_usd`, `roas_pct`; same query params as statistics |

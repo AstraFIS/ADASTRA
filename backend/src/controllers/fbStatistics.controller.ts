@@ -17,7 +17,7 @@ export const reportQuerySchema = z
   })
   .refine((q) => !(q.from && q.to) || q.from <= q.to, { message: '`from` must not be after `to`', path: ['from'] });
 
-/**
+/**`
  * GET /api/platforms/facebook/statistics?range=this_month&ad=…&offer=…&from=YYYY-MM-DD&to=YYYY-MM-DD
  *
  * Totals from the facebook_ad_reports collection:
