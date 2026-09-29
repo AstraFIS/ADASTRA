@@ -112,7 +112,7 @@ export async function getFbFunnel(query: FbStatisticsQuery): Promise<FbFunnelRes
   ]);
 
   // "active" is relative to the newest day anyone reported on in this result
-  const latest = groups.reduce<number>((max, g) => Math.max(max, g.last_date.getTime()), 0);
+  const latest = groups.reduce<number>((max, g) => Math.max(max, g.last_date?.getTime() ?? 0), 0);
   const activeSince = latest - ACTIVE_WINDOW_DAYS * DAY_MS;
 
   const rows: FunnelRow[] = groups.map((g) => {
@@ -124,10 +124,10 @@ export async function getFbFunnel(query: FbStatisticsQuery): Promise<FbFunnelRes
       ad_name: g._id.ad_name,
       offer_name: g._id.offer_name,
       providers: g.providers.filter((p): p is string => Boolean(p) && p !== 'null').sort(),
-      first_date: isoDay(g.first_date),
-      last_date: isoDay(g.last_date),
-      days: g.days.length,
-      active: g.last_date.getTime() >= activeSince,
+      first_date: g.first_date ? isoDay(g.first_date) : '',
+      last_date: g.last_date ? isoDay(g.last_date) : '',
+      days: g.days.filter((d) => d instanceof Date).length,
+      active: (g.last_date?.getTime() ?? 0) >= activeSince,
 
       spend_usd,
       provider_fee_usd: round2(g.provider_fee_usd),

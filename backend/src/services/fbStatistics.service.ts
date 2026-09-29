@@ -73,7 +73,7 @@ export const TOTAL_SPEND = { $add: [num('spend_usd'), FEE_USD] };
  */
 export async function latestReportDate(match: ReportFilter): Promise<Date | null> {
   const [row] = await FacebookAdReport.aggregate<{ report_date: Date }>([
-    { $match: match },
+    { $match: { ...match, report_date: { $type: 'date' } } },
     { $sort: { report_date: -1 } },
     { $limit: 1 },
     { $project: { _id: 0, report_date: 1 } },
@@ -131,9 +131,15 @@ export async function resolveReportBounds(query: FbStatisticsQuery): Promise<Rep
   return latest ? resolveRange(query.range, isoDay(latest)) : null;
 }
 
-/** `report_date` condition for the bounds, or nothing for all time. */
+/**
+ * `report_date` condition for the bounds. Always requires a real Date, so an
+ * empty / malformed imported row (no date) can never reach an aggregation —
+ * "all time" therefore means "every row that has a date", not "every row".
+ */
 export function dateMatch(bounds: ReportBounds): Record<string, unknown> {
-  return bounds ? { report_date: { $gte: toDate(bounds.from), $lte: toDate(bounds.to, true) } } : {};
+  return bounds
+    ? { report_date: { $type: 'date', $gte: toDate(bounds.from), $lte: toDate(bounds.to, true) } }
+    : { report_date: { $type: 'date' } };
 }
 
 export function describeRange(query: FbStatisticsQuery, bounds: ReportBounds) {
@@ -144,7 +150,7 @@ export function describeRange(query: FbStatisticsQuery, bounds: ReportBounds) {
 export async function getFbStatistics(query: FbStatisticsQuery): Promise<FbStatisticsResult> {
   const baseMatch = reportBaseMatch(query);
   const bounds = await resolveReportBounds(query);
-  const match: ReportFilter = { ...baseMatch, ...dateMatch(bounds) };
+  const match: ReportFilter = { ...baseMatch, ...dateMatch(bounds) }; // dateMatch always excludes rows without a date
 
   const [agg] = await FacebookAdReport.aggregate<{
     total_revenue: number;

@@ -177,7 +177,7 @@ export async function getFbAdStatistics(adName: string, query: FbStatisticsQuery
       campaigns: clean(ad?.campaigns),
       first_date: ad?.first_date ? isoDay(ad.first_date) : null,
       last_date: ad?.last_date ? isoDay(ad.last_date) : null,
-      days: ad?.days.length ?? 0,
+      days: ad?.days.filter((d) => d instanceof Date).length ?? 0,
       active: everReported.getTime() >= activeSince,
     },
     range: describeRange(query, bounds),

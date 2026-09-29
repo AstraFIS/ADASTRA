@@ -31,6 +31,16 @@ try {
   const col = mongoose.connection.db!.collection('facebook_ad_reports');
   console.log(`[normalize] ${APPLY ? 'APPLY' : 'DRY RUN'} on ${mongoose.connection.name}.facebook_ad_reports (${await col.countDocuments()} docs)`);
 
+  // ---- empty rows: no date and no ad name (blank spreadsheet lines) are unusable ----
+  const emptyFilter = { $and: [{ $or: [{ report_date: { $exists: false } }, { report_date: null }] }, { $or: [{ ad_name: { $exists: false } }, { ad_name: null }, { ad_name: '' }] }] };
+  const empty = await col.countDocuments(emptyFilter);
+  if (empty) {
+    console.log(`  ${empty} empty row(s) with no report_date and no ad_name`);
+    if (APPLY) console.log(`    → deleted ${(await col.deleteMany(emptyFilter)).deletedCount}`);
+  }
+  const dateless = await col.countDocuments({ ...{ report_date: { $not: { $type: 'date' } } }, ad_name: { $exists: true, $nin: [null, ''] } });
+  if (dateless) console.log(`  WARNING: ${dateless} row(s) have an ad_name but no valid report_date — they are ignored by every endpoint; fix the date or remove them by hand`);
+
   for (const field of TEXT_FIELDS) {
     const filter = { [field]: { $type: ['double', 'int', 'long', 'decimal'] } };
     const n = await col.countDocuments(filter);

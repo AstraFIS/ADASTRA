@@ -94,7 +94,7 @@ export async function getFbDailyTrend(query: FbStatisticsQuery): Promise<FbDaily
     { $sort: { _id: 1 } },
   ]);
 
-  const daily: DailyTrendPoint[] = days.map((d) => {
+  const daily: DailyTrendPoint[] = days.filter((d) => d._id instanceof Date).map((d) => {
     const revenue_usd = round2(d.revenue_usd);
     const spend_usd = round2(d.spend_usd);
     const total_spend_usd = round2(d.total_spend_usd);

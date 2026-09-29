@@ -142,7 +142,10 @@ The read endpoints compute fees, totals and profits from `spend_usd`,
 `revenue_usd` and the normalised `provider_fee_pct` inside the aggregation
 (see `FEE_PCT` / `FEE_USD` / `TOTAL_SPEND` in `fbStatistics.service.ts`),
 so they are correct even when the stored derived columns are wrong or text.
-The normaliser also folds age / gender into the canonical buckets, replaces the
+Every read query also requires `report_date` to be a real Date, so an empty
+imported row (no date, no ad) is ignored rather than crashing a grouping.
+The normaliser reports such rows and deletes them with `--apply`. It also folds
+age / gender into the canonical buckets, replaces the
 legacy unique index with the one that includes age and gender, fixes a
 `provider_fee_pct` given as `638` (meaning 6.38 %), and recomputes every
 derived money column from the base numbers — which matters when an import
