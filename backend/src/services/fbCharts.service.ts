@@ -1,17 +1,10 @@
-import { FacebookAdReport } from '../models/facebookAdReport.model.js';
-import {
-  AGE_BUCKETS,
-  FacebookAudienceReport,
-  GENDER_BUCKETS,
-  type AudienceBreakdown,
-} from '../models/facebookAudienceReport.model.js';
+import { AGE_BUCKETS, FacebookAdReport, GENDER_BUCKETS } from '../models/facebookAdReport.model.js';
 import type { DateRangeKey } from '../types/facebook.js';
 import {
   dateMatch,
   describeRange,
   reportBaseMatch,
   resolveReportBounds,
-  textMatch,
   type FbStatisticsQuery,
 } from './fbStatistics.service.js';
 
@@ -24,10 +17,38 @@ export interface AdRevenueSpend {
 }
 
 export interface AudienceBucketStat {
-  bucket: string; // stored key, e.g. "25-34", "male"
+  bucket: string; // normalised key, e.g. "25-34", "male", "unknown"
   label: string; // display label, e.g. "25–34", "Male"
   link_clicks: number;
   impressions: number;
+  spend_usd: number;
+  conversions: number;
+}
+
+type AudienceBreakdown = 'age' | 'gender';
+
+/**
+ * Pipeline expression that normalises a stored age / gender value the same way
+ * the model does on save, so rows imported directly ("Not available", "Male",
+ * "18 – 24") land in the canonical buckets.
+ */
+function bucketExpr(field: 'age' | 'gender') {
+  const lowered = { $toLower: { $trim: { input: { $toString: { $ifNull: [`$${field}`, ''] } } } } };
+  const compact = {
+    $replaceAll: {
+      input: { $replaceAll: { input: { $replaceAll: { input: lowered, find: '–', replacement: '-' } }, find: '—', replacement: '-' } },
+      find: ' ',
+      replacement: '',
+    },
+  };
+  return {
+    $switch: {
+      branches: [
+        { case: { $in: [compact, ['', 'unknown', 'notavailable', 'not-available', 'n/a', 'na', 'null', 'undefined', '-']] }, then: 'unknown' },
+      ],
+      default: compact,
+    },
+  };
 }
 
 export interface FbChartsResult {
@@ -70,43 +91,46 @@ export async function getFbCharts(query: FbStatisticsQuery): Promise<FbChartsRes
     { $sort: { total_spend_usd: -1, _id: 1 } },
   ]);
 
-  // ---- audience: same ads and days; an offer filter is applied through the ads that ran it ----
-  const audienceMatch: Record<string, unknown> = { ...dateMatch(bounds) };
-  if (query.ad) audienceMatch.ad_name = textMatch(query.ad);
-  else if (query.offer) {
-    audienceMatch.ad_name = { $in: byAd.flatMap((a) => (Number.isFinite(Number(a._id)) ? [a._id, Number(a._id)] : [a._id])) };
-  }
-
-  const audience = await FacebookAudienceReport.aggregate<{
-    _id: { breakdown: AudienceBreakdown; bucket: string };
-    link_clicks: number;
-    impressions: number;
-    rows: number;
-  }>([
-    { $match: audienceMatch },
-    {
-      $group: {
-        _id: { breakdown: '$breakdown', bucket: { $toString: '$bucket' } },
-        link_clicks: { $sum: '$link_clicks' },
-        impressions: { $sum: '$impressions' },
-        rows: { $sum: 1 },
+  // ---- audience: the same rows, grouped by their age / gender breakdown ----
+  const groupBy = (field: AudienceBreakdown) =>
+    FacebookAdReport.aggregate<{
+      _id: string;
+      link_clicks: number;
+      impressions: number;
+      spend_usd: number;
+      conversions: number;
+      rows: number;
+    }>([
+      { $match: match },
+      {
+        $group: {
+          _id: bucketExpr(field),
+          link_clicks: { $sum: '$link_clicks' },
+          impressions: { $sum: '$impressions' },
+          spend_usd: { $sum: '$spend_usd' },
+          conversions: { $sum: '$conversions' },
+          rows: { $sum: 1 },
+        },
       },
-    },
-  ]);
+    ]).then((rows) => rows.map((r) => ({ ...r, _id: { breakdown: field, bucket: r._id } })));
+  const audience = (await Promise.all([groupBy('age'), groupBy('gender')])).flat();
 
   const buckets = (breakdown: AudienceBreakdown, order: { key: string; label: string }[]): AudienceBucketStat[] => {
     const found = new Map(audience.filter((a) => a._id.breakdown === breakdown).map((a) => [a._id.bucket, a]));
-    const known = order.map(({ key, label }) => ({
+    const stat = (key: string, label: string): AudienceBucketStat => ({
       bucket: key,
       label,
       link_clicks: found.get(key)?.link_clicks ?? 0,
       impressions: found.get(key)?.impressions ?? 0,
-    }));
+      spend_usd: round2(found.get(key)?.spend_usd ?? 0),
+      conversions: found.get(key)?.conversions ?? 0,
+    });
+    const known = order.map(({ key, label }) => stat(key, label));
     // anything the source used that we don't know about is appended rather than dropped
     const extra = [...found.keys()]
       .filter((k) => !order.some((o) => o.key === k))
       .sort()
-      .map((k) => ({ bucket: k, label: k, link_clicks: found.get(k)!.link_clicks, impressions: found.get(k)!.impressions }));
+      .map((k) => stat(k, k));
     return [...known, ...extra];
   };
 
@@ -124,7 +148,8 @@ export async function getFbCharts(query: FbStatisticsQuery): Promise<FbChartsRes
     audience_by_gender: buckets('gender', GENDER_BUCKETS),
     meta: {
       report_rows: byAd.reduce((n, a) => n + a.rows, 0),
-      audience_rows: audience.reduce((n, a) => n + a.rows, 0),
+      // rows carrying a known age or gender (i.e. not "unknown")
+      audience_rows: audience.filter((a) => a._id.bucket !== 'unknown').reduce((n, a) => n + a.rows, 0),
     },
   };
 }

@@ -17,6 +17,11 @@ export interface AdStatistics {
   clicks_all: number;
   conversions: number;
   landing_page_views: number;
+  first_page_views: number;
+  questionnaire_starts: number;
+  leads_partial: number;
+  add_to_carts: number;
+  purchase_events: number;
 }
 
 export interface FbAdStatisticsResult {

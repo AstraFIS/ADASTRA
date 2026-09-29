@@ -4,6 +4,10 @@
  *   - ad_name / offer_name / campaign_name / ad_set_name / provider_name stored
  *     as numbers become strings (an ad literally named 3.1 → "3.1")
  *   - empty-string provider_name becomes null
+ *   - age / gender are normalised to the canonical bucket keys ("Not available" → "unknown",
+ *     "Male" → "male", missing → "unknown")
+ *   - the old unique index (date, ad, campaign, ad set) is replaced by one that also
+ *     includes age and gender, so breakdown rows can coexist
  *
  * Dry run by default (reports what would change). Pass --apply to write.
  *
@@ -13,6 +17,7 @@
 import 'dotenv/config';
 import mongoose from 'mongoose';
 import { connectDb, disconnectDb } from '../config/db.js';
+import { FacebookAdReport, normaliseBucket } from '../models/facebookAdReport.model.js';
 
 const APPLY = process.argv.includes('--apply');
 const TEXT_FIELDS = ['ad_name', 'offer_name', 'campaign_name', 'ad_set_name', 'provider_name'] as const;
@@ -38,6 +43,31 @@ try {
   if (emptyProvider) {
     console.log(`  provider_name: ${emptyProvider} docs hold "" (should be null)`);
     if (APPLY) console.log(`    → set to null: ${(await col.updateMany({ provider_name: '' }, { $set: { provider_name: null } })).modifiedCount}`);
+  }
+
+  for (const field of ['age', 'gender'] as const) {
+    const raw = await col.aggregate<{ _id: unknown; n: number }>([{ $group: { _id: `$${field}`, n: { $sum: 1 } } }]).toArray();
+    const changes = raw.filter((r) => normaliseBucket(r._id) !== r._id);
+    if (changes.length === 0) continue;
+    console.log(`  ${field}: ${changes.reduce((n, r) => n + r.n, 0)} docs need normalising (${changes.map((r) => `${JSON.stringify(r._id)} → ${JSON.stringify(normaliseBucket(r._id))}`).join(', ')})`);
+    if (APPLY) {
+      for (const r of changes) {
+        const filter = r._id === null || r._id === undefined ? { [field]: { $in: [null, undefined] } } : { [field]: r._id };
+        const res = await col.updateMany(filter, { $set: { [field]: normaliseBucket(r._id) } });
+        console.log(`    → ${JSON.stringify(r._id)}: ${res.modifiedCount}`);
+      }
+    }
+  }
+
+  const indexes = await col.indexes();
+  const legacy = indexes.find((i) => i.unique && Object.keys(i.key).join('+') === 'report_date+ad_name+campaign_name+ad_set_name');
+  if (legacy) {
+    console.log(`  legacy unique index "${legacy.name}" (without age/gender) is present`);
+    if (APPLY) {
+      await col.dropIndex(legacy.name!);
+      await FacebookAdReport.syncIndexes();
+      console.log('    → dropped; indexes now:', (await col.indexes()).map((i) => i.name).join(', '));
+    }
   }
 
   const dupes = await col

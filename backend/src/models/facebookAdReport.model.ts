@@ -2,12 +2,37 @@ import { Schema, model, type HydratedDocument, type Model } from 'mongoose';
 
 /**
  * One reporting row: a Facebook ad on one day, within one campaign / ad set,
- * with its provider fee, funnel stages and outcome. Field names follow the
- * source sheet (snake_case) so an import maps 1:1.
+ * for one age band × gender (Facebook's demographic breakdown), with its
+ * provider fee, funnel stages and outcome. Field names follow the source
+ * sheet (snake_case) so an import maps 1:1.
  *
  * Derived fields (fee, total spend, CTR, CPC, profits, ROAS, CAC) are always
  * recomputed from the base numbers on save, so they cannot drift.
  */
+/** Canonical bucket keys (as stored) and their display labels, in chart order. */
+export const AGE_BUCKETS: { key: string; label: string }[] = [
+  { key: '18-24', label: '18–24' },
+  { key: '25-34', label: '25–34' },
+  { key: '35-44', label: '35–44' },
+  { key: '45-54', label: '45–54' },
+  { key: '55-64', label: '55–64' },
+  { key: '65+', label: '65+' },
+  { key: 'unknown', label: 'Unknown' },
+];
+export const GENDER_BUCKETS: { key: string; label: string }[] = [
+  { key: 'male', label: 'Male' },
+  { key: 'female', label: 'Female' },
+  { key: 'unknown', label: 'Unknown' },
+];
+
+const UNKNOWN_VALUES = new Set(['', 'unknown', 'not available', 'n/a', 'na', 'null', 'undefined', '-', '—']);
+
+/** "Male" → "male", " 18 – 24 " → "18-24", "Not available" / "" → "unknown" */
+export function normaliseBucket(raw: unknown): string {
+  const v = String(raw ?? '').trim().toLowerCase().replace(/[–—]/g, '-').replace(/\s+/g, '');
+  return UNKNOWN_VALUES.has(v) || UNKNOWN_VALUES.has(v.replace(/-/g, ' ')) ? 'unknown' : v;
+}
+
 export interface IFacebookAdReport {
   report_date: Date;
   ad_name: string;
@@ -15,6 +40,8 @@ export interface IFacebookAdReport {
   campaign_name: string;
   ad_set_name: string;
   provider_name: string | null; // null when no provider is attached
+  age: string; // "18-24" … "65+", or "unknown" (normalised on save)
+  gender: string; // "male" | "female" | "unknown" (normalised on save)
 
   // spend
   spend_usd: number; // before the provider fee
@@ -58,6 +85,8 @@ export type FacebookAdReportInput = Pick<
   | 'offer_name'
   | 'campaign_name'
   | 'ad_set_name'
+  | 'age'
+  | 'gender'
   | 'spend_usd'
   | 'impressions'
   | 'clicks_all'
@@ -141,6 +170,8 @@ const facebookAdReportSchema = new Schema<IFacebookAdReport, FacebookAdReportMod
     campaign_name: label,
     ad_set_name: label,
     provider_name: { type: String, trim: true, maxlength: 200, default: null },
+    age: { type: String, required: true, maxlength: 20, default: 'unknown', set: normaliseBucket },
+    gender: { type: String, required: true, maxlength: 20, default: 'unknown', set: normaliseBucket },
 
     spend_usd: money,
     provider_fee_pct: { type: Number, required: true, min: 0, max: 100, default: 0 },
@@ -179,6 +210,8 @@ const facebookAdReportSchema = new Schema<IFacebookAdReport, FacebookAdReportMod
           ad_name: input.ad_name.trim(),
           campaign_name: input.campaign_name.trim(),
           ad_set_name: input.ad_set_name.trim(),
+          age: normaliseBucket(input.age),
+          gender: normaliseBucket(input.gender),
         };
         const existing = await this.findOne(key);
         if (existing) {
@@ -191,11 +224,13 @@ const facebookAdReportSchema = new Schema<IFacebookAdReport, FacebookAdReportMod
   },
 );
 
-// one row per day × ad × campaign × ad set, so re-importing a sheet is idempotent
+// one row per day × ad × campaign × ad set × age × gender, so re-importing a sheet is idempotent
 facebookAdReportSchema.index(
-  { report_date: 1, ad_name: 1, campaign_name: 1, ad_set_name: 1 },
-  { unique: true },
+  { report_date: 1, ad_name: 1, campaign_name: 1, ad_set_name: 1, age: 1, gender: 1 },
+  { unique: true, name: 'report_row_unique' },
 );
+facebookAdReportSchema.index({ age: 1 });
+facebookAdReportSchema.index({ gender: 1 });
 facebookAdReportSchema.index({ ad_name: 1, report_date: 1 });
 facebookAdReportSchema.index({ offer_name: 1 });
 facebookAdReportSchema.index({ provider_name: 1 });

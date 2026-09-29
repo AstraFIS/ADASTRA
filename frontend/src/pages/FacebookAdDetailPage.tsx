@@ -19,6 +19,7 @@ import {
 } from '@/lib/format';
 import type { AdDetail, AudienceBucket, MetricComparison, ReadStatus } from '@/types/facebook';
 import type { FbAdStatisticsResult } from '@/types/fbAdStatistics';
+import type { FbChartsResult } from '@/types/fbCharts';
 import type { FbDailyTrendResult } from '@/types/fbDailyTrend';
 
 type State =
@@ -36,17 +37,22 @@ type TrendState =
   | { kind: 'ok'; data: FbDailyTrendResult }
   | { kind: 'error'; message: string };
 
+type ChartsState =
+  | { kind: 'loading'; previous: FbChartsResult | null }
+  | { kind: 'ok'; data: FbChartsResult }
+  | { kind: 'error'; message: string };
+
 const REVENUE_COLOR = 'var(--color-revenue)';
 const SPEND_COLOR = 'var(--color-spend)';
 const PROFIT_COLOR = 'var(--color-violet)';
 const LOSS_COLOR = 'var(--color-loss)';
 
-const FUNNEL_STAGES: { key: keyof AdDetail['ad']['funnel']; label: string }[] = [
-  { key: 'firstPageView', label: 'First Page View' },
-  { key: 'qs', label: 'Q.S.' },
-  { key: 'lead', label: 'Lead/Partial' },
-  { key: 'addToCart', label: 'Add To Cart' },
-  { key: 'purchase', label: 'Purchase' },
+const FUNNEL_STAGES: { key: 'first_page_views' | 'questionnaire_starts' | 'leads_partial' | 'add_to_carts' | 'purchase_events'; label: string }[] = [
+  { key: 'first_page_views', label: 'First Page View' },
+  { key: 'questionnaire_starts', label: 'Q.S.' },
+  { key: 'leads_partial', label: 'Lead/Partial' },
+  { key: 'add_to_carts', label: 'Add To Cart' },
+  { key: 'purchase_events', label: 'Purchase' },
 ];
 
 const STATUS_CLASSES: Record<ReadStatus, string> = {
@@ -68,6 +74,7 @@ export default function FacebookAdDetailPage() {
   const [state, setState] = useState<State>({ kind: 'loading', previous: null });
   const [stats, setStats] = useState<StatsState>({ kind: 'loading', previous: null });
   const [trend, setTrend] = useState<TrendState>({ kind: 'loading', previous: null });
+  const [charts, setCharts] = useState<ChartsState>({ kind: 'loading', previous: null });
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -111,6 +118,17 @@ export default function FacebookAdDetailPage() {
       })
       .catch((err: unknown) => {
         if (!cancelled) setTrend({ kind: 'error', message: err instanceof Error ? err.message : 'Unknown error' });
+      });
+
+    // audience by age / gender for this ad (from the report rows' breakdown)
+    setCharts((s) => ({ kind: 'loading', previous: s.kind === 'ok' ? s.data : s.kind === 'loading' ? s.previous : null }));
+    api
+      .get<FbChartsResult>(`/platforms/facebook/charts?ad=${encodeURIComponent(adName)}&range=${encodeURIComponent(range)}`)
+      .then((data) => {
+        if (!cancelled) setCharts({ kind: 'ok', data });
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setCharts({ kind: 'error', message: err instanceof Error ? err.message : 'Unknown error' });
       });
     return () => {
       cancelled = true;
@@ -180,6 +198,17 @@ export default function FacebookAdDetailPage() {
   const dailyRows = trendData?.daily ?? [];
   const hollowDays = dailyRows.map((d, i) => (d.total_spend_usd > 0 && d.conversions === 0 ? i : -1)).filter((i) => i >= 0);
   const hasCacData = dailyRows.some((d) => d.total_spend_usd > 0);
+
+  // 4-card breakdown row, all from the report collection
+  const chartsData = charts.kind === 'ok' ? charts.data : charts.kind === 'loading' ? charts.previous : null;
+  const chartsBusy = charts.kind === 'loading';
+  const stageShares = k
+    ? FUNNEL_STAGES.map((st) => ({ label: st.label, share: k.link_clicks > 0 ? (k[st.key] / k.link_clicks) * 100 : 0 }))
+    : [];
+  const weakest = stageShares.reduce<{ label: string; share: number } | null>((min, st) => (!min || st.share < min.share ? st : min), null);
+  const ageBuckets = (chartsData?.audience_by_age ?? []).filter((b) => b.link_clicks > 0).map((b) => ({ label: b.label, value: b.link_clicks }));
+  const genderBuckets = (chartsData?.audience_by_gender ?? []).filter((b) => b.link_clicks > 0).map((b) => ({ label: b.label, value: b.link_clicks }));
+  const audienceEmpty = chartsData !== null && chartsData.meta.report_rows === 0;
 
 
   return (
@@ -256,6 +285,77 @@ export default function FacebookAdDetailPage() {
       {stats.kind === 'ok' && stats.data.meta.rows === 0 && (
         <p className="-mt-4 text-sm text-ink-3">This ad has no report rows in the selected period.</p>
       )}
+
+      <section
+        aria-label="Ad breakdowns"
+        aria-busy={statsBusy || chartsBusy}
+        className={`grid gap-6 transition-opacity md:grid-cols-2 3xl:grid-cols-4 ${statsBusy || chartsBusy ? 'opacity-70' : ''}`}
+      >
+        <ChartCard
+          title="Funnel Drop-off"
+          subtitle={FUNNEL_STAGES.map((st) => st.label).join(' → ')}
+        >
+          {!k || k.link_clicks === 0 ? (
+            <EmptyChart>{k ? 'No link clicks in this period.' : 'Loading…'}</EmptyChart>
+          ) : (
+            <>
+              <BarChart
+                className="mt-3"
+                height={230}
+                ariaLabel="Funnel stages as a share of link clicks"
+                categories={stageShares.map((st) => st.label)}
+                series={[
+                  { key: 'share', label: '% of link clicks', color: REVENUE_COLOR, values: stageShares.map((st) => st.share) },
+                ]}
+                formatValue={(v) => formatFixed(v, 2)}
+                formatTick={(v) => String(Math.round(v))}
+                formatTooltipValue={(v) => `${formatFixed(v, 2)}% of clicks`}
+                intervals={3}
+                headroom={1.2}
+                barMaxWidth={72}
+              />
+              <p className="mt-5 text-sm leading-relaxed text-ink-2">
+                Weakest signal: <span className="font-bold text-ink">{weakest?.label ?? '—'}</span> (
+                {formatFixed(weakest?.share ?? 0, 2)}%). These are each an independent share of link
+                clicks from network tracking rather than a strict step-by-step funnel, so use them
+                to spot which stage lags — not as a literal drop-off chain.
+              </p>
+            </>
+          )}
+        </ChartCard>
+
+        <ChartCard title="Revenue vs. Amount Spent" caption={headerName}>
+          {!k ? (
+            <EmptyChart>Loading…</EmptyChart>
+          ) : (
+          <BarChart
+            className="mt-3"
+            height={230}
+            ariaLabel={`Revenue versus amount spent for ${headerName}`}
+            categories={['Revenue', 'Amount Spent']}
+            series={[{ key: 'usd', label: 'USD', color: REVENUE_COLOR, values: [k.revenue, k.amount_spent] }]}
+            formatValue={(v) => formatNumber(v, 1)}
+            formatTick={(v) => String(Math.round(v))}
+            formatTooltipValue={(v) => formatCurrency(v)}
+            intervals={3}
+            headroom={1.2}
+            barMaxWidth={180}
+          />
+          )}
+        </ChartCard>
+
+        <AudienceMiniCard title="Audience by Age" caption={headerName} buckets={ageBuckets} color={REVENUE_COLOR} empty={audienceEmpty} loading={!chartsData} error={charts.kind === 'error' ? charts.message : null} />
+        <AudienceMiniCard
+          title="Audience by Gender"
+          caption={headerName}
+          buckets={genderBuckets}
+          color={SPEND_COLOR}
+          empty={audienceEmpty}
+          loading={!chartsData}
+          error={charts.kind === 'error' ? charts.message : null}
+        />
+      </section>
+
 
       {data ? (
         <AdDetailSeedSections data={data} />
@@ -405,15 +505,7 @@ export default function FacebookAdDetailPage() {
 
 /** The sections still served by the seed-based detail endpoint. */
 function AdDetailSeedSections({ data }: { data: AdDetail }) {
-  const { ad, read, taxonomy, audience } = data;
-  // each stage as an independent share of link clicks (not a chained funnel)
-  const stageShares = FUNNEL_STAGES.map((st) => ({
-    label: st.label,
-    share: ad.linkClicks > 0 ? (ad.funnel[st.key] / ad.linkClicks) * 100 : 0,
-  }));
-  const weakest = stageShares.reduce((min, st) => (st.share < min.share ? st : min), stageShares[0]!);
-  const ageBuckets = audience.age.filter((b) => b.value > 0);
-  const genderBuckets = audience.gender.filter((b) => b.value > 0);
+  const { read, taxonomy } = data;
 
   return (
     <>
@@ -436,65 +528,6 @@ function AdDetailSeedSections({ data }: { data: AdDetail }) {
         <p className="mt-6 rounded-lg border border-line bg-canvas/60 px-5 py-4 text-base text-ink">
           <span className="font-bold text-revenue">Recommended next step:</span> {read.nextStep}
         </p>
-      </section>
-
-      <section aria-label="Ad breakdowns" className="grid gap-6 md:grid-cols-2 3xl:grid-cols-4">
-        <ChartCard
-          title="Funnel Drop-off"
-          subtitle={FUNNEL_STAGES.map((st) => st.label).join(' → ')}
-        >
-          {ad.linkClicks === 0 ? (
-            <EmptyChart>No link clicks in this period.</EmptyChart>
-          ) : (
-            <>
-              <BarChart
-                className="mt-3"
-                height={230}
-                ariaLabel="Funnel stages as a share of link clicks"
-                categories={stageShares.map((st) => st.label)}
-                series={[
-                  { key: 'share', label: '% of link clicks', color: REVENUE_COLOR, values: stageShares.map((st) => st.share) },
-                ]}
-                formatValue={(v) => formatFixed(v, 2)}
-                formatTick={(v) => String(Math.round(v))}
-                formatTooltipValue={(v) => `${formatFixed(v, 2)}% of clicks`}
-                intervals={3}
-                headroom={1.2}
-                barMaxWidth={72}
-              />
-              <p className="mt-5 text-sm leading-relaxed text-ink-2">
-                Weakest signal: <span className="font-bold text-ink">{weakest.label}</span> (
-                {formatFixed(weakest.share, 2)}%). These are each an independent share of link
-                clicks from network tracking rather than a strict step-by-step funnel, so use them
-                to spot which stage lags — not as a literal drop-off chain.
-              </p>
-            </>
-          )}
-        </ChartCard>
-
-        <ChartCard title="Revenue vs. Amount Spent" caption={ad.adName}>
-          <BarChart
-            className="mt-3"
-            height={230}
-            ariaLabel={`Revenue versus amount spent for ${ad.adName}`}
-            categories={['Revenue', 'Amount Spent']}
-            series={[{ key: 'usd', label: 'USD', color: REVENUE_COLOR, values: [ad.revenue, ad.spend] }]}
-            formatValue={(v) => formatNumber(v, 1)}
-            formatTick={(v) => String(Math.round(v))}
-            formatTooltipValue={(v) => formatCurrency(v)}
-            intervals={3}
-            headroom={1.2}
-            barMaxWidth={180}
-          />
-        </ChartCard>
-
-        <AudienceMiniCard title="Audience by Age" caption={ad.adName} buckets={ageBuckets} color={REVENUE_COLOR} />
-        <AudienceMiniCard
-          title="Audience by Gender"
-          caption={ad.adName}
-          buckets={genderBuckets}
-          color={SPEND_COLOR}
-        />
       </section>
 
       <CreativeTaxonomyCard taxonomy={taxonomy} />
@@ -535,15 +568,27 @@ function AudienceMiniCard({
   caption,
   buckets,
   color,
+  empty = false,
+  loading = false,
+  error = null,
 }: {
   title: string;
   caption: string;
   buckets: AudienceBucket[];
   color: string;
+  empty?: boolean;
+  loading?: boolean;
+  error?: string | null;
 }) {
   return (
     <ChartCard title={title} caption={caption}>
-      {buckets.length === 0 ? (
+      {error ? (
+        <EmptyChart>
+          <span className="text-loss">Audience data unavailable: {error}</span>
+        </EmptyChart>
+      ) : loading ? (
+        <EmptyChart>Loading…</EmptyChart>
+      ) : empty || buckets.length === 0 ? (
         <EmptyChart>No audience data in this period.</EmptyChart>
       ) : (
         <BarChart

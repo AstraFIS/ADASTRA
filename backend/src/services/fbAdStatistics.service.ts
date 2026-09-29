@@ -28,6 +28,12 @@ export interface AdStatistics {
   clicks_all: number;
   conversions: number;
   landing_page_views: number;
+  // funnel stages (each an independent share of link clicks, not a chained funnel)
+  first_page_views: number;
+  questionnaire_starts: number;
+  leads_partial: number;
+  add_to_carts: number;
+  purchase_events: number;
 }
 
 export interface FbAdStatisticsResult {
@@ -63,6 +69,11 @@ interface Totals {
   link_clicks: number;
   landing_page_views: number;
   conversions: number;
+  first_page_views: number;
+  questionnaire_starts: number;
+  leads_partial: number;
+  add_to_carts: number;
+  purchase_events: number;
   rows: number;
   days: Date[];
   first_date: Date | null;
@@ -87,6 +98,11 @@ async function totals(match: Record<string, unknown>): Promise<Totals | null> {
         link_clicks: { $sum: '$link_clicks' },
         landing_page_views: { $sum: '$landing_page_views' },
         conversions: { $sum: '$conversions' },
+        first_page_views: { $sum: '$first_page_views' },
+        questionnaire_starts: { $sum: '$questionnaire_starts' },
+        leads_partial: { $sum: '$leads_partial' },
+        add_to_carts: { $sum: '$add_to_carts' },
+        purchase_events: { $sum: '$purchase_events' },
         rows: { $sum: 1 },
         days: { $addToSet: '$report_date' },
         first_date: { $min: '$report_date' },
@@ -119,6 +135,11 @@ const stats = (t: Totals | null): AdStatistics => {
     clicks_all: t?.clicks_all ?? 0,
     conversions: t?.conversions ?? 0,
     landing_page_views: t?.landing_page_views ?? 0,
+    first_page_views: t?.first_page_views ?? 0,
+    questionnaire_starts: t?.questionnaire_starts ?? 0,
+    leads_partial: t?.leads_partial ?? 0,
+    add_to_carts: t?.add_to_carts ?? 0,
+    purchase_events: t?.purchase_events ?? 0,
   };
 };
 

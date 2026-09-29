@@ -13,6 +13,8 @@ export interface AudienceBucketStat {
   label: string;
   link_clicks: number;
   impressions: number;
+  spend_usd: number;
+  conversions: number;
 }
 
 export interface FbChartsResult {
