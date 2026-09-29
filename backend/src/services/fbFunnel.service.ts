@@ -4,8 +4,11 @@ import { isoDay } from '../utils/dateRange.js';
 import {
   dateMatch,
   describeRange,
+  FEE_USD,
+  num,
   reportBaseMatch,
   resolveReportBounds,
+  TOTAL_SPEND,
   type FbStatisticsQuery,
 } from './fbStatistics.service.js';
 
@@ -90,9 +93,9 @@ export async function getFbFunnel(query: FbStatisticsQuery): Promise<FbFunnelRes
         first_date: { $min: '$report_date' },
         last_date: { $max: '$report_date' },
         days: { $addToSet: '$report_date' },
-        spend_usd: { $sum: '$spend_usd' },
-        provider_fee_usd: { $sum: '$provider_fee_usd' },
-        total_spend_usd: { $sum: '$total_spend_usd' },
+        spend_usd: { $sum: num('spend_usd') },
+        provider_fee_usd: { $sum: FEE_USD },
+        total_spend_usd: { $sum: TOTAL_SPEND },
         impressions: { $sum: '$impressions' },
         clicks_all: { $sum: '$clicks_all' },
         link_clicks: { $sum: '$link_clicks' },
@@ -102,7 +105,7 @@ export async function getFbFunnel(query: FbStatisticsQuery): Promise<FbFunnelRes
         add_to_carts: { $sum: '$add_to_carts' },
         purchase_events: { $sum: '$purchase_events' },
         conversions: { $sum: '$conversions' },
-        revenue_usd: { $sum: '$revenue_usd' },
+        revenue_usd: { $sum: num('revenue_usd') },
       },
     },
     { $sort: { total_spend_usd: -1, '_id.ad_name': 1, '_id.offer_name': 1 } },

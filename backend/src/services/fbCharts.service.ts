@@ -3,8 +3,10 @@ import type { DateRangeKey } from '../types/facebook.js';
 import {
   dateMatch,
   describeRange,
+  num,
   reportBaseMatch,
   resolveReportBounds,
+  TOTAL_SPEND,
   type FbStatisticsQuery,
 } from './fbStatistics.service.js';
 
@@ -81,9 +83,9 @@ export async function getFbCharts(query: FbStatisticsQuery): Promise<FbChartsRes
       $group: {
         // $toString: names imported as numbers (an ad called 3.1) must still group and render as text
         _id: { $toString: '$ad_name' },
-        revenue_usd: { $sum: '$revenue_usd' },
-        total_spend_usd: { $sum: '$total_spend_usd' },
-        spend_usd: { $sum: '$spend_usd' },
+        revenue_usd: { $sum: num('revenue_usd') },
+        total_spend_usd: { $sum: TOTAL_SPEND },
+        spend_usd: { $sum: num('spend_usd') },
         link_clicks: { $sum: '$link_clicks' },
         rows: { $sum: 1 },
       },
@@ -107,7 +109,7 @@ export async function getFbCharts(query: FbStatisticsQuery): Promise<FbChartsRes
           _id: bucketExpr(field),
           link_clicks: { $sum: '$link_clicks' },
           impressions: { $sum: '$impressions' },
-          spend_usd: { $sum: '$spend_usd' },
+          spend_usd: { $sum: num('spend_usd') },
           conversions: { $sum: '$conversions' },
           rows: { $sum: 1 },
         },

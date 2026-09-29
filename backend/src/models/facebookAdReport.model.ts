@@ -25,12 +25,13 @@ export const GENDER_BUCKETS: { key: string; label: string }[] = [
   { key: 'unknown', label: 'Unknown' },
 ];
 
-const UNKNOWN_VALUES = new Set(['', 'unknown', 'not available', 'n/a', 'na', 'null', 'undefined', '-', '—']);
+// compared after lower-casing and removing spaces / dashes, so "Not available", "N/A", "n-a" all match
+const UNKNOWN_TOKENS = new Set(['', 'unknown', 'notavailable', 'na', 'n/a', 'none', 'null', 'undefined']);
 
 /** "Male" → "male", " 18 – 24 " → "18-24", "Not available" / "" → "unknown" */
 export function normaliseBucket(raw: unknown): string {
   const v = String(raw ?? '').trim().toLowerCase().replace(/[–—]/g, '-').replace(/\s+/g, '');
-  return UNKNOWN_VALUES.has(v) || UNKNOWN_VALUES.has(v.replace(/-/g, ' ')) ? 'unknown' : v;
+  return UNKNOWN_TOKENS.has(v.replace(/-/g, '')) ? 'unknown' : v;
 }
 
 export interface IFacebookAdReport {
@@ -42,6 +43,10 @@ export interface IFacebookAdReport {
   provider_name: string | null; // null when no provider is attached
   age: string; // "18-24" … "65+", or "unknown" (normalised on save)
   gender: string; // "male" | "female" | "unknown" (normalised on save)
+
+  // creative assets (optional; null when the source has none)
+  image_url: string | null;
+  video_url: string | null;
 
   // spend
   spend_usd: number; // before the provider fee
@@ -101,7 +106,7 @@ export type FacebookAdReportInput = Pick<
   | 'conversions'
   | 'revenue_usd'
 > &
-  Partial<Pick<IFacebookAdReport, 'provider_name' | 'provider_fee_pct'>>;
+  Partial<Pick<IFacebookAdReport, 'provider_name' | 'provider_fee_pct' | 'image_url' | 'video_url'>>;
 
 export type DerivedReportFields = Pick<
   IFacebookAdReport,
@@ -140,7 +145,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 const ratio = (num: number, den: number, scale = 1): number | null => (den > 0 ? round2((num / den) * scale) : null);
 
 export function deriveFields(b: DeriveInput): DerivedReportFields {
-  const provider_fee_usd = round2((b.spend_usd * (b.provider_fee_pct ?? 0)) / 100);
+  const provider_fee_usd = round2((b.spend_usd * normaliseFeePct(b.provider_fee_pct)) / 100);
   const total_spend_usd = round2(b.spend_usd + provider_fee_usd);
   const gross_profit_usd = round2(b.revenue_usd - b.spend_usd);
   const net_profit_usd = round2(b.revenue_usd - total_spend_usd);
@@ -154,6 +159,20 @@ export function deriveFields(b: DeriveInput): DerivedReportFields {
     roas_pct: ratio(net_profit_usd, total_spend_usd, 100),
     cac_usd: ratio(total_spend_usd, b.conversions),
   };
+}
+
+/** Optional text fields: "" and whitespace are stored as null. */
+const emptyToNull = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? null : v);
+
+/**
+ * provider_fee_pct is a percentage (6.38 means 6.38 %). Some imports store it
+ * ×100 (753 for 7.53 %); a fee above 100 % is impossible, so anything over 100
+ * is read as ×100 and scaled back.
+ */
+export function normaliseFeePct(raw: unknown): number {
+  const n = typeof raw === 'number' ? raw : Number(String(raw ?? '').replace(',', '.'));
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return n > 100 ? Math.round(n) / 100 : n;
 }
 
 const count = { type: Number, required: true, min: 0, default: 0 };
@@ -172,9 +191,11 @@ const facebookAdReportSchema = new Schema<IFacebookAdReport, FacebookAdReportMod
     provider_name: { type: String, trim: true, maxlength: 200, default: null },
     age: { type: String, required: true, maxlength: 20, default: 'unknown', set: normaliseBucket },
     gender: { type: String, required: true, maxlength: 20, default: 'unknown', set: normaliseBucket },
+    image_url: { type: String, trim: true, maxlength: 2048, default: null, set: emptyToNull },
+    video_url: { type: String, trim: true, maxlength: 2048, default: null, set: emptyToNull },
 
     spend_usd: money,
-    provider_fee_pct: { type: Number, required: true, min: 0, max: 100, default: 0 },
+    provider_fee_pct: { type: Number, required: true, min: 0, max: 100, default: 0, set: normaliseFeePct },
     provider_fee_usd: derived,
     total_spend_usd: derived,
 
@@ -241,6 +262,8 @@ facebookAdReportSchema.pre('validate', function fillDerived(this: FacebookAdRepo
     this.provider_name = null;
   }
   if (!this.provider_name) this.provider_fee_pct = 0;
+  // a row loaded with a ×100 percentage (753) is corrected before it is validated and recomputed
+  this.provider_fee_pct = normaliseFeePct(this.provider_fee_pct);
   this.set(deriveFields(this));
 });
 
@@ -260,6 +283,10 @@ export function toPublicFacebookAdReport(doc: FacebookAdReportDocument): PublicF
     campaign_name: doc.campaign_name,
     ad_set_name: doc.ad_set_name,
     provider_name: doc.provider_name,
+    age: doc.age,
+    gender: doc.gender,
+    image_url: doc.image_url,
+    video_url: doc.video_url,
     spend_usd: doc.spend_usd,
     provider_fee_pct: doc.provider_fee_pct,
     provider_fee_usd: doc.provider_fee_usd,

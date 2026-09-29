@@ -6,9 +6,12 @@ import { ACTIVE_WINDOW_DAYS } from './fbFunnel.service.js';
 import {
   dateMatch,
   describeRange,
+  FEE_USD,
   latestReportDate,
+  num,
   resolveReportBounds,
   textMatch,
+  TOTAL_SPEND,
   type FbStatisticsQuery,
 } from './fbStatistics.service.js';
 
@@ -89,10 +92,10 @@ async function totals(match: Record<string, unknown>): Promise<Totals | null> {
     {
       $group: {
         _id: null,
-        revenue_usd: { $sum: '$revenue_usd' },
-        spend_usd: { $sum: '$spend_usd' },
-        provider_fee_usd: { $sum: '$provider_fee_usd' },
-        total_spend_usd: { $sum: '$total_spend_usd' },
+        revenue_usd: { $sum: num('revenue_usd') },
+        spend_usd: { $sum: num('spend_usd') },
+        provider_fee_usd: { $sum: FEE_USD },
+        total_spend_usd: { $sum: TOTAL_SPEND },
         impressions: { $sum: '$impressions' },
         clicks_all: { $sum: '$clicks_all' },
         link_clicks: { $sum: '$link_clicks' },

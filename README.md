@@ -1,5 +1,7 @@
 # ADASTRA Admin Panel
 
+> New here? Start with [HANDOVER.md](HANDOVER.md) — a one-page map of the system, how to run it, and what's open.
+
 Monorepo with two npm workspaces:
 
 | Folder      | Stack                                   | Dev URL                |
@@ -90,29 +92,29 @@ means the connection string or the Atlas allow-list is wrong.
 ## Data models
 
 - `backend/src/models/user.model.ts` — accounts (see Auth).
-- `backend/src/models/facebookAudienceReport.model.ts` — `FacebookAudienceReport`,
-  collection `facebook_audience_reports`: one row per day × ad × breakdown
-  (`age` | `gender`) × bucket (`18-24` … `65+`, `unknown`; `male`, `female`,
-  `unknown`) with `impressions`, `clicks_all`, `link_clicks`, `spend_usd`.
-  Buckets are normalised on save; `upsertRow` keys on (date, ad, breakdown,
-  bucket). Feeds the audience charts.
 - `backend/src/models/facebookAdReport.model.ts` — `FacebookAdReport`, one
   document per reporting row (a Facebook ad on one day within one campaign /
-  ad set), collection `facebook_ad_reports`. Field names are snake_case to
-  match the source sheet: `report_date`, `ad_name`, `offer_name`,
-  `campaign_name`, `ad_set_name`, `provider_name` (null when none),
+  ad set, for one age band × gender), collection `facebook_ad_reports`. Field
+  names are snake_case to match the source sheet: `report_date`, `ad_name`,
+  `offer_name`, `campaign_name`, `ad_set_name`, `provider_name` (null when
+  none), `age` (`18-24` … `65+` or `unknown`) and `gender` (`male`, `female`,
+  `unknown`) — both normalised on save, so "Not available", "Male" and
+  "18 – 24" become canonical keys — optional `image_url` / `video_url`
+  (null when absent),
   `spend_usd`, `provider_fee_pct`, `provider_fee_usd`, `total_spend_usd`,
   `impressions`, `clicks_all`, `link_clicks`, `landing_page_views`, `ctr_all`,
   `cpc_usd`, `presell_visits`, `first_page_views`, `questionnaire_starts`,
   `leads_partial`, `add_to_carts`, `purchase_events`, `conversions`,
   `revenue_usd`, `gross_profit_usd`, `net_profit_usd`, `roas_pct`, `cac_usd`.
+  `provider_fee_pct` is a percentage (6.38 = 6.38 %); a value above 100 is
+  read as ×100 (753 → 7.53) both on save and in every read pipeline.
   Derived on every save: fee = spend × pct ÷ 100, total = spend + fee,
   ctr_all = clicks_all ÷ impressions × 100, cpc_usd = spend ÷ clicks_all,
   gross profit = revenue − spend, net profit = revenue − total spend,
   roas_pct = net profit ÷ total spend × 100, cac_usd = total spend ÷
   conversions (null when a denominator is 0; the fee is forced to 0 without a
-  provider). Unique per (report_date, ad_name, campaign_name, ad_set_name), so
-  `FacebookAdReport.upsertRow(input)` makes re-imports idempotent;
+  provider). Unique per (report_date, ad_name, campaign_name, ad_set_name, age, gender),
+  so `FacebookAdReport.upsertRow(input)` makes re-imports idempotent;
   `toPublicFacebookAdReport(doc)` is the API shape.
 
 ### Loading Facebook data
@@ -122,11 +124,11 @@ collection, which starts empty (the tiles then show zero with a hint). To load
 the demo rows that the rest of the dashboard uses:
 
 ```bash
-npm run seed:facebook -w backend      # upserts 24 report rows + 240 audience rows; safe to re-run
+npm run seed:facebook -w backend      # upserts the demo rows split by age × gender; safe to re-run
 ```
 
-Real data goes in through `FacebookAdReport.upsertRow(...)` and
-`FacebookAudienceReport.upsertRow(...)` (an import endpoint is the next step).
+Real data goes in through `FacebookAdReport.upsertRow(...)` (an import
+endpoint is the next step).
 Rows written directly into Mongo (mongoimport, Compass, a custom script) skip
 the model's casting; if text fields such as `ad_name` end up stored as numbers
 (an ad literally named `3.1`), run the normaliser:
@@ -136,9 +138,18 @@ npm run normalize:facebook -w backend              # dry run: reports what would
 npm run normalize:facebook -w backend -- --apply   # converts numeric names to strings
 ```
 
-The read endpoints tolerate mixed types anyway (`$toString` in aggregations and
-filters that match both `"3.1"` and `3.1`), but the unique index and upserts
-only work reliably once the types are consistent.
+The read endpoints compute fees, totals and profits from `spend_usd`,
+`revenue_usd` and the normalised `provider_fee_pct` inside the aggregation
+(see `FEE_PCT` / `FEE_USD` / `TOTAL_SPEND` in `fbStatistics.service.ts`),
+so they are correct even when the stored derived columns are wrong or text.
+The normaliser also folds age / gender into the canonical buckets, replaces the
+legacy unique index with the one that includes age and gender, fixes a
+`provider_fee_pct` given as `638` (meaning 6.38 %), and recomputes every
+derived money column from the base numbers — which matters when an import
+wrote fee / total / profit columns as text or with the wrong scale. The read
+endpoints tolerate mixed name types anyway (`$toString` in aggregations and
+filters that match both `"3.1"` and `3.1`), but sums silently skip text values,
+so run the normaliser after any direct import.
 The Facebook page is fully database-driven; the provider fee cards use
 `providers[]` from `/statistics` and the header shows the collection's latest
 report day. Note that "Last 30 Days" can legitimately equal "This Month" when
@@ -161,7 +172,7 @@ the extra days at the end of the previous month had no spend.
 | GET    | `/api/platforms/*`        | **All platform endpoints below require a Bearer token** (401 otherwise) |
 | GET    | `/api/platforms/overview` | Client/portfolio, totals, and per-platform summaries |
 | GET    | `/api/platforms/facebook/statistics` | KPIs computed from the `facebook_ad_reports` collection: `total_revenue`, `total_amount_spend` (incl. provider fees), `net_profit`, `landing_page_views`, `link_clicks`, `cpc` (spend before fees ÷ link clicks), `ctr` (link clicks ÷ impressions, %). Query: `range` (anchored on the latest day in the whole collection, so it is the same window for every ad / offer filter), or explicit `from`/`to` (YYYY-MM-DD), plus `ad`, `offer`. Also returns `providers[]` (every provider in the collection with `amount_spent`, `provider_fee`, `fee_pct` actually applied, `total_with_fee` for the selection) and `meta` (rows, ads, impressions, spend before fees, provider fees) |
-| GET    | `/api/platforms/facebook/charts` | Chart data from the report collections with the same query params as statistics: `revenue_vs_spend_by_ad` (per ad: `revenue_usd`, `total_spend_usd`, `spend_usd`, `link_clicks`, sorted by total spend), `audience_by_age` and `audience_by_gender` (`bucket`, `label`, `link_clicks`, `impressions`; every bucket present, zeros included) |
+| GET    | `/api/platforms/facebook/charts` | Chart data from the report collections with the same query params as statistics: `revenue_vs_spend_by_ad` (per ad: `revenue_usd`, `total_spend_usd`, `spend_usd`, `link_clicks`, sorted by total spend), `audience_by_age` and `audience_by_gender` from the rows' own `age` / `gender` (`bucket`, `label`, `link_clicks`, `impressions`, `spend_usd`, `conversions`; every bucket present, zeros included; "Not available" and "Unknown" fold into `unknown`) |
 | GET    | `/api/platforms/facebook/daily-trend` | Per-day totals from the report collection with the same query params: `daily[]` of `date`, `revenue_usd`, `spend_usd`, `provider_fee_usd`, `total_spend_usd`, `gross_profit_usd` (revenue − spend), `net_profit_usd` (revenue − total spend), `impressions`, `clicks_all`, `link_clicks`, `landing_page_views`, the funnel stages `first_page_views` → `questionnaire_starts` → `leads_partial` → `add_to_carts` → `purchase_events`, `conversions`, `cac_usd`, `roas_pct`; only days that have rows. With `ad=` it feeds the ad page's Daily Performance table and trend |
 | GET    | `/api/platforms/facebook/funnel` | "Funnel Performance by Ad Name & Offer": one row per `ad_name` × `offer_name` with `providers`, `first_date`/`last_date`/`days`, `active` (reported within the last 7 days of the result), `spend_usd`, `provider_fee_usd`, `total_spend_usd`, `impressions`, `clicks_all`, `link_clicks`, `ctr_all`, `cpc_usd`, the stage counts `first_page_views` → `questionnaire_starts` → `leads_partial` → `add_to_carts` → `purchase_events`, `conversions`, `revenue_usd`, `net_profit_usd`, `cac_usd`, `roas_pct`; same query params as statistics |
 | GET    | `/api/platforms/facebook/options` | Dropdown choices from the report collection: `ads`, `offers`, `providers` (distinct, as text, natural-sorted), `dateRanges`, `dataThrough`, `rows` |

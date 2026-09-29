@@ -43,6 +43,28 @@ export interface FbStatisticsResult {
 /** Loose match object: filters may hold `$in` with mixed string/number values (see textMatch). */
 export type ReportFilter = Record<string, unknown>;
 
+// ---------------------------------------------------------------------------
+// Money expressions. Fees and totals are computed from the base numbers inside
+// the pipeline rather than summed from the stored derived columns, so results
+// are right even for rows imported with a ×100 fee percentage (753 = 7.53 %)
+// or with derived columns stored as text. Mirrors deriveFields() in the model.
+// ---------------------------------------------------------------------------
+
+/** A numeric field read defensively: text / missing / null → 0. */
+export const num = (field: string) => ({ $convert: { input: `$${field}`, to: 'double', onError: 0, onNull: 0 } });
+
+/** provider_fee_pct as a real percentage: 7.53 stays 7.53, 753 becomes 7.53. */
+export const FEE_PCT = {
+  $let: {
+    vars: { p: num('provider_fee_pct') },
+    in: { $cond: [{ $gt: ['$$p', 100] }, { $divide: [{ $round: ['$$p', 0] }, 100] }, { $max: ['$$p', 0] }] },
+  },
+};
+/** Fee in USD for the row, rounded to cents like the model does. */
+export const FEE_USD = { $round: [{ $divide: [{ $multiply: [num('spend_usd'), FEE_PCT] }, 100] }, 2] };
+/** Spend grossed up by the provider fee. */
+export const TOTAL_SPEND = { $add: [num('spend_usd'), FEE_USD] };
+
 /**
  * Newest report_date matching a filter. Uses the aggregation pipeline rather
  * than findOne because Mongoose casts query values to the schema type, which
@@ -139,10 +161,10 @@ export async function getFbStatistics(query: FbStatisticsQuery): Promise<FbStati
     {
       $group: {
         _id: null,
-        total_revenue: { $sum: '$revenue_usd' },
-        total_amount_spend: { $sum: '$total_spend_usd' },
-        spend_before_fees: { $sum: '$spend_usd' },
-        provider_fees: { $sum: '$provider_fee_usd' },
+        total_revenue: { $sum: num('revenue_usd') },
+        total_amount_spend: { $sum: TOTAL_SPEND },
+        spend_before_fees: { $sum: num('spend_usd') },
+        provider_fees: { $sum: FEE_USD },
         landing_page_views: { $sum: '$landing_page_views' },
         link_clicks: { $sum: '$link_clicks' },
         impressions: { $sum: '$impressions' },
@@ -213,9 +235,9 @@ async function providerFees(match: ReportFilter): Promise<ProviderFeeStat[]> {
       {
         $group: {
           _id: { $toString: '$provider_name' },
-          spend_usd: { $sum: '$spend_usd' },
-          provider_fee_usd: { $sum: '$provider_fee_usd' },
-          total_spend_usd: { $sum: '$total_spend_usd' },
+          spend_usd: { $sum: num('spend_usd') },
+          provider_fee_usd: { $sum: FEE_USD },
+          total_spend_usd: { $sum: TOTAL_SPEND },
           rows: { $sum: 1 },
         },
       },

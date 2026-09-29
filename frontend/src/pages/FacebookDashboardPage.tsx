@@ -257,12 +257,6 @@ export default function FacebookDashboardPage() {
           {data.title}
           <span className="text-spend"> — {data.subtitle}</span>
         </h1>
-        <p className="mt-2 text-base text-ink-2">
-          {options?.dataThrough
-            ? <>Data through {formatDate(options.dataThrough, 'long')} · {formatInteger(options.rows)} report rows</>
-            : <>Data last updated: {formatDate(data.lastUpdated, 'long')} · data through {formatDate(data.dataThrough, 'short')}</>}
-          {' '}· Source: {data.sourceNote}
-        </p>
       </header>
 
       <section aria-label="Filters" className="flex flex-wrap items-center gap-x-6 gap-y-4">

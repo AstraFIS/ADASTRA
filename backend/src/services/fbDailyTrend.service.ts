@@ -4,8 +4,11 @@ import { isoDay } from '../utils/dateRange.js';
 import {
   dateMatch,
   describeRange,
+  FEE_USD,
+  num,
   reportBaseMatch,
   resolveReportBounds,
+  TOTAL_SPEND,
   type FbStatisticsQuery,
 } from './fbStatistics.service.js';
 
@@ -71,10 +74,10 @@ export async function getFbDailyTrend(query: FbStatisticsQuery): Promise<FbDaily
     {
       $group: {
         _id: '$report_date',
-        revenue_usd: { $sum: '$revenue_usd' },
-        spend_usd: { $sum: '$spend_usd' },
-        provider_fee_usd: { $sum: '$provider_fee_usd' },
-        total_spend_usd: { $sum: '$total_spend_usd' },
+        revenue_usd: { $sum: num('revenue_usd') },
+        spend_usd: { $sum: num('spend_usd') },
+        provider_fee_usd: { $sum: FEE_USD },
+        total_spend_usd: { $sum: TOTAL_SPEND },
         impressions: { $sum: '$impressions' },
         clicks_all: { $sum: '$clicks_all' },
         link_clicks: { $sum: '$link_clicks' },

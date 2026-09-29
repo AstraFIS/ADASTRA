@@ -8,6 +8,10 @@
  *     "Male" → "male", missing → "unknown")
  *   - the old unique index (date, ad, campaign, ad set) is replaced by one that also
  *     includes age and gender, so breakdown rows can coexist
+ *   - provider_fee_pct given as 638 (meaning 6.38 %) is divided by 100
+ *   - every derived column (provider_fee_usd, total_spend_usd, ctr_all, cpc_usd,
+ *     gross_profit_usd, net_profit_usd, roas_pct, cac_usd) is recomputed from the
+ *     base numbers, replacing imported values that were wrong or stored as text
  *
  * Dry run by default (reports what would change). Pass --apply to write.
  *
@@ -68,6 +72,44 @@ try {
       await FacebookAdReport.syncIndexes();
       console.log('    → dropped; indexes now:', (await col.indexes()).map((i) => i.name).join(', '));
     }
+  }
+
+  // ---- provider_fee_pct sanity: a fee cannot exceed 100 %; 638 means 6.38 ----
+  const badPct = await col.countDocuments({ provider_fee_pct: { $gt: 100 } });
+  if (badPct) {
+    const vals = await col.distinct('provider_fee_pct', { provider_fee_pct: { $gt: 100 } });
+    console.log(`  provider_fee_pct: ${badPct} docs hold ${vals.join(', ')} → will become ${vals.map((v) => v / 100).join(', ')}`);
+    if (APPLY) console.log(`    → fixed ${(await col.updateMany({ provider_fee_pct: { $gt: 100 } }, [{ $set: { provider_fee_pct: { $divide: ['$provider_fee_pct', 100] } } }])).modifiedCount}`);
+  }
+
+  // ---- derived columns: recompute from the base numbers through the model's own save hook ----
+  const DERIVED = ['provider_fee_usd', 'total_spend_usd', 'ctr_all', 'cpc_usd', 'gross_profit_usd', 'net_profit_usd', 'roas_pct', 'cac_usd'] as const;
+  const textDerived = await col.countDocuments({ $or: DERIVED.map((f) => ({ [f]: { $type: 'string' } })) });
+  const missingBase = await col.countDocuments({ $or: ['spend_usd', 'revenue_usd', 'impressions', 'link_clicks'].map((f) => ({ [f]: { $exists: false } })) });
+  console.log(`  derived columns: ${textDerived} docs hold text values; ${missingBase} docs lack base numbers (they will be treated as 0)`);
+  if (APPLY) {
+    let saved = 0;
+    for await (const doc of FacebookAdReport.find().cursor()) {
+      // touching a base field forces the pre-validate hook to recompute every derived value
+      doc.markModified('spend_usd');
+      await doc.save();
+      saved++;
+    }
+    console.log(`    → recomputed ${saved} docs`);
+    const [t] = await col.aggregate([{ $group: { _id: null, spend: { $sum: '$spend_usd' }, fee: { $sum: '$provider_fee_usd' }, total: { $sum: '$total_spend_usd' } } }]).toArray();
+    console.log(`    → totals now: spend ${t?.spend?.toFixed(2)} + fees ${t?.fee?.toFixed(2)} = ${t?.total?.toFixed(2)}`);
+  } else {
+    // preview what the totals would become
+    const rows = await col.find({}, { projection: { spend_usd: 1, provider_fee_pct: 1 } }).toArray();
+    const preview = rows.reduce((acc, r) => {
+      const spend = Number(r.spend_usd) || 0;
+      let pct = Number(r.provider_fee_pct) || 0;
+      if (pct > 100) pct /= 100;
+      const fee = Math.round(spend * pct) / 100;
+      return { spend: acc.spend + spend, fee: acc.fee + fee, total: acc.total + spend + fee };
+    }, { spend: 0, fee: 0, total: 0 });
+    const [now] = await col.aggregate([{ $group: { _id: null, fee: { $sum: '$provider_fee_usd' }, total: { $sum: '$total_spend_usd' } } }]).toArray();
+    console.log(`    currently summed: fees ${now?.fee?.toFixed(2)}, total ${now?.total?.toFixed(2)} → after recompute: spend ${preview.spend.toFixed(2)} + fees ${preview.fee.toFixed(2)} = ${preview.total.toFixed(2)}`);
   }
 
   const dupes = await col
