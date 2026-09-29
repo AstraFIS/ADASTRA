@@ -25,6 +25,8 @@ interface Props {
   height?: number;
   barMaxWidth?: number;
   showValueLabels?: boolean;
+  /** Top of the y-axis when every value is 0 (keeps the scale readable). */
+  fallbackMax?: number;
   ariaLabel: string;
   className?: string;
 }
@@ -94,6 +96,7 @@ export default function BarChart({
   height,
   barMaxWidth,
   showValueLabels = true,
+  fallbackMax = 1,
   ariaLabel,
   className = '',
 }: Props) {
@@ -104,7 +107,7 @@ export default function BarChart({
   const chartHeight = height ?? size.height;
 
   const maxValue = Math.max(0, ...series.flatMap((s) => s.values));
-  const yMax = maxValue > 0 ? maxValue * headroom : 1;
+  const yMax = maxValue > 0 ? maxValue * headroom : fallbackMax;
   const ticks = Array.from({ length: intervals + 1 }, (_, i) => (yMax / intervals) * i);
   const tickLabels = ticks.map(formatTick);
   const marginLeft = Math.max(...tickLabels.map((t) => t.length)) * TICK_CHAR_WIDTH + 20;

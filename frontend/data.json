@@ -1,0 +1,3161 @@
+[
+    {
+        "ad_name": "spydirect2",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Flexibility / Low Commitment",
+                    "confidence": 0.88
+                },
+                "hook": {
+                    "value": "Cancel Anytime. Try DirectMax.",
+                    "confidence": 0.94
+                },
+                "hook_type": {
+                    "value": "Risk_Reversal",
+                    "confidence": 0.86
+                },
+                "claim": {
+                    "value": "Flexible monthly plan with 6 tablets, free doctor consult, and discreet shipping",
+                    "confidence": 0.90
+                },
+                "style_primary": {
+                    "value": "Direct",
+                    "confidence": 0.85
+                },
+                "style_secondary": {
+                    "value": "Premium / Lifestyle",
+                    "confidence": 0.78
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.92
+                },
+                "target_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.76
+                },
+                "offer_type": {
+                    "value": "Subscription / Value_Anchor",
+                    "confidence": 0.84
+                },
+                "offer_text": {
+                    "value": "$119/month for 6 tablets, anchored against a 'Total Value $244' (no % discount shown)",
+                    "confidence": 0.88
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Cancel Anytime. Try DirectMax.",
+                    "confidence": 0.94
+                },
+                "body_copy": {
+                    "value": "A flexible monthly plan with 6 tablets, free doctor consult, and discreet shipping. $119/month • 6 tablets • Total Value $244",
+                    "confidence": 0.92
+                },
+                "cta_text": {
+                    "value": "Start Monthly",
+                    "confidence": 0.95
+                },
+                "cta_type": {
+                    "value": "Subscribe / Sign_Up",
+                    "confidence": 0.88
+                },
+                "main_visual": {
+                    "value": "Single_Person with Product (branded box, 'Discreet. Private. Delivered.')",
+                    "confidence": 0.90
+                },
+                "person_gender": {
+                    "value": "Male",
+                    "confidence": 0.97
+                },
+                "person_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.78
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "DM3",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Differentiation / Product Superiority",
+                    "confidence": 0.90
+                },
+                "hook": {
+                    "value": "Not Just Another ED Pill.",
+                    "confidence": 0.95
+                },
+                "hook_type": {
+                    "value": "Contrarian / Pattern_Interrupt",
+                    "confidence": 0.84
+                },
+                "claim": {
+                    "value": "3-in-1 formula (Sildenafil + Tadalafil + Apomorphine) in one fast-dissolving tablet supporting both physical and mental performance",
+                    "confidence": 0.93
+                },
+                "style_primary": {
+                    "value": "Informative",
+                    "confidence": 0.86
+                },
+                "style_secondary": {
+                    "value": "Direct",
+                    "confidence": 0.78
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.95
+                },
+                "target_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.77
+                },
+                "offer_type": {
+                    "value": "Price_Point / Per_Dose_Pricing",
+                    "confidence": 0.85
+                },
+                "offer_text": {
+                    "value": "Plans from $7.45/dose, online consultation + discreet shipping included (no % discount shown)",
+                    "confidence": 0.90
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Not Just Another ED Pill.",
+                    "confidence": 0.95
+                },
+                "body_copy": {
+                    "value": "DirectMax combines Sildenafil + Tadalafil + Apomorphine in one fast-dissolving tablet, designed to support both the physical side and the mental side of performance. Fast-Dissolving: dissolves in seconds, no water needed. 3-in-1 Formula: complete performance support. Online Prescription: licensed providers, private and secure, 100% online. Plans from $7.45/dose. Online consultation + discreet shipping included.",
+                    "confidence": 0.93
+                },
+                "cta_text": {
+                    "value": "See the 3-in-1 Difference",
+                    "confidence": 0.96
+                },
+                "cta_type": {
+                    "value": "Learn_More",
+                    "confidence": 0.88
+                },
+                "main_visual": {
+                    "value": "Single_Person with Product (branded box + dissolving tablet)",
+                    "confidence": 0.91
+                },
+                "person_gender": {
+                    "value": "Male",
+                    "confidence": 0.97
+                },
+                "person_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.78
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "DM_Men_plan",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Flexibility / Low Commitment",
+                    "confidence": 0.88
+                },
+                "hook": {
+                    "value": "Cancel Anytime. Try DirectMax.",
+                    "confidence": 0.94
+                },
+                "hook_type": {
+                    "value": "Risk_Reversal",
+                    "confidence": 0.86
+                },
+                "claim": {
+                    "value": "Flexible monthly plan with 6 tablets, free doctor consult, and discreet shipping",
+                    "confidence": 0.90
+                },
+                "style_primary": {
+                    "value": "Direct",
+                    "confidence": 0.85
+                },
+                "style_secondary": {
+                    "value": "Premium / Lifestyle",
+                    "confidence": 0.78
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.92
+                },
+                "target_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.76
+                },
+                "offer_type": {
+                    "value": "Subscription / Value_Anchor",
+                    "confidence": 0.84
+                },
+                "offer_text": {
+                    "value": "$119/month for 6 tablets, anchored against a 'Total Value $244' (no % discount shown)",
+                    "confidence": 0.88
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Cancel Anytime. Try DirectMax.",
+                    "confidence": 0.94
+                },
+                "body_copy": {
+                    "value": "A flexible monthly plan with 6 tablets, free doctor consult, and discreet shipping. $119/month • 6 tablets • Total Value $244",
+                    "confidence": 0.92
+                },
+                "cta_text": {
+                    "value": "Start Monthly",
+                    "confidence": 0.95
+                },
+                "cta_type": {
+                    "value": "Subscribe / Sign_Up",
+                    "confidence": 0.88
+                },
+                "main_visual": {
+                    "value": "Single_Person with Product (branded box, 'Discreet. Private. Delivered.')",
+                    "confidence": 0.90
+                },
+                "person_gender": {
+                    "value": "Male",
+                    "confidence": 0.97
+                },
+                "person_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.78
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "DM_savings1",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Savings / Value Maximization",
+                    "confidence": 0.93
+                },
+                "hook": {
+                    "value": "More Included. Less To Pay.",
+                    "confidence": 0.95
+                },
+                "hook_type": {
+                    "value": "Value_Proposition",
+                    "confidence": 0.87
+                },
+                "claim": {
+                    "value": "3-month plan includes free doctor consultation ($100 value) and free shipping ($25 value), saving $40/month",
+                    "confidence": 0.92
+                },
+                "style_primary": {
+                    "value": "Direct_Response",
+                    "confidence": 0.90
+                },
+                "style_secondary": {
+                    "value": "Informative",
+                    "confidence": 0.76
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.94
+                },
+                "target_age": {
+                    "value": null,
+                    "confidence": null
+                },
+                "offer_type": {
+                    "value": "Bundle / Price_Discount / Value_Stack",
+                    "confidence": 0.91
+                },
+                "offer_text": {
+                    "value": "$244 value → $79/mo on 3-month plan; save up to $165; consultation and shipping $0",
+                    "confidence": 0.94
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "More Included. Less To Pay.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "Choose the 3-month plan and get consultation and shipping included. Your Value Stack: Doctor Consultation $100 → $0; Shipping $25 → $0; 3-Month Plan save $40/mo. $244 value → $79/mo. Save up to $165.",
+                    "confidence": 0.94
+                },
+                "cta_text": {
+                    "value": "Start Saving Now",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Claim_Offer",
+                    "confidence": 0.90
+                },
+                "main_visual": {
+                    "value": "Product_Only with Value_Stack graphic (branded box + tablet, price comparison table)",
+                    "confidence": 0.92
+                },
+                "person_gender": {
+                    "value": null,
+                    "confidence": null
+                },
+                "person_age": {
+                    "value": null,
+                    "confidence": null
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "DM_savings2",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Savings / Value Maximization",
+                    "confidence": 0.94
+                },
+                "hook": {
+                    "value": "Save $40 Every Month",
+                    "confidence": 0.96
+                },
+                "hook_type": {
+                    "value": "Price_Savings",
+                    "confidence": 0.90
+                },
+                "claim": {
+                    "value": "3-month plan drops price from $119/mo to $79/mo, with $100 doctor consultation and $25 shipping included at $0",
+                    "confidence": 0.93
+                },
+                "style_primary": {
+                    "value": "Direct_Response",
+                    "confidence": 0.92
+                },
+                "style_secondary": {
+                    "value": "Bold / Masculine",
+                    "confidence": 0.75
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.93
+                },
+                "target_age": {
+                    "value": null,
+                    "confidence": null
+                },
+                "offer_type": {
+                    "value": "Bundle / Price_Discount / Value_Stack",
+                    "confidence": 0.92
+                },
+                "offer_text": {
+                    "value": "$119/mo → $79/mo (save $40/month); +$125 in included services; up to $165 total savings",
+                    "confidence": 0.95
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Save $40 Every Month",
+                    "confidence": 0.97
+                },
+                "body_copy": {
+                    "value": "Plus get the $100 doctor consultation and $25 shipping included at $0. $119/mo → $79/mo. Doctor Consultation $100 → $0; Shipping $25 → $0. +$125 in included services. Up to $165 total savings.",
+                    "confidence": 0.94
+                },
+                "cta_text": {
+                    "value": "Choose 3 Months",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Claim_Offer",
+                    "confidence": 0.88
+                },
+                "main_visual": {
+                    "value": "Single_Person (cropped, faceless muscular male torso) with Offer graphics",
+                    "confidence": 0.85
+                },
+                "person_gender": {
+                    "value": "Male",
+                    "confidence": 0.94
+                },
+                "person_age": {
+                    "value": null,
+                    "confidence": null
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "DM_Men_plan2",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Flexibility / Low Commitment",
+                    "confidence": 0.91
+                },
+                "hook": {
+                    "value": "No Commitment. Full Control.",
+                    "confidence": 0.95
+                },
+                "hook_type": {
+                    "value": "Risk_Reversal",
+                    "confidence": 0.88
+                },
+                "claim": {
+                    "value": "6 tablets each month with free doctor consult and discreet shipping, cancel whenever you want",
+                    "confidence": 0.92
+                },
+                "style_primary": {
+                    "value": "Direct",
+                    "confidence": 0.85
+                },
+                "style_secondary": {
+                    "value": "Premium / Lifestyle",
+                    "confidence": 0.80
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.93
+                },
+                "target_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.75
+                },
+                "offer_type": {
+                    "value": "Subscription",
+                    "confidence": 0.87
+                },
+                "offer_text": {
+                    "value": "Pay $119/month, includes free consult + free shipping (no discount or value anchor shown)",
+                    "confidence": 0.92
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "No Commitment. Full Control.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "Get 6 tablets each month with free doctor consult and discreet shipping, cancel whenever you want. Pay $119/month. Includes free consult + free shipping.",
+                    "confidence": 0.94
+                },
+                "cta_text": {
+                    "value": "Try It Now",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Try / Sign_Up",
+                    "confidence": 0.86
+                },
+                "main_visual": {
+                    "value": "Single_Person (no product shown)",
+                    "confidence": 0.92
+                },
+                "person_gender": {
+                    "value": "Male",
+                    "confidence": 0.97
+                },
+                "person_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.76
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "DM_sale1",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Savings / Best Value",
+                    "confidence": 0.94
+                },
+                "hook": {
+                    "value": "Best Value. Better Monthly Price.",
+                    "confidence": 0.95
+                },
+                "hook_type": {
+                    "value": "Value_Proposition",
+                    "confidence": 0.88
+                },
+                "claim": {
+                    "value": "6 DirectMax tablets each month with doctor consultation and discreet shipping included, $79/mo on the 3-month plan vs. $119/mo monthly",
+                    "confidence": 0.93
+                },
+                "style_primary": {
+                    "value": "Direct_Response",
+                    "confidence": 0.91
+                },
+                "style_secondary": {
+                    "value": "Premium",
+                    "confidence": 0.76
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.94
+                },
+                "target_age": {
+                    "value": null,
+                    "confidence": null
+                },
+                "offer_type": {
+                    "value": "Price_Discount / Plan_Comparison",
+                    "confidence": 0.91
+                },
+                "offer_text": {
+                    "value": "$79/mo for 3 months vs. $119/mo monthly; free doctor consultation + free shipping (no % discount shown)",
+                    "confidence": 0.95
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Best Value. Better Monthly Price.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "Get 6 DirectMax tablets each month, plus doctor consultation and discreet shipping included. $79/mo for 3 months vs. $119/mo monthly. Free Doctor Consultation. Free Shipping. Billed monthly for 3 months • 6 tablets per month.",
+                    "confidence": 0.95
+                },
+                "cta_text": {
+                    "value": "Choose Best Value",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Claim_Offer",
+                    "confidence": 0.89
+                },
+                "main_visual": {
+                    "value": "Product_Only (branded box + tablet, 'Best Value' badge)",
+                    "confidence": 0.93
+                },
+                "person_gender": {
+                    "value": null,
+                    "confidence": null
+                },
+                "person_age": {
+                    "value": null,
+                    "confidence": null
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "DM_Men_plan3",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Flexibility / Low Commitment",
+                    "confidence": 0.91
+                },
+                "hook": {
+                    "value": "Start Simple. Stop Anytime.",
+                    "confidence": 0.95
+                },
+                "hook_type": {
+                    "value": "Risk_Reversal",
+                    "confidence": 0.88
+                },
+                "claim": {
+                    "value": "Monthly plan with 6 tablets, free doctor consult, and discreet delivery with no lock-in; online visit with licensed doctors and personalized treatment",
+                    "confidence": 0.92
+                },
+                "style_primary": {
+                    "value": "Direct",
+                    "confidence": 0.85
+                },
+                "style_secondary": {
+                    "value": "Premium / Lifestyle",
+                    "confidence": 0.79
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.93
+                },
+                "target_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.76
+                },
+                "offer_type": {
+                    "value": "Subscription / Value_Anchor",
+                    "confidence": 0.86
+                },
+                "offer_text": {
+                    "value": "$244 value for $119/month (no % discount shown)",
+                    "confidence": 0.93
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Start Simple. Stop Anytime.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "Try the monthly plan first: 6 tablets, free doctor consult, and discreet delivery with no lock-in. $244 value for $119/month. Phone screen: Online Visit. Private. Fast. Convenient. Licensed Doctors • Personalized Treatment • Discreet Delivery. Box: Discreet. Simple. Delivered.",
+                    "confidence": 0.92
+                },
+                "cta_text": {
+                    "value": "Get Started",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Sign_Up",
+                    "confidence": 0.88
+                },
+                "main_visual": {
+                    "value": "Single_Person with Product (branded box, blister pack, phone showing online visit screen)",
+                    "confidence": 0.91
+                },
+                "person_gender": {
+                    "value": "Male",
+                    "confidence": 0.97
+                },
+                "person_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.77
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "DM_sale2",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Savings / Best Value",
+                    "confidence": 0.94
+                },
+                "hook": {
+                    "value": "Best Value. Better Price.",
+                    "confidence": 0.95
+                },
+                "hook_type": {
+                    "value": "Value_Proposition",
+                    "confidence": 0.88
+                },
+                "claim": {
+                    "value": "6 DirectMax tablets each month with doctor consultation and discreet shipping included, $79/mo on the 3-month plan vs. $119/mo monthly",
+                    "confidence": 0.93
+                },
+                "style_primary": {
+                    "value": "Direct_Response",
+                    "confidence": 0.91
+                },
+                "style_secondary": {
+                    "value": "Premium",
+                    "confidence": 0.75
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.94
+                },
+                "target_age": {
+                    "value": null,
+                    "confidence": null
+                },
+                "offer_type": {
+                    "value": "Price_Discount / Plan_Comparison",
+                    "confidence": 0.91
+                },
+                "offer_text": {
+                    "value": "$79/mo for 3 months vs. $119/mo monthly; free doctor consultation + free shipping; cancel anytime (no % discount shown)",
+                    "confidence": 0.94
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Best Value. Better Price.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "6 DirectMax tablets each month, plus doctor consultation and discreet shipping included. $79/mo for 3 months vs. $119/mo monthly. Free Doctor Consultation. Free Shipping. Billed monthly for 3 months • Cancel anytime.",
+                    "confidence": 0.95
+                },
+                "cta_text": {
+                    "value": "Choose Best Value",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Claim_Offer",
+                    "confidence": 0.89
+                },
+                "main_visual": {
+                    "value": "Product_Only (branded box + tablet, 'Best Value' badge)",
+                    "confidence": 0.93
+                },
+                "person_gender": {
+                    "value": null,
+                    "confidence": null
+                },
+                "person_age": {
+                    "value": null,
+                    "confidence": null
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "DM2",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Convenience / Privacy",
+                    "confidence": 0.93
+                },
+                "hook": {
+                    "value": "Handle It Without Leaving Home.",
+                    "confidence": 0.95
+                },
+                "hook_type": {
+                    "value": "Pain_Point / Embarrassment_Avoidance",
+                    "confidence": 0.84
+                },
+                "claim": {
+                    "value": "Quick online consult, no in-person visit, discreet delivery to your door; makes dealing with ED simple, fast, and private",
+                    "confidence": 0.92
+                },
+                "style_primary": {
+                    "value": "Direct",
+                    "confidence": 0.84
+                },
+                "style_secondary": {
+                    "value": "Empathetic / Lifestyle",
+                    "confidence": 0.77
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.95
+                },
+                "target_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.77
+                },
+                "offer_type": {
+                    "value": "Price_Point / Per_Dose_Pricing",
+                    "confidence": 0.85
+                },
+                "offer_text": {
+                    "value": "Plans from $7.45/dose, online consultation + discreet shipping included (no % discount shown)",
+                    "confidence": 0.91
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Handle It Without Leaving Home.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "Quick online consult, no in-person visit, discreet delivery to your door. DirectMax makes dealing with ED simple, fast, and private. 100% Online • No Doctor Visit • Discreet Delivery. Private. Simple. On Your Terms. No waiting rooms. No awkward conversations. Just straightforward care that fits your life. Plans from $7.45/dose. Online consultation + discreet shipping included.",
+                    "confidence": 0.94
+                },
+                "cta_text": {
+                    "value": "Get Started in Minutes",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Sign_Up",
+                    "confidence": 0.87
+                },
+                "main_visual": {
+                    "value": "Single_Person with Product (man on phone + laptop, discreet shipping box)",
+                    "confidence": 0.91
+                },
+                "person_gender": {
+                    "value": "Male",
+                    "confidence": 0.97
+                },
+                "person_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.78
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "DM_sale3",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Savings / Best Value",
+                    "confidence": 0.94
+                },
+                "hook": {
+                    "value": "Best Value. Better Monthly Price.",
+                    "confidence": 0.95
+                },
+                "hook_type": {
+                    "value": "Value_Proposition",
+                    "confidence": 0.88
+                },
+                "claim": {
+                    "value": "6 DirectMax tablets each month with doctor consultation and discreet shipping included, $79/mo on the 3-month plan vs. $119/mo monthly",
+                    "confidence": 0.93
+                },
+                "style_primary": {
+                    "value": "Direct_Response",
+                    "confidence": 0.91
+                },
+                "style_secondary": {
+                    "value": "Premium",
+                    "confidence": 0.76
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.94
+                },
+                "target_age": {
+                    "value": null,
+                    "confidence": null
+                },
+                "offer_type": {
+                    "value": "Price_Discount / Plan_Comparison",
+                    "confidence": 0.91
+                },
+                "offer_text": {
+                    "value": "$79/mo for 3 months vs. $119/mo monthly; free doctor consultation + free shipping (no % discount shown)",
+                    "confidence": 0.95
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Best Value. Better Monthly Price.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "6 DirectMax tablets each month, plus doctor consultation and discreet shipping included. $79/mo for 3 months vs. $119/mo monthly. Free Doctor Consultation. Free Shipping. Discreet. Private. Delivered to you.",
+                    "confidence": 0.95
+                },
+                "cta_text": {
+                    "value": "Choose Best Value",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Claim_Offer",
+                    "confidence": 0.89
+                },
+                "main_visual": {
+                    "value": "Product_Only (branded box + tablet, 'Best Value' badge)",
+                    "confidence": 0.93
+                },
+                "person_gender": {
+                    "value": null,
+                    "confidence": null
+                },
+                "person_age": {
+                    "value": null,
+                    "confidence": null
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "DM3",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Differentiation / Product Superiority",
+                    "confidence": 0.90
+                },
+                "hook": {
+                    "value": "Not Just Another ED Pill.",
+                    "confidence": 0.95
+                },
+                "hook_type": {
+                    "value": "Contrarian / Pattern_Interrupt",
+                    "confidence": 0.84
+                },
+                "claim": {
+                    "value": "3-in-1 formula (Sildenafil + Tadalafil + Apomorphine) in one fast-dissolving tablet supporting both physical and mental performance",
+                    "confidence": 0.93
+                },
+                "style_primary": {
+                    "value": "Informative",
+                    "confidence": 0.86
+                },
+                "style_secondary": {
+                    "value": "Direct",
+                    "confidence": 0.78
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.95
+                },
+                "target_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.77
+                },
+                "offer_type": {
+                    "value": "Price_Point / Per_Dose_Pricing",
+                    "confidence": 0.85
+                },
+                "offer_text": {
+                    "value": "Plans from $7.45/dose, online consultation + discreet shipping included (no % discount shown)",
+                    "confidence": 0.90
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Not Just Another ED Pill.",
+                    "confidence": 0.95
+                },
+                "body_copy": {
+                    "value": "DirectMax combines Sildenafil + Tadalafil + Apomorphine in one fast-dissolving tablet, designed to support both the physical side and the mental side of performance. Fast-Dissolving: dissolves in seconds, no water needed. 3-in-1 Formula: complete performance support. Online Prescription: licensed providers, private and secure, 100% online. Plans from $7.45/dose. Online consultation + discreet shipping included.",
+                    "confidence": 0.93
+                },
+                "cta_text": {
+                    "value": "See the 3-in-1 Difference",
+                    "confidence": 0.96
+                },
+                "cta_type": {
+                    "value": "Learn_More",
+                    "confidence": 0.88
+                },
+                "main_visual": {
+                    "value": "Single_Person with Product (branded box + dissolving tablet)",
+                    "confidence": 0.91
+                },
+                "person_gender": {
+                    "value": "Male",
+                    "confidence": 0.97
+                },
+                "person_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.78
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "DM4",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Confidence / Emotional Transformation (Relationship)",
+                    "confidence": 0.90
+                },
+                "hook": {
+                    "value": "Feel Like Yourself Again.",
+                    "confidence": 0.95
+                },
+                "hook_type": {
+                    "value": "Aspirational / Emotional",
+                    "confidence": 0.88
+                },
+                "claim": {
+                    "value": "Restores confidence; helps you show up with more ease, more calm, and more control; private, fast-dissolving, discreet delivery",
+                    "confidence": 0.90
+                },
+                "style_primary": {
+                    "value": "Emotional / Aspirational",
+                    "confidence": 0.87
+                },
+                "style_secondary": {
+                    "value": "Lifestyle",
+                    "confidence": 0.80
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.93
+                },
+                "target_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.77
+                },
+                "offer_type": {
+                    "value": "Price_Point / Per_Dose_Pricing",
+                    "confidence": 0.85
+                },
+                "offer_text": {
+                    "value": "Plans from $7.45/dose, online consultation + discreet shipping included (no % discount shown)",
+                    "confidence": 0.91
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Feel Like Yourself Again.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "When confidence comes back, everything changes. DirectMax helps you show up with more ease, more calm, and more control. Private • Fast-Dissolving • Discreet Delivery. Plans from $7.45/dose. Online consultation + discreet shipping included.",
+                    "confidence": 0.94
+                },
+                "cta_text": {
+                    "value": "Take the First Step",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Get_Started / Soft_Commitment",
+                    "confidence": 0.85
+                },
+                "main_visual": {
+                    "value": "Couple (man in foreground, affectionate woman behind; no product shown)",
+                    "confidence": 0.93
+                },
+                "person_gender": {
+                    "value": "Male + Female",
+                    "confidence": 0.96
+                },
+                "person_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.78
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "DM1",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Privacy / Embarrassment Avoidance",
+                    "confidence": 0.94
+                },
+                "hook": {
+                    "value": "Skip the Awkward Conversation.",
+                    "confidence": 0.96
+                },
+                "hook_type": {
+                    "value": "Pain_Point / Embarrassment_Avoidance",
+                    "confidence": 0.91
+                },
+                "claim": {
+                    "value": "Get evaluated online and treated discreetly from home; 100% online, discreet delivery, fast-dissolving tablet",
+                    "confidence": 0.92
+                },
+                "style_primary": {
+                    "value": "Empathetic",
+                    "confidence": 0.87
+                },
+                "style_secondary": {
+                    "value": "Direct",
+                    "confidence": 0.78
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.95
+                },
+                "target_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.77
+                },
+                "offer_type": {
+                    "value": "Price_Point / Per_Dose_Pricing",
+                    "confidence": 0.85
+                },
+                "offer_text": {
+                    "value": "Plans from $7.45/dose, online consultation + discreet shipping included (no % discount shown)",
+                    "confidence": 0.91
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Skip the Awkward Conversation.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "If talking about ED face-to-face has kept you putting it off, you're not alone. DirectMax lets you get evaluated online and treated discreetly from home. 100% Online • Discreet Delivery • Fast-Dissolving Tablet. Private. Simple. On Your Terms. No waiting rooms. No awkward conversations. Just straightforward care that fits your life. Plans from $7.45/dose. Online consultation + discreet shipping included.",
+                    "confidence": 0.94
+                },
+                "cta_text": {
+                    "value": "Start Online Now",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Sign_Up",
+                    "confidence": 0.87
+                },
+                "main_visual": {
+                    "value": "Single_Person (contemplative man sitting on bed, bedroom setting; no product shown)",
+                    "confidence": 0.92
+                },
+                "person_gender": {
+                    "value": "Male",
+                    "confidence": 0.97
+                },
+                "person_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.78
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "DM5",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Convenience / Time-Saving (Busy Lifestyle)",
+                    "confidence": 0.93
+                },
+                "hook": {
+                    "value": "Your Calendar Is Full. Your Excuses Are Too.",
+                    "confidence": 0.95
+                },
+                "hook_type": {
+                    "value": "Objection_Handling / Callout",
+                    "confidence": 0.89
+                },
+                "claim": {
+                    "value": "Keeps the whole process online, private, and less awkward; no waiting room, discreet delivery",
+                    "confidence": 0.91
+                },
+                "style_primary": {
+                    "value": "Humorous / Witty",
+                    "confidence": 0.84
+                },
+                "style_secondary": {
+                    "value": "Direct",
+                    "confidence": 0.80
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.95
+                },
+                "target_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.73
+                },
+                "offer_type": {
+                    "value": "Price_Point / Per_Dose_Pricing",
+                    "confidence": 0.85
+                },
+                "offer_text": {
+                    "value": "Plans from $7.45/dose, online consultation + discreet shipping included (no % discount shown)",
+                    "confidence": 0.91
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Your Calendar Is Full. Your Excuses Are Too.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "No time for a waiting room? Perfect. DirectMax keeps the whole process online, private, and far less awkward than making that call. 100% Online • Discreet Delivery • No Waiting Room. Plans from $7.45/dose. Online consultation + discreet shipping included. In-image text: 'Fix This. Online.' (whiteboard), 'Time Saved. Awkwardness Avoided.' (mug).",
+                    "confidence": 0.93
+                },
+                "cta_text": {
+                    "value": "Fix It From Home",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Sign_Up",
+                    "confidence": 0.86
+                },
+                "main_visual": {
+                    "value": "Single_Person with Props (man at laptop, busy weekly calendar whiteboard, slogan mug; no product shown)",
+                    "confidence": 0.92
+                },
+                "person_gender": {
+                    "value": "Male",
+                    "confidence": 0.97
+                },
+                "person_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.75
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "3.1",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Performance / Sexual Confidence (Relationship)",
+                    "confidence": 0.93
+                },
+                "hook": {
+                    "value": "Strong & Lasting Erections.",
+                    "confidence": 0.96
+                },
+                "hook_type": {
+                    "value": "Benefit_Led / Outcome_Promise",
+                    "confidence": 0.90
+                },
+                "claim": {
+                    "value": "Ready in 15 mins (rapid dissolve), 3 active ingredients (Sildenafil / Tadalafil / Apomorphine) for maximum performance, 100% online and private",
+                    "confidence": 0.93
+                },
+                "style_primary": {
+                    "value": "Direct_Response",
+                    "confidence": 0.88
+                },
+                "style_secondary": {
+                    "value": "Sensual / Lifestyle",
+                    "confidence": 0.82
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.95
+                },
+                "target_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.76
+                },
+                "offer_type": {
+                    "value": "No_Offer (Free_Shipping only)",
+                    "confidence": 0.84
+                },
+                "offer_text": {
+                    "value": "No price or discount shown; free shipping, arrives in 1–2 days",
+                    "confidence": 0.90
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Strong & Lasting Erections.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "Be Ready Anytime. Be Confident Always. Ready in 15 mins: Rapid Dissolve. 3 Active Ingredients: Maximum Performance. 100% Online & Private: Discreet & Convenient. Free Shipping: arrives in 1–2 days. 100% Online: private & discreet. Discreet Delivery: shipped to your door. Trusted by over 290,000 customers. Excellent 4.6 (star rating). Pack: Rx Only, maximum 1 dose per 36 hours.",
+                    "confidence": 0.94
+                },
+                "cta_text": {
+                    "value": "See If You Qualify",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Qualify / Eligibility_Check",
+                    "confidence": 0.90
+                },
+                "main_visual": {
+                    "value": "Couple (intimate, in bed) with Product (DirectMeds-branded pack + blue square tablet)",
+                    "confidence": 0.93
+                },
+                "person_gender": {
+                    "value": "Male + Female",
+                    "confidence": 0.97
+                },
+                "person_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.77
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "3.3",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Speed / Fast Onset (Spontaneity)",
+                    "confidence": 0.94
+                },
+                "hook": {
+                    "value": "Ready in 15 Minutes.",
+                    "confidence": 0.96
+                },
+                "hook_type": {
+                    "value": "Benefit_Led / Speed_Claim",
+                    "confidence": 0.91
+                },
+                "claim": {
+                    "value": "Ready in 15 mins (rapid dissolve), 3 active ingredients (Sildenafil • Tadalafil • Apomorphine), 100% online and private, discreet delivery",
+                    "confidence": 0.94
+                },
+                "style_primary": {
+                    "value": "Direct_Response",
+                    "confidence": 0.89
+                },
+                "style_secondary": {
+                    "value": "Sensual / Lifestyle",
+                    "confidence": 0.76
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.95
+                },
+                "target_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.74
+                },
+                "offer_type": {
+                    "value": "No_Offer (Free_Shipping only)",
+                    "confidence": 0.84
+                },
+                "offer_text": {
+                    "value": "No price or discount shown; free shipping, arrives in 1–2 days",
+                    "confidence": 0.90
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Ready in 15 Minutes.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "Don't Let the Moment Wait. Ready in 15 mins: Rapid Dissolve. 3 Active Ingredients: Sildenafil • Tadalafil • Apomorphine. 100% Online & Private: Discreet & Convenient. Discreet Delivery: Shipped to Your Door. Free Shipping: arrives in 1–2 days. 100% Online: private & discreet. Trusted by over 290,000 customers. Excellent 4.6 (star rating). Pack: Rx Only, maximum 1 dose per 36 hours.",
+                    "confidence": 0.94
+                },
+                "cta_text": {
+                    "value": "See If You Qualify",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Qualify / Eligibility_Check",
+                    "confidence": 0.90
+                },
+                "main_visual": {
+                    "value": "Product_Dominant with Couple (DirectMeds pack + blue square tablet in foreground; intimate couple blurred in background)",
+                    "confidence": 0.91
+                },
+                "person_gender": {
+                    "value": "Male + Female",
+                    "confidence": 0.95
+                },
+                "person_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.74
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "4.1",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Privacy / Embarrassment Avoidance",
+                    "confidence": 0.94
+                },
+                "hook": {
+                    "value": "Skip the Awkward Doctor Visit.",
+                    "confidence": 0.96
+                },
+                "hook_type": {
+                    "value": "Pain_Point / Embarrassment_Avoidance",
+                    "confidence": 0.91
+                },
+                "claim": {
+                    "value": "Discreet ED treatment 100% online: online consultation, confidential, discreet delivery, ready in 15 mins (rapid dissolve), 3 active ingredients (Sildenafil • Tadalafil • Apomorphine)",
+                    "confidence": 0.93
+                },
+                "style_primary": {
+                    "value": "Direct_Response",
+                    "confidence": 0.88
+                },
+                "style_secondary": {
+                    "value": "Lifestyle",
+                    "confidence": 0.77
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.95
+                },
+                "target_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.77
+                },
+                "offer_type": {
+                    "value": "No_Offer (Free_Shipping only)",
+                    "confidence": 0.84
+                },
+                "offer_text": {
+                    "value": "No price or discount shown; free shipping, arrives in 1–2 days",
+                    "confidence": 0.90
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Skip the Awkward Doctor Visit.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "Discreet ED Treatment. 100% Online. 100% Online Consultation: Private & Convenient. Discreet & Confidential: Your Privacy Is Our Priority. Discreet Delivery: Shipped to Your Door. Ready in 15 mins: Rapid Dissolve. 3 Active Ingredients: Sildenafil • Tadalafil • Apomorphine. Free Shipping: arrives in 1–2 days. 100% Online: private & discreet. Trusted by over 290,000 customers. Excellent 4.6 (star rating). Pack: Rx Only, maximum 1 dose per 36 hours.",
+                    "confidence": 0.94
+                },
+                "cta_text": {
+                    "value": "See If You Qualify",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Qualify / Eligibility_Check",
+                    "confidence": 0.90
+                },
+                "main_visual": {
+                    "value": "Single_Person with Product (man on phone on sofa + DirectMeds pack and blue square tablet)",
+                    "confidence": 0.93
+                },
+                "person_gender": {
+                    "value": "Male",
+                    "confidence": 0.97
+                },
+                "person_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.78
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "4.2",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Convenience / Simple Process (How It Works)",
+                    "confidence": 0.94
+                },
+                "hook": {
+                    "value": "From Your Phone To Your Door.",
+                    "confidence": 0.96
+                },
+                "hook_type": {
+                    "value": "Process / Ease_Promise",
+                    "confidence": 0.88
+                },
+                "claim": {
+                    "value": "Discreet ED treatment 100% online in 3 steps: apply online, licensed provider reviews your request, discreet delivery to your door",
+                    "confidence": 0.94
+                },
+                "style_primary": {
+                    "value": "Informative / Explainer",
+                    "confidence": 0.90
+                },
+                "style_secondary": {
+                    "value": "Direct_Response",
+                    "confidence": 0.82
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.94
+                },
+                "target_age": {
+                    "value": null,
+                    "confidence": null
+                },
+                "offer_type": {
+                    "value": "No_Offer (Free_Shipping only)",
+                    "confidence": 0.85
+                },
+                "offer_text": {
+                    "value": "No price or discount shown; free shipping, arrives in 1–2 days",
+                    "confidence": 0.90
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "From Your Phone To Your Door.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "Discreet ED Treatment. 100% Online. 1. Apply Online: Quick & Easy, 100% Confidential. 2. Provider Review: Licensed Provider Reviews Your Request. 3. Discreet Delivery: Fast, Private & Shipped to Your Door. 100% Online: Private & Secure. Licensed Providers. Discreet Delivery: Shipped to Your Door. Free Shipping: arrives in 1–2 days. Trusted by over 290,000 customers. Excellent 4.6 (star rating). Pack: Rx Only, maximum 1 dose per 36 hours.",
+                    "confidence": 0.94
+                },
+                "cta_text": {
+                    "value": "See If You Qualify",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Qualify / Eligibility_Check",
+                    "confidence": 0.90
+                },
+                "main_visual": {
+                    "value": "Product_Only / Process_Diagram (phone with consultation form → DirectMeds pack + blue tablet → plain shipping box)",
+                    "confidence": 0.94
+                },
+                "person_gender": {
+                    "value": null,
+                    "confidence": null
+                },
+                "person_age": {
+                    "value": null,
+                    "confidence": null
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "4.3",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Privacy / Discretion",
+                    "confidence": 0.95
+                },
+                "hook": {
+                    "value": "Your Business. Nobody Else's.",
+                    "confidence": 0.96
+                },
+                "hook_type": {
+                    "value": "Privacy_Assurance / Empowerment",
+                    "confidence": 0.87
+                },
+                "claim": {
+                    "value": "Private ED treatment from home: 100% online, private consultation from home, discreet delivery, licensed providers",
+                    "confidence": 0.93
+                },
+                "style_primary": {
+                    "value": "Direct_Response",
+                    "confidence": 0.88
+                },
+                "style_secondary": {
+                    "value": "Lifestyle",
+                    "confidence": 0.77
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.95
+                },
+                "target_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.77
+                },
+                "offer_type": {
+                    "value": "No_Offer (Free_Shipping only)",
+                    "confidence": 0.84
+                },
+                "offer_text": {
+                    "value": "No price or discount shown; free shipping, arrives in 1–2 days",
+                    "confidence": 0.90
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Your Business. Nobody Else's.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "Private ED Treatment From Home. 100% Online: Private & Secure. Private Consultation: From the comfort of your home. Discreet Delivery: Shipped to Your Door. 100% Online: Private & Secure. Licensed Providers: Trusted Care. Discreet Delivery: Shipped to Your Door. Free Shipping: arrives in 1–2 days. Trusted by over 290,000 customers. Excellent 4.6 (star rating). Pack: Rx Only, maximum 1 dose per 36 hours.",
+                    "confidence": 0.94
+                },
+                "cta_text": {
+                    "value": "See If You Qualify",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Qualify / Eligibility_Check",
+                    "confidence": 0.90
+                },
+                "main_visual": {
+                    "value": "Single_Person with Product (man on phone on sofa + DirectMeds pack, blue square tablet, plain shipping box)",
+                    "confidence": 0.93
+                },
+                "person_gender": {
+                    "value": "Male",
+                    "confidence": 0.97
+                },
+                "person_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.78
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "spydirect1",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Price / Affordability + Medical Authority",
+                    "confidence": 0.90
+                },
+                "hook": {
+                    "value": "ED Meds Online. $79.",
+                    "confidence": 0.96
+                },
+                "hook_type": {
+                    "value": "Price_Callout",
+                    "confidence": 0.92
+                },
+                "claim": {
+                    "value": "ED medication available online for $79",
+                    "confidence": 0.90
+                },
+                "style_primary": {
+                    "value": "Direct",
+                    "confidence": 0.93
+                },
+                "style_secondary": {
+                    "value": "Minimalist / Authority",
+                    "confidence": 0.80
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.94
+                },
+                "target_age": {
+                    "value": null,
+                    "confidence": null
+                },
+                "offer_type": {
+                    "value": "Price_Point",
+                    "confidence": 0.90
+                },
+                "offer_text": {
+                    "value": "Flat $79 price stated; no billing period, quantity, or % discount shown",
+                    "confidence": 0.92
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "ED Meds Online. $79.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": null,
+                    "confidence": null
+                },
+                "cta_text": {
+                    "value": null,
+                    "confidence": null
+                },
+                "cta_type": {
+                    "value": null,
+                    "confidence": null
+                },
+                "main_visual": {
+                    "value": "Single_Person (doctor/clinician in scrubs with stethoscope, white background; no product or brand shown)",
+                    "confidence": 0.94
+                },
+                "person_gender": {
+                    "value": "Male",
+                    "confidence": 0.97
+                },
+                "person_age": {
+                    "value": "Adult_35_44",
+                    "confidence": 0.74
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "spydirect2",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Relationship (Partner Endorsement)",
+                    "confidence": 0.85
+                },
+                "hook": {
+                    "value": "She Knows What He Needs",
+                    "confidence": 0.95
+                },
+                "hook_type": {
+                    "value": "Curiosity",
+                    "confidence": 0.83
+                },
+                "claim": {
+                    "value": "Works in 15 min, lasts 36 hrs, 3-in-1 formula",
+                    "confidence": 0.92
+                },
+                "style_primary": {
+                    "value": "Direct_Response",
+                    "confidence": 0.86
+                },
+                "style_secondary": {
+                    "value": "Patriotic / Trust-Led",
+                    "confidence": 0.76
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.80
+                },
+                "target_age": {
+                    "value": "Older_55_Plus",
+                    "confidence": 0.82
+                },
+                "offer_type": {
+                    "value": "Price_Point",
+                    "confidence": 0.84
+                },
+                "offer_text": {
+                    "value": "Flat $79 price stated; no billing period or % discount shown",
+                    "confidence": 0.90
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "She Knows What He Needs",
+                    "confidence": 0.95
+                },
+                "body_copy": {
+                    "value": "$79. Works in 15 min • Lasts 36 hrs • 3-in-1 formula. Discreet • Online • Ships to your door. Trustpilot 4.69. BBB. Reviewed by medical professionals. Disclaimer: Results may vary. Prescription required. Compounded medication. Pack: DirectMeds DirectMax, Sildenafil / Tadalafil / Apomorphine, rapid dissolve tablets, Rx Only, maximum 1 dose per 36 hours.",
+                    "confidence": 0.93
+                },
+                "cta_text": {
+                    "value": "Check My Price",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Claim_Offer / Price_Check",
+                    "confidence": 0.86
+                },
+                "main_visual": {
+                    "value": "Single_Person with Product (smiling woman in kitchen + DirectMeds pack and blue square tablet; US flag props)",
+                    "confidence": 0.93
+                },
+                "person_gender": {
+                    "value": "Female",
+                    "confidence": 0.97
+                },
+                "person_age": {
+                    "value": "Older_55_Plus",
+                    "confidence": 0.85
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "spydirect3",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Relationship / Ageless Romance",
+                    "confidence": 0.92
+                },
+                "hook": {
+                    "value": "Date Night Doesn't Retire at 60",
+                    "confidence": 0.96
+                },
+                "hook_type": {
+                    "value": "Age_Callout / Reassurance",
+                    "confidence": 0.88
+                },
+                "claim": {
+                    "value": "Works in 15 min, lasts 36 hrs, 3-in-1 formula",
+                    "confidence": 0.92
+                },
+                "style_primary": {
+                    "value": "Direct_Response",
+                    "confidence": 0.86
+                },
+                "style_secondary": {
+                    "value": "Aspirational / Lifestyle",
+                    "confidence": 0.80
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.90
+                },
+                "target_age": {
+                    "value": "Older_55_Plus",
+                    "confidence": 0.93
+                },
+                "offer_type": {
+                    "value": "Price_Point",
+                    "confidence": 0.84
+                },
+                "offer_text": {
+                    "value": "Flat $79 price stated; no billing period or % discount shown",
+                    "confidence": 0.90
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Date Night Doesn't Retire at 60",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "$79. Works in 15 min • Lasts 36 hrs • 3-in-1 formula. Discreet • Online • Ships to your door. Trustpilot 4.69. BBB Accredited Business. Reviewed by medical professionals. Disclaimer: Results may vary. Prescription required. Compounded medication. Pack: DirectMeds DirectMax, Sildenafil / Tadalafil / Apomorphine, rapid dissolve tablets, Rx Only, maximum 1 dose per 36 hours.",
+                    "confidence": 0.93
+                },
+                "cta_text": {
+                    "value": "Check My Price",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Claim_Offer / Price_Check",
+                    "confidence": 0.86
+                },
+                "main_visual": {
+                    "value": "Couple with Product (older couple on restaurant date with wine + DirectMeds pack and blue square tablet)",
+                    "confidence": 0.94
+                },
+                "person_gender": {
+                    "value": "Male + Female",
+                    "confidence": 0.97
+                },
+                "person_age": {
+                    "value": "Older_55_Plus",
+                    "confidence": 0.92
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "spydirect4",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Speed + Duration / Product Efficacy",
+                    "confidence": 0.94
+                },
+                "hook": {
+                    "value": "Ready In 15 Minutes. Lasts Up To 36 Hours.",
+                    "confidence": 0.96
+                },
+                "hook_type": {
+                    "value": "Benefit_Led / Speed_Claim",
+                    "confidence": 0.91
+                },
+                "claim": {
+                    "value": "Ready in 15 minutes, lasts up to 36 hours; 3-in-1 combo therapy, take only when needed, reviewed by medical professionals",
+                    "confidence": 0.94
+                },
+                "style_primary": {
+                    "value": "Informative",
+                    "confidence": 0.85
+                },
+                "style_secondary": {
+                    "value": "Minimalist / Premium",
+                    "confidence": 0.80
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.92
+                },
+                "target_age": {
+                    "value": null,
+                    "confidence": null
+                },
+                "offer_type": {
+                    "value": "No_Offer",
+                    "confidence": 0.90
+                },
+                "offer_text": {
+                    "value": "No price, discount, or shipping offer shown",
+                    "confidence": 0.92
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Ready In 15 Minutes. Lasts Up To 36 Hours.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "15 Minutes. 3-in-1 combo therapy • Take only when needed • Reviewed by medical professionals. BBB A Rating. 125,000+ men. Disclaimer: Results vary. Prescription required. Pack: DirectMeds DirectMax, Sildenafil / Tadalafil / Apomorphine, rapid dissolve tablets, Rx Only, maximum 1 dose per 36 hours.",
+                    "confidence": 0.93
+                },
+                "cta_text": {
+                    "value": "See How It Works",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Learn_More",
+                    "confidence": 0.90
+                },
+                "main_visual": {
+                    "value": "Product_Only (DirectMeds pack over large glowing '15' typographic graphic)",
+                    "confidence": 0.95
+                },
+                "person_gender": {
+                    "value": null,
+                    "confidence": null
+                },
+                "person_age": {
+                    "value": null,
+                    "confidence": null
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "spydirect5",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Relationship (Partner as Buyer)",
+                    "confidence": 0.90
+                },
+                "hook": {
+                    "value": "She Ordered It. He Thanked Her Later.",
+                    "confidence": 0.96
+                },
+                "hook_type": {
+                    "value": "Story / Curiosity",
+                    "confidence": 0.85
+                },
+                "claim": {
+                    "value": "Works in 15 min, lasts 36 hrs, 3-in-1 formula",
+                    "confidence": 0.92
+                },
+                "style_primary": {
+                    "value": "Direct_Response",
+                    "confidence": 0.86
+                },
+                "style_secondary": {
+                    "value": "Playful / Suggestive",
+                    "confidence": 0.78
+                },
+                "target_gender": {
+                    "value": "Female (partner as purchaser)",
+                    "confidence": 0.74
+                },
+                "target_age": {
+                    "value": "Older_55_Plus",
+                    "confidence": 0.82
+                },
+                "offer_type": {
+                    "value": "Price_Point",
+                    "confidence": 0.84
+                },
+                "offer_text": {
+                    "value": "Flat $79 price stated; no billing period or % discount shown",
+                    "confidence": 0.90
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "She Ordered It. He Thanked Her Later.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "$79. Works in 15 min • Lasts 36 hrs • 3-in-1 formula. Discreet • Online • Ships to your door. Trustpilot 4.69. Reviewed by medical professionals. Disclaimer: Results may vary. Prescription required. Compounded medication. Pack: DirectMeds DirectMax, Sildenafil / Tadalafil / Apomorphine, rapid dissolve tablets, Rx Only, maximum 1 dose per 36 hours.",
+                    "confidence": 0.93
+                },
+                "cta_text": {
+                    "value": "Check My Price",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Claim_Offer / Price_Check",
+                    "confidence": 0.86
+                },
+                "main_visual": {
+                    "value": "Single_Person with Product (smiling woman holding shipping box + DirectMeds pack and blue square tablet)",
+                    "confidence": 0.94
+                },
+                "person_gender": {
+                    "value": "Female",
+                    "confidence": 0.97
+                },
+                "person_age": {
+                    "value": "Older_55_Plus",
+                    "confidence": 0.85
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "medvi5",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Duration / Long-Lasting Coverage",
+                    "confidence": 0.94
+                },
+                "hook": {
+                    "value": "One Dose. Whole Weekend.",
+                    "confidence": 0.96
+                },
+                "hook_type": {
+                    "value": "Benefit_Led / Duration_Claim",
+                    "confidence": 0.91
+                },
+                "claim": {
+                    "value": "Up to 36 hours of coverage; works in 15 min; 4 actives in 1 liquid; no food restrictions",
+                    "confidence": 0.94
+                },
+                "style_primary": {
+                    "value": "Direct_Response",
+                    "confidence": 0.90
+                },
+                "style_secondary": {
+                    "value": "Premium / Authority (awards, ratings)",
+                    "confidence": 0.78
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.90
+                },
+                "target_age": {
+                    "value": null,
+                    "confidence": null
+                },
+                "offer_type": {
+                    "value": "Urgency / Limited_Time (unspecified)",
+                    "confidence": 0.86
+                },
+                "offer_text": {
+                    "value": "'Limited Time Offer' banner with no price, discount, or terms stated",
+                    "confidence": 0.92
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "One Dose. Whole Weekend.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "Up to 36 hours of coverage. Works in 15 min • 4 actives in 1 liquid • No food restrictions. Badges: 2026 Editor's Choice; Google ★ 5.0. Limited Time Offer. Bottle: MEDVI QUAD, sublingual medication, 1 dose, use as directed, Rx Only, 1 mL.",
+                    "confidence": 0.92
+                },
+                "cta_text": {
+                    "value": "See If You Qualify",
+                    "confidence": 0.96
+                },
+                "cta_type": {
+                    "value": "Qualify / Eligibility_Check",
+                    "confidence": 0.90
+                },
+                "main_visual": {
+                    "value": "Product_Only (single-dose MEDVI QUAD liquid vial with award and rating badges)",
+                    "confidence": 0.95
+                },
+                "person_gender": {
+                    "value": null,
+                    "confidence": null
+                },
+                "person_age": {
+                    "value": null,
+                    "confidence": null
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "medvi4",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Intimacy / Relationship (implied)",
+                    "confidence": 0.86
+                },
+                "hook": {
+                    "value": "Visual only: man's hand holding a dripping QUAD vial with a woman waiting in bed behind",
+                    "confidence": 0.90
+                },
+                "hook_type": {
+                    "value": "Visual / Suggestive",
+                    "confidence": 0.88
+                },
+                "claim": {
+                    "value": null,
+                    "confidence": null
+                },
+                "style_primary": {
+                    "value": "Visual_Storytelling / Suggestive",
+                    "confidence": 0.87
+                },
+                "style_secondary": {
+                    "value": "Cinematic / Minimalist",
+                    "confidence": 0.80
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.90
+                },
+                "target_age": {
+                    "value": null,
+                    "confidence": null
+                },
+                "offer_type": {
+                    "value": "No_Offer",
+                    "confidence": 0.93
+                },
+                "offer_text": {
+                    "value": "No price, discount, or offer shown",
+                    "confidence": 0.94
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": null,
+                    "confidence": null
+                },
+                "body_copy": {
+                    "value": "No ad copy. On-product text only: MEDVI QUAD (label, largely illegible).",
+                    "confidence": 0.85
+                },
+                "cta_text": {
+                    "value": null,
+                    "confidence": null
+                },
+                "cta_type": {
+                    "value": null,
+                    "confidence": null
+                },
+                "main_visual": {
+                    "value": "Product_in_Hand with Partner (close-up of male hand holding purple QUAD vial; woman blurred in bed, bedroom setting)",
+                    "confidence": 0.94
+                },
+                "person_gender": {
+                    "value": "Male + Female",
+                    "confidence": 0.88
+                },
+                "person_age": {
+                    "value": null,
+                    "confidence": null
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "medvi6",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Speed / Fast Onset (vs. traditional pills)",
+                    "confidence": 0.94
+                },
+                "hook": {
+                    "value": "Melts In Minutes.",
+                    "confidence": 0.95
+                },
+                "hook_type": {
+                    "value": "Benefit_Led / Speed_Claim",
+                    "confidence": 0.90
+                },
+                "claim": {
+                    "value": "No waiting 60+ minutes; works in as little as 15 minutes; rapid-absorb liquid",
+                    "confidence": 0.94
+                },
+                "style_primary": {
+                    "value": "Direct_Response",
+                    "confidence": 0.91
+                },
+                "style_secondary": {
+                    "value": "Tech / High-Energy",
+                    "confidence": 0.77
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.88
+                },
+                "target_age": {
+                    "value": null,
+                    "confidence": null
+                },
+                "offer_type": {
+                    "value": "Percent_Discount / Limited_Time",
+                    "confidence": 0.95
+                },
+                "offer_text": {
+                    "value": "Limited Time - 40% Off (no base price or terms shown)",
+                    "confidence": 0.96
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Melts In Minutes.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "No waiting 60+ minutes • Works in as little as 15 minutes • Rapid-absorb liquid. Limited Time - 40% Off. Bottle: MEDVI QUAD, sublingual medication, 1 dose, use as directed, Rx Only, 1 mL.",
+                    "confidence": 0.94
+                },
+                "cta_text": {
+                    "value": "Get Started",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Sign_Up",
+                    "confidence": 0.87
+                },
+                "main_visual": {
+                    "value": "Product_Only (MEDVI QUAD liquid vial with water splash and speed-arrow graphic)",
+                    "confidence": 0.95
+                },
+                "person_gender": {
+                    "value": null,
+                    "confidence": null
+                },
+                "person_age": {
+                    "value": null,
+                    "confidence": null
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "dm5_011302",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Price + Product Superiority (vs. Generic Pills)",
+                    "confidence": 0.94
+                },
+                "hook": {
+                    "value": "Stop overpaying for a 1998 pill — DirectMax is $79.",
+                    "confidence": 0.96
+                },
+                "hook_type": {
+                    "value": "Comparison / Callout",
+                    "confidence": 0.91
+                },
+                "claim": {
+                    "value": "3-in-1 formula in one dose; works in 10–15 minutes; eat anything, drink anything; lasts up to 36 hours (vs. generic pills: one ingredient, 60+ min onset, affected by heavy meals, gone in 4 hours)",
+                    "confidence": 0.94
+                },
+                "style_primary": {
+                    "value": "Comparative",
+                    "confidence": 0.93
+                },
+                "style_secondary": {
+                    "value": "Direct_Response",
+                    "confidence": 0.85
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.90
+                },
+                "target_age": {
+                    "value": null,
+                    "confidence": null
+                },
+                "offer_type": {
+                    "value": "Price_Comparison / Percent_Discount / Limited_Time",
+                    "confidence": 0.92
+                },
+                "offer_text": {
+                    "value": "$79 vs. $450+ for generic pills; 33% off, limited time",
+                    "confidence": 0.94
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Stop overpaying for a 1998 pill — DirectMax is $79.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "Generic Pills: $450+. One ingredient per pill • Wait 60+ minutes to work • Killed by a heavy meal • Gone in 4 hours. DirectMAX: $79. 3-in-1 formula in one dose • Works in 10–15 minutes • Eat anything, drink anything • Lasts up to 36 hours. 33% OFF - Limited Time.",
+                    "confidence": 0.94
+                },
+                "cta_text": {
+                    "value": null,
+                    "confidence": null
+                },
+                "cta_type": {
+                    "value": null,
+                    "confidence": null
+                },
+                "main_visual": {
+                    "value": "Product_Comparison (pile of generic pills vs. DirectMeds DirectMax pack + blue square tablet on glass pedestals)",
+                    "confidence": 0.95
+                },
+                "person_gender": {
+                    "value": null,
+                    "confidence": null
+                },
+                "person_age": {
+                    "value": null,
+                    "confidence": null
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "medvi1",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Sexual Performance / Size & Partner Satisfaction",
+                    "confidence": 0.93
+                },
+                "hook": {
+                    "value": "It's soooo BIG!",
+                    "confidence": 0.96
+                },
+                "hook_type": {
+                    "value": "Shock / Sexual_Innuendo",
+                    "confidence": 0.94
+                },
+                "claim": {
+                    "value": "Massive boost in blood flow (implied size enhancement and partner satisfaction)",
+                    "confidence": 0.88
+                },
+                "style_primary": {
+                    "value": "Provocative / Explicit",
+                    "confidence": 0.95
+                },
+                "style_secondary": {
+                    "value": "Humorous / Innuendo",
+                    "confidence": 0.78
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.93
+                },
+                "target_age": {
+                    "value": null,
+                    "confidence": null
+                },
+                "offer_type": {
+                    "value": "No_Offer",
+                    "confidence": 0.93
+                },
+                "offer_text": {
+                    "value": "No price, discount, or offer shown",
+                    "confidence": 0.94
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "It's soooo BIG!",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "That's what she'll say after the MASSIVE boost in blood flow. Bottle: MEDVI QUAD, sublingual medication, 1 dose, use as directed, Rx Only, 1 mL.",
+                    "confidence": 0.93
+                },
+                "cta_text": {
+                    "value": null,
+                    "confidence": null
+                },
+                "cta_type": {
+                    "value": null,
+                    "confidence": null
+                },
+                "main_visual": {
+                    "value": "Single_Person with Product (close-up of woman in sexually suggestive pose licking the QUAD vial)",
+                    "confidence": 0.95
+                },
+                "person_gender": {
+                    "value": "Female",
+                    "confidence": 0.97
+                },
+                "person_age": {
+                    "value": "Young_Adult_25_34",
+                    "confidence": 0.78
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "medvi3",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Speed / Fast Onset + Potency",
+                    "confidence": 0.94
+                },
+                "hook": {
+                    "value": "15 Minutes. Then It Hits.",
+                    "confidence": 0.96
+                },
+                "hook_type": {
+                    "value": "Benefit_Led / Speed_Claim",
+                    "confidence": 0.91
+                },
+                "claim": {
+                    "value": "4 ED medications in 1 dose; lasts 36 hours; no food restrictions; works in 15 minutes; rapid-absorb liquid",
+                    "confidence": 0.94
+                },
+                "style_primary": {
+                    "value": "Direct_Response",
+                    "confidence": 0.91
+                },
+                "style_secondary": {
+                    "value": "Bold / High-Energy",
+                    "confidence": 0.79
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.90
+                },
+                "target_age": {
+                    "value": null,
+                    "confidence": null
+                },
+                "offer_type": {
+                    "value": "Percent_Discount / Limited_Time",
+                    "confidence": 0.95
+                },
+                "offer_text": {
+                    "value": "Limited Time - 40% Off (no base price or terms shown)",
+                    "confidence": 0.96
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "15 Minutes. Then It Hits.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "4 ED medications in 1 dose • Lasts 36 hours • No food restrictions. Limited Time - 40% Off. 4 ED medications. 1 rapid-absorb liquid dose. Bottle: MEDVI QUAD, sublingual medication, 1 dose, use as directed, Rx Only, 1 mL.",
+                    "confidence": 0.94
+                },
+                "cta_text": {
+                    "value": null,
+                    "confidence": null
+                },
+                "cta_type": {
+                    "value": null,
+                    "confidence": null
+                },
+                "main_visual": {
+                    "value": "Product_Only (MEDVI QUAD liquid vial on dark background with blue light streak)",
+                    "confidence": 0.95
+                },
+                "person_gender": {
+                    "value": null,
+                    "confidence": null
+                },
+                "person_age": {
+                    "value": null,
+                    "confidence": null
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "dm6",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Relationship (Partner Testimonial)",
+                    "confidence": 0.92
+                },
+                "hook": {
+                    "value": "Want to know the tiny thing that totally shifted my relationship?",
+                    "confidence": 0.95
+                },
+                "hook_type": {
+                    "value": "Curiosity / Question",
+                    "confidence": 0.92
+                },
+                "claim": {
+                    "value": "Sublingual tablet that dissolves super fast; restored spark, confidence, and connection",
+                    "confidence": 0.90
+                },
+                "style_primary": {
+                    "value": "UGC / Testimonial",
+                    "confidence": 0.95
+                },
+                "style_secondary": {
+                    "value": "Conversational / Lifestyle",
+                    "confidence": 0.84
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.78
+                },
+                "target_age": {
+                    "value": null,
+                    "confidence": null
+                },
+                "offer_type": {
+                    "value": "No_Offer",
+                    "confidence": 0.92
+                },
+                "offer_text": {
+                    "value": "No price, discount, or offer shown",
+                    "confidence": 0.93
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Video (UGC, 15s, 9:16 vertical)"
+                },
+                "header": {
+                    "value": "Want to know the tiny thing that totally shifted my relationship?",
+                    "confidence": 0.95
+                },
+                "body_copy": {
+                    "value": "Captions/voiceover: Want to know the tiny thing that totally shifted my relationship? It's this, DirectMax. It's a sublingual* tablet, so it dissolves super fast. Let's just say, we got our spark back. Confidence, connection, it's been a game changer. Check availability online with DirectMed's for discrete delivery. Pack: DirectMeds DirectMax, Sildenafil / Tadalafil / Apomorphine, rapid dissolve tablets, Rx Only, maximum 1 dose per 24 hours.",
+                    "confidence": 0.90
+                },
+                "cta_text": {
+                    "value": "Check availability online",
+                    "confidence": 0.90
+                },
+                "cta_type": {
+                    "value": "Check_Availability / Learn_More",
+                    "confidence": 0.85
+                },
+                "main_visual": {
+                    "value": "Single_Person talking to camera (female creator in bedroom) with Product (DirectMeds pack held up; blue square tablet cutaway)",
+                    "confidence": 0.95
+                },
+                "person_gender": {
+                    "value": "Female",
+                    "confidence": 0.97
+                },
+                "person_age": {
+                    "value": "Young_Adult_25_34",
+                    "confidence": 0.80
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "dm9",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Performance / Self-Improvement (Innuendo)",
+                    "confidence": 0.86
+                },
+                "hook": {
+                    "value": "Some people just have what it takes.",
+                    "confidence": 0.94
+                },
+                "hook_type": {
+                    "value": "Curiosity / Innuendo",
+                    "confidence": 0.86
+                },
+                "claim": {
+                    "value": "'There's always a way to grow and improve' (implied performance improvement); starts at $79/month",
+                    "confidence": 0.84
+                },
+                "style_primary": {
+                    "value": "Talking_Head / AI_Spokesperson",
+                    "confidence": 0.90
+                },
+                "style_secondary": {
+                    "value": "Direct_Response (end card)",
+                    "confidence": 0.85
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.85
+                },
+                "target_age": {
+                    "value": null,
+                    "confidence": null
+                },
+                "offer_type": {
+                    "value": "Price_Point / Subscription",
+                    "confidence": 0.88
+                },
+                "offer_text": {
+                    "value": "Starts at $79/month (no % discount shown)",
+                    "confidence": 0.93
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Video (AI-generated talking head + product end card, ~10s, 4:5)"
+                },
+                "header": {
+                    "value": "Some people just have what it takes.",
+                    "confidence": 0.94
+                },
+                "body_copy": {
+                    "value": "Captions/voiceover: Some people just have what it takes. And if not, there's always a way to grow and improve. End card: DirectMax. Starts at $79/month. Trustpilot 4.8 — 2,400+ Reviews. 'FDA-Approved Pharmacy' badge. On-screen disclosures: Features Artificial Intelligence-generated content. Results vary. Prescription is required.",
+                    "confidence": 0.90
+                },
+                "cta_text": {
+                    "value": "See If You Qualify",
+                    "confidence": 0.96
+                },
+                "cta_type": {
+                    "value": "Qualify / Eligibility_Check",
+                    "confidence": 0.90
+                },
+                "main_visual": {
+                    "value": "Single_Person talking to camera (AI-generated woman, close-up) → Product end card (DirectMeds pack + blue tablet with glowing tech graphic)",
+                    "confidence": 0.94
+                },
+                "person_gender": {
+                    "value": "Female",
+                    "confidence": 0.97
+                },
+                "person_age": {
+                    "value": "Young_Adult_25_34",
+                    "confidence": 0.80
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "dm7",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Intimacy / Relationship (implied, humorous)",
+                    "confidence": 0.82
+                },
+                "hook": {
+                    "value": "Visual only: clothed middle-aged couple posed suggestively on a bed, man grinning at camera",
+                    "confidence": 0.90
+                },
+                "hook_type": {
+                    "value": "Visual / Suggestive_Humor (scroll-stopper)",
+                    "confidence": 0.86
+                },
+                "claim": {
+                    "value": null,
+                    "confidence": null
+                },
+                "style_primary": {
+                    "value": "UGC / Meme-Style",
+                    "confidence": 0.90
+                },
+                "style_secondary": {
+                    "value": "Humorous / Suggestive",
+                    "confidence": 0.84
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.75
+                },
+                "target_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.72
+                },
+                "offer_type": {
+                    "value": "No_Offer",
+                    "confidence": 0.94
+                },
+                "offer_text": {
+                    "value": "No price, discount, or offer shown",
+                    "confidence": 0.94
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Video (UGC, ~5s, 3:5 vertical)"
+                },
+                "header": {
+                    "value": null,
+                    "confidence": null
+                },
+                "body_copy": {
+                    "value": null,
+                    "confidence": null
+                },
+                "cta_text": {
+                    "value": null,
+                    "confidence": null
+                },
+                "cta_type": {
+                    "value": null,
+                    "confidence": null
+                },
+                "main_visual": {
+                    "value": "Couple (fully clothed, suggestive pose on bed, home-shot phone footage; no product or branding)",
+                    "confidence": 0.94
+                },
+                "person_gender": {
+                    "value": "Male + Female",
+                    "confidence": 0.97
+                },
+                "person_age": {
+                    "value": "Middle_Aged_45_54",
+                    "confidence": 0.75
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "dm8",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Performance / Self-Improvement (Innuendo)",
+                    "confidence": 0.85
+                },
+                "hook": {
+                    "value": "Some people just have that special spark.",
+                    "confidence": 0.94
+                },
+                "hook_type": {
+                    "value": "Curiosity / Innuendo",
+                    "confidence": 0.85
+                },
+                "claim": {
+                    "value": "'There's always a way to grow and learn' (implied performance improvement); starts at $79/month",
+                    "confidence": 0.83
+                },
+                "style_primary": {
+                    "value": "Talking_Head / AI_Spokesperson",
+                    "confidence": 0.91
+                },
+                "style_secondary": {
+                    "value": "Direct_Response (end card)",
+                    "confidence": 0.85
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.84
+                },
+                "target_age": {
+                    "value": null,
+                    "confidence": null
+                },
+                "offer_type": {
+                    "value": "Price_Point / Subscription",
+                    "confidence": 0.88
+                },
+                "offer_text": {
+                    "value": "Starts at $79/month (no % discount shown)",
+                    "confidence": 0.93
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Video (AI-generated talking head + product end card, ~11s, 4:5)"
+                },
+                "header": {
+                    "value": "Some people just have that special spark.",
+                    "confidence": 0.94
+                },
+                "body_copy": {
+                    "value": "Captions/voiceover: Some people just have that special spark. And if they don't, there's always a way to grow and learn. End card: DirectMax. Starts at $79/month. Trustpilot 4.8 — 2,400+ Reviews. 'FDA-Approved Pharmacy' badge. On-screen disclosures: Features Artificial Intelligence-generated content. Results vary. Prescription is required.",
+                    "confidence": 0.90
+                },
+                "cta_text": {
+                    "value": "See If You Qualify",
+                    "confidence": 0.96
+                },
+                "cta_type": {
+                    "value": "Qualify / Eligibility_Check",
+                    "confidence": 0.90
+                },
+                "main_visual": {
+                    "value": "Single_Person talking to camera (AI-generated woman, close-up, warm lighting) → Product end card (DirectMeds pack + blue tablet with glowing tech graphic)",
+                    "confidence": 0.94
+                },
+                "person_gender": {
+                    "value": "Female",
+                    "confidence": 0.97
+                },
+                "person_age": {
+                    "value": "Young_Adult_25_34",
+                    "confidence": 0.80
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "medvi2",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Product Superiority / Third-Party Validation (Review-style)",
+                    "confidence": 0.93
+                },
+                "hook": {
+                    "value": "We Tested 7 ED Pills. This One Won.",
+                    "confidence": 0.96
+                },
+                "hook_type": {
+                    "value": "Comparison / Review_Advertorial",
+                    "confidence": 0.92
+                },
+                "claim": {
+                    "value": "Winner of a 7-product ED test; works in 15 min; lasts 36 hours; no food restrictions; 4 ED medications in 1 rapid-absorb liquid dose",
+                    "confidence": 0.94
+                },
+                "style_primary": {
+                    "value": "Advertorial / Editorial",
+                    "confidence": 0.88
+                },
+                "style_secondary": {
+                    "value": "Direct_Response",
+                    "confidence": 0.85
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.90
+                },
+                "target_age": {
+                    "value": null,
+                    "confidence": null
+                },
+                "offer_type": {
+                    "value": "Percent_Discount / Limited_Time",
+                    "confidence": 0.95
+                },
+                "offer_text": {
+                    "value": "Limited Time - 40% Off (no base price or terms shown)",
+                    "confidence": 0.96
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "We Tested 7 ED Pills. This One Won.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "2026 Editor's Choice (badge). Works in 15 min • Lasts 36 hours • No food restrictions. Limited Time - 40% Off. 4 ED medications. 1 rapid-absorb liquid dose. Bottle: MEDVI QUAD, Rx Only, 1 mL (remaining label text garbled).",
+                    "confidence": 0.92
+                },
+                "cta_text": {
+                    "value": null,
+                    "confidence": null
+                },
+                "cta_type": {
+                    "value": null,
+                    "confidence": null
+                },
+                "main_visual": {
+                    "value": "Product_Only (MEDVI QUAD liquid vial with 'Editor's Choice' badge, flat navy background)",
+                    "confidence": 0.95
+                },
+                "person_gender": {
+                    "value": null,
+                    "confidence": null
+                },
+                "person_age": {
+                    "value": null,
+                    "confidence": null
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "dm2_011306",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Convenience + Performance (Double Entendre)",
+                    "confidence": 0.90
+                },
+                "hook": {
+                    "value": "Order online. Deliver in bed.",
+                    "confidence": 0.96
+                },
+                "hook_type": {
+                    "value": "Wordplay / Innuendo",
+                    "confidence": 0.92
+                },
+                "claim": {
+                    "value": "3-in-1 sublingual chew, ready in 15 minutes",
+                    "confidence": 0.93
+                },
+                "style_primary": {
+                    "value": "Minimalist / Typographic",
+                    "confidence": 0.94
+                },
+                "style_secondary": {
+                    "value": "Witty",
+                    "confidence": 0.84
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.90
+                },
+                "target_age": {
+                    "value": null,
+                    "confidence": null
+                },
+                "offer_type": {
+                    "value": "Per_Dose_Pricing / New_Customer_Discount",
+                    "confidence": 0.92
+                },
+                "offer_text": {
+                    "value": "From $7.45/dose — 33% off for new patients",
+                    "confidence": 0.95
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Order online. Deliver in bed.",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "The 3-in-1 sublingual chew. Ready in 15 minutes. From $7.45/dose — 33% off for new patients. DirectMeds.",
+                    "confidence": 0.96
+                },
+                "cta_text": {
+                    "value": null,
+                    "confidence": null
+                },
+                "cta_type": {
+                    "value": null,
+                    "confidence": null
+                },
+                "main_visual": {
+                    "value": "Product_Only (single blue square tablet on flat navy background, type-led layout)",
+                    "confidence": 0.95
+                },
+                "person_gender": {
+                    "value": null,
+                    "confidence": null
+                },
+                "person_age": {
+                    "value": null,
+                    "confidence": null
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "011305",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Authority / Doctor Recommendation (vs. Viagra & Cialis)",
+                    "confidence": 0.94
+                },
+                "hook": {
+                    "value": "What Doctors Are Quietly Recommending to Men Born Before 1975 Instead of Viagra",
+                    "confidence": 0.96
+                },
+                "hook_type": {
+                    "value": "Curiosity / Age_Callout / Secret_Insider",
+                    "confidence": 0.92
+                },
+                "claim": {
+                    "value": "Men born before 1975 switching from Viagra/Cialis to a compounded 3-in-1 sublingual chew (Sildenafil, Tadalafil, Apomorphine) that dissolves in 10–15 min; prescribed by licensed clinicians via US telehealth; $7.45/dose vs. $40–$80 at traditional pharmacies",
+                    "confidence": 0.94
+                },
+                "style_primary": {
+                    "value": "Native_Advertorial (fake news article)",
+                    "confidence": 0.96
+                },
+                "style_secondary": {
+                    "value": "Editorial / Authority",
+                    "confidence": 0.85
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.96
+                },
+                "target_age": {
+                    "value": "Older_50_Plus (born 1955–1975)",
+                    "confidence": 0.94
+                },
+                "offer_type": {
+                    "value": "Per_Dose_Pricing / Price_Comparison",
+                    "confidence": 0.90
+                },
+                "offer_text": {
+                    "value": "$7.45 per dose 'at wholesale' vs. $40–$80 per dose at traditional pharmacies; free 3-minute online assessment",
+                    "confidence": 0.94
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static (browser-screenshot advertorial mockup)"
+                },
+                "header": {
+                    "value": "What Doctors Are Quietly Recommending to Men Born Before 1975 Instead of Viagra",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "Wellness Today, Men's Health & Wellness. By Sarah Mitchell, Health & Telemedicine Correspondent, June 24, 2026. A growing number of men born before 1975 are quietly switching from Viagra and Cialis to a compounded sublingual chew that dissolves under the tongue in 10–15 minutes. The chew, called DirectMax, combines three active ingredients (Sildenafil, Tadalafil, and Apomorphine) into a single rapid-dissolve tablet prescribed by licensed clinicians through a US-based telehealth platform. The same prescription costs $7.45 per dose at wholesale through DirectMeds, compared to $40–$80 per dose at traditional pharmacies. Men 50 and older may qualify after a free 3-minute online assessment. Sponsored by DirectMeds. Prescription required.",
+                    "confidence": 0.93
+                },
+                "cta_text": {
+                    "value": "See if you qualify",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Qualify / Eligibility_Check",
+                    "confidence": 0.90
+                },
+                "main_visual": {
+                    "value": "Product_Only inside News_Article_Mockup (single blue square tablet on wooden table, framed by browser window and publication masthead)",
+                    "confidence": 0.95
+                },
+                "person_gender": {
+                    "value": null,
+                    "confidence": null
+                },
+                "person_age": {
+                    "value": null,
+                    "confidence": null
+                }
+            }
+        }
+    },
+    {
+        "ad_name": "dm4_011304",
+        "creative_taxonomy": {
+            "confidence_threshold": 0.70,
+            "intention_message": {
+                "angle": {
+                    "value": "Differentiation / Product Superiority (vs. Viagra)",
+                    "confidence": 0.92
+                },
+                "hook": {
+                    "value": "Not Just Another Blue Pill",
+                    "confidence": 0.96
+                },
+                "hook_type": {
+                    "value": "Contrarian / Pattern_Interrupt",
+                    "confidence": 0.88
+                },
+                "claim": {
+                    "value": "Fast-dissolve 3-in-1 ED treatment designed to support performance from multiple angles; 3 active ingredients, fast-dissolve tablet, physician-prescribed online, discreet shipping",
+                    "confidence": 0.93
+                },
+                "style_primary": {
+                    "value": "Direct_Response",
+                    "confidence": 0.86
+                },
+                "style_secondary": {
+                    "value": "Lifestyle / Romantic",
+                    "confidence": 0.80
+                },
+                "target_gender": {
+                    "value": "Male",
+                    "confidence": 0.93
+                },
+                "target_age": {
+                    "value": "Adult_35_44",
+                    "confidence": 0.72
+                },
+                "offer_type": {
+                    "value": "No_Offer",
+                    "confidence": 0.92
+                },
+                "offer_text": {
+                    "value": "No price, discount, or shipping offer shown",
+                    "confidence": 0.93
+                }
+            },
+            "physical_execution": {
+                "format": {
+                    "value": "Static"
+                },
+                "header": {
+                    "value": "Not Just Another Blue Pill",
+                    "confidence": 0.96
+                },
+                "body_copy": {
+                    "value": "A fast-dissolve 3-in-1 ED treatment designed to support performance from multiple angles. 3 active ingredients • Fast-dissolve tablet • Physician-prescribed online • Discreet shipping. Pack: DirectMeds DirectMax, Sildenafil / Tadalafil / Apomorphine, rapid dissolve tablets, Rx Only, maximum 1 dose per 24 hours.",
+                    "confidence": 0.94
+                },
+                "cta_text": {
+                    "value": "See If You Qualify",
+                    "confidence": 0.97
+                },
+                "cta_type": {
+                    "value": "Qualify / Eligibility_Check",
+                    "confidence": 0.90
+                },
+                "main_visual": {
+                    "value": "Couple with Product (smiling couple in bed, bright white setting + DirectMeds pack and three blue square tablets)",
+                    "confidence": 0.94
+                },
+                "person_gender": {
+                    "value": "Male + Female",
+                    "confidence": 0.97
+                },
+                "person_age": {
+                    "value": "Adult_35_44",
+                    "confidence": 0.74
+                }
+            }
+        }
+    }
+]

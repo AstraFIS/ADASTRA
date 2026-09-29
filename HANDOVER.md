@@ -57,8 +57,8 @@ DB is the real Atlas database, so be careful with write scripts.
    in `backend/src/services/fb*.service.ts`; shared range/filter helpers in
    `fbStatistics.service.ts`.
 3. **Pages:** `/platforms/facebook` (dashboard, fully DB-driven),
-   `/platforms/facebook/ads/:adName` (DB-driven except the "marketing read" and
-   "creative taxonomy" cards), `/` (overview — still demo data), `/users`.
+   `/platforms/facebook/ads/:adName` (DB-driven except the "marketing read"
+   card; the creative taxonomy card reads `frontend/data.json`), `/` (overview — still demo data), `/users`.
 4. **Demo data:** `backend/src/services/facebook.service.ts` is an in-memory
    seed that still powers the overview page and the two seed-based cards on the
    ad page. `npm run seed:facebook -w backend` loads the same rows into the DB
@@ -90,7 +90,9 @@ columns are still wrong until the normaliser runs.
    normaliser as a one-off tool.
 2. Run the normaliser on production (see above).
 3. Ad page: move the marketing read (`buildRead()` rules already exist in
-   `facebook.service.ts`) and creative taxonomy onto real data.
+   `facebook.service.ts`) onto real data. The creative taxonomy already reads
+   `frontend/data.json` (edit that file to add / change classifications; it
+   is bundled into the frontend at build time).
 4. Overview page `/` onto real data (`platforms.service.ts` is static).
 5. "Recommendations" and "Creatives" buttons are disabled placeholders.
 6. `image_url` / `video_url` exist on the model; nothing displays them yet.

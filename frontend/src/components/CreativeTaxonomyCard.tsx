@@ -1,10 +1,10 @@
 import { formatPercent } from '@/lib/format';
 import type { CreativeTaxonomy, TaxonomyField } from '@/types/facebook';
 
-const CONFIDENCE_FLOOR = 0.7;
+const DEFAULT_FLOOR = 0.7;
 
-function FieldRow({ field }: { field: TaxonomyField }) {
-  const low = field.confidence !== null && field.confidence < CONFIDENCE_FLOOR;
+function FieldRow({ field, floor }: { field: TaxonomyField; floor: number }) {
+  const low = field.confidence !== null && field.confidence < floor;
   return (
     <li className="flex items-baseline gap-4 border-b border-line py-2.5 text-sm last:border-b-0">
       <span className="w-36 shrink-0 text-ink-2">{field.label}</span>
@@ -19,20 +19,27 @@ function FieldRow({ field }: { field: TaxonomyField }) {
   );
 }
 
-function Column({ heading, fields }: { heading: string; fields: TaxonomyField[] }) {
+function Column({ heading, fields, floor }: { heading: string; fields: TaxonomyField[]; floor: number }) {
   return (
     <div>
       <h3 className="text-xs font-bold uppercase tracking-[0.08em] text-ink-2">{heading}</h3>
       <ul className="mt-2">
         {fields.map((f) => (
-          <FieldRow key={f.key} field={f} />
+          <FieldRow key={f.key} field={f} floor={floor} />
         ))}
       </ul>
     </div>
   );
 }
 
-export default function CreativeTaxonomyCard({ taxonomy }: { taxonomy: CreativeTaxonomy | null }) {
+export default function CreativeTaxonomyCard({
+  taxonomy,
+  threshold = DEFAULT_FLOOR,
+}: {
+  taxonomy: CreativeTaxonomy | null;
+  /** Confidence below this (0–1) is flagged; defaults to 70 %. */
+  threshold?: number;
+}) {
   if (!taxonomy) {
     return (
       <section className="rounded-xl border border-line bg-surface p-7">
@@ -43,11 +50,11 @@ export default function CreativeTaxonomyCard({ taxonomy }: { taxonomy: CreativeT
   }
 
   const scored = [...taxonomy.intention, ...taxonomy.execution].filter((f) => f.confidence !== null);
-  const lowCount = scored.filter((f) => (f.confidence ?? 1) < CONFIDENCE_FLOOR).length;
+  const lowCount = scored.filter((f) => (f.confidence ?? 1) < threshold).length;
   const summary =
     lowCount === 0
-      ? `All fields above ${formatPercent(CONFIDENCE_FLOOR, 0)} confidence`
-      : `${lowCount} field${lowCount === 1 ? '' : 's'} below ${formatPercent(CONFIDENCE_FLOOR, 0)} confidence`;
+      ? `All fields above ${formatPercent(threshold, 0)} confidence`
+      : `${lowCount} field${lowCount === 1 ? '' : 's'} below ${formatPercent(threshold, 0)} confidence`;
 
   return (
     <section aria-labelledby="taxonomy-heading" className="rounded-xl border border-line bg-surface p-7">
@@ -59,8 +66,8 @@ export default function CreativeTaxonomyCard({ taxonomy }: { taxonomy: CreativeT
       </div>
 
       <div className="mt-5 grid gap-x-10 gap-y-8 lg:grid-cols-2">
-        <Column heading="Intention / Message" fields={taxonomy.intention} />
-        <Column heading="Physical / Execution" fields={taxonomy.execution} />
+        <Column heading="Intention / Message" fields={taxonomy.intention} floor={threshold} />
+        <Column heading="Physical / Execution" fields={taxonomy.execution} floor={threshold} />
       </div>
 
       <p className="mt-6 text-sm text-ink-3">

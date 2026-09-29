@@ -238,7 +238,12 @@ value breaks the line; `hollowAt` indexes draw a ring on the zero line.
 section of the Facebook page, so a render error shows an inline message with
 "Try again" instead of unmounting the whole app to a blank screen.
 `src/components/CreativeTaxonomyCard.tsx` renders the taxonomy in two columns
-and flags fields under 70% confidence. `src/components/DailyPerformanceTable.tsx`
+and flags fields under the record's confidence threshold (default 70%). Its
+data comes from `frontend/data.json` via `src/lib/creativeTaxonomy.ts`: one
+record per `ad_name` with `creative_taxonomy.intention_message` /
+`physical_execution` maps of `{ value, confidence }`. Matching is
+case-insensitive and tolerant of numeric names; if an ad name appears twice the
+last record wins; ads not in the file show "No creative classification". `src/components/DailyPerformanceTable.tsx`
 is the per-day funnel table on the ad page.
 
 Funnel stage naming: the source sheet's "Q.S." is the quiz-start stage and

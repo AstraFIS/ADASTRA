@@ -8,6 +8,7 @@ import FilterSelect from '@/components/FilterSelect';
 import LineChart from '@/components/LineChart';
 import StatCard, { type CaptionTone } from '@/components/StatCard';
 import { api, ApiError } from '@/lib/api';
+import { getCreativeTaxonomy } from '@/lib/creativeTaxonomy';
 import {
   formatCurrency,
   formatDate,
@@ -199,6 +200,9 @@ export default function FacebookAdDetailPage() {
   const hollowDays = dailyRows.map((d, i) => (d.total_spend_usd > 0 && d.conversions === 0 ? i : -1)).filter((i) => i >= 0);
   const hasCacData = dailyRows.some((d) => d.total_spend_usd > 0);
 
+  // creative taxonomy comes from frontend/data.json, matched on the ad name
+  const taxonomy = getCreativeTaxonomy(headerName);
+
   // 4-card breakdown row, all from the report collection
   const chartsData = charts.kind === 'ok' ? charts.data : charts.kind === 'loading' ? charts.previous : null;
   const chartsBusy = charts.kind === 'loading';
@@ -340,6 +344,7 @@ export default function FacebookAdDetailPage() {
             intervals={3}
             headroom={1.2}
             barMaxWidth={180}
+            fallbackMax={100}
           />
           )}
         </ChartCard>
@@ -361,9 +366,11 @@ export default function FacebookAdDetailPage() {
         <AdDetailSeedSections data={data} />
       ) : (
         <p className="rounded-xl border border-line bg-surface p-6 text-sm text-ink-3">
-          Marketing read and creative taxonomy are not available for this ad yet.
+          The marketing read is not available for this ad yet.
         </p>
       )}
+
+      <CreativeTaxonomyCard taxonomy={taxonomy} threshold={taxonomy?.threshold} />
 
       <section
         aria-labelledby="cac-heading"
@@ -505,7 +512,7 @@ export default function FacebookAdDetailPage() {
 
 /** The sections still served by the seed-based detail endpoint. */
 function AdDetailSeedSections({ data }: { data: AdDetail }) {
-  const { read, taxonomy } = data;
+  const { read } = data;
 
   return (
     <>
@@ -530,7 +537,6 @@ function AdDetailSeedSections({ data }: { data: AdDetail }) {
         </p>
       </section>
 
-      <CreativeTaxonomyCard taxonomy={taxonomy} />
 
     </>
   );
