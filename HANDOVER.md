@@ -28,6 +28,11 @@ Repo: `github.com/Vuqar111/ADASTRA` (npm workspaces: root `package.json` runs bo
   There is one account, `test@email.com` / `test123` (admin) — change it. Admins
   manage users at `/users`; if the users collection is ever empty, `/login`
   offers a one-time "create the first admin" form.
+- **Access lists.** Each user has `access: { facebook: ['Meta1'|'Meta2'], google, microsoft }`,
+  edited on `/users`. Collection `ad_access` (`ad_name` → `user_access_type`) says which
+  Facebook ads are in Meta1 / Meta2; a user with one group sees only those ads, a user with
+  both sees every ad. Admins always see everything. Enforced in the API
+  (`requirePlatform`, `facebookAdScope` → `reportBaseMatch`), mirrored in the nav and routes.
 - **Ranges are anchored on the data, not the clock.** "This Month" means the
   month of the latest `report_date` in the collection (currently 2026-09-25).
 - **Health check:** `GET /api/health` → `{"status":"ok","db":"connected"}`. If

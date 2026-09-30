@@ -1,10 +1,24 @@
 import bcrypt from 'bcryptjs';
 import { Schema, model, type HydratedDocument, type Model } from 'mongoose';
+import { FACEBOOK_ACCESS_GROUPS, type FacebookAccessGroup } from './adAccess.model.js';
 
 export const USER_ROLES = ['admin', 'user'] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
 const BCRYPT_ROUNDS = 12;
+
+/**
+ * What a user may see. Facebook access is per ad group (see the `ad_access`
+ * collection); Google and Bing are all-or-nothing. Admins always see everything,
+ * whatever is stored here — use effectiveAccess() when deciding.
+ */
+export interface UserAccess {
+  facebook: FacebookAccessGroup[];
+  google: boolean;
+  microsoft: boolean;
+}
+
+export const FULL_ACCESS: UserAccess = { facebook: [...FACEBOOK_ACCESS_GROUPS], google: true, microsoft: true };
 
 export interface IUser {
   name: string;
@@ -12,6 +26,7 @@ export interface IUser {
   passwordHash: string;
   role: UserRole;
   isActive: boolean;
+  access: UserAccess;
   lastLoginAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -34,6 +49,7 @@ export interface PublicUser {
   email: string;
   role: UserRole;
   isActive: boolean;
+  access: UserAccess;
   lastLoginAt: string | null;
   createdAt: string;
 }
@@ -52,6 +68,15 @@ const userSchema = new Schema<IUser, UserModel, IUserMethods>(
     passwordHash: { type: String, required: true, select: false },
     role: { type: String, enum: USER_ROLES, default: 'user' },
     isActive: { type: Boolean, default: true },
+    // accounts created before access lists existed keep the full access they had
+    access: {
+      facebook: {
+        type: [{ type: String, enum: FACEBOOK_ACCESS_GROUPS }],
+        default: () => [...FULL_ACCESS.facebook],
+      },
+      google: { type: Boolean, default: true },
+      microsoft: { type: Boolean, default: true },
+    },
     lastLoginAt: { type: Date },
   },
   {
@@ -78,7 +103,22 @@ export function toPublicUser(user: UserDocument): PublicUser {
     email: user.email,
     role: user.role,
     isActive: user.isActive,
+    access: {
+      facebook: [...(user.access?.facebook ?? [])],
+      google: user.access?.google ?? false,
+      microsoft: user.access?.microsoft ?? false,
+    },
     lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : null,
     createdAt: user.createdAt.toISOString(),
+  };
+}
+
+/** The access that actually applies: admins see everything regardless of their stored list. */
+export function effectiveAccess(user: { role: UserRole; access?: UserAccess | null }): UserAccess {
+  if (user.role === 'admin') return FULL_ACCESS;
+  return {
+    facebook: [...(user.access?.facebook ?? [])],
+    google: user.access?.google ?? false,
+    microsoft: user.access?.microsoft ?? false,
   };
 }

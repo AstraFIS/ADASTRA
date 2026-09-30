@@ -10,6 +10,7 @@ import {
   FEE_USD,
   latestReportDate,
   num,
+  reportBaseMatch,
   resolveReportBounds,
   textMatch,
   TOTAL_SPEND,
@@ -180,6 +181,8 @@ async function latestSpendDay(match: Record<string, unknown>): Promise<LatestSpe
 
 /** Returns null when the ad has never reported (→ 404). */
 export async function getFbAdStatistics(adName: string, query: FbStatisticsQuery): Promise<FbAdStatisticsResult | null> {
+  // an ad outside the caller's access is reported as unknown, the same as one that never ran
+  if (query.allowedAds && !query.allowedAds.includes(adName)) return null;
   const adMatch = { ad_name: textMatch(adName) };
   const everReported = await latestReportDate(adMatch);
   if (!everReported) return null;
@@ -187,10 +190,12 @@ export async function getFbAdStatistics(adName: string, query: FbStatisticsQuery
   // ranges are anchored on the whole collection's latest day, so "This Month" means the same thing on every page
   const bounds = await resolveReportBounds(query);
   const inRange = dateMatch(bounds);
+  // the "account" benchmark only covers ads the caller can see
+  const accountMatch = { ...reportBaseMatch({ allowedAds: query.allowedAds }), ...inRange };
 
   const [ad, account, latestOverall, latestDay] = await Promise.all([
     totals({ ...adMatch, ...inRange }),
-    totals(inRange),
+    totals(accountMatch),
     latestReportDate({}),
     latestSpendDay({ ...adMatch, ...inRange }),
   ]);

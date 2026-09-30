@@ -1,7 +1,14 @@
 import type { NextFunction, Request, Response } from 'express';
-import { User, type UserRole } from '../models/user.model.js';
+import { User, effectiveAccess, type UserAccess, type UserRole } from '../models/user.model.js';
+import { hasPlatformAccess } from '../services/access.service.js';
+import type { PlatformId } from '../types/platforms.js';
 import { HttpError } from '../utils/httpError.js';
 import { verifyToken, type AuthUser } from '../utils/jwt.js';
+
+/** The signed-in caller: token claims plus the access that applies to them right now. */
+export interface RequestUser extends AuthUser {
+  access: UserAccess;
+}
 
 // Adds `req.user` to Express's Request type. It lives here (a module every
 // route imports) rather than in a standalone .d.ts so no build can skip it.
@@ -9,7 +16,7 @@ declare global {
   namespace Express {
     interface Request {
       /** Set by requireAuth after the Bearer token is verified. */
-      user?: AuthUser;
+      user?: RequestUser;
     }
   }
 }
@@ -29,12 +36,12 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
   }
 
   // Re-check the user so deactivated or deleted accounts lose access immediately.
-  const user = await User.findById(claims.id).select('role isActive email');
+  const user = await User.findById(claims.id).select('role isActive email access');
   if (!user || !user.isActive) {
     return next(new HttpError(401, 'Account not found or deactivated'));
   }
 
-  req.user = { id: user.id, email: user.email, role: user.role };
+  req.user = { id: user.id, email: user.email, role: user.role, access: effectiveAccess(user) };
   next();
 }
 
@@ -46,6 +53,19 @@ export function requireRole(...roles: UserRole[]) {
     }
     if (!roles.includes(req.user.role)) {
       return next(new HttpError(403, 'Insufficient permissions'));
+    }
+    next();
+  };
+}
+
+/** Use after requireAuth. Allows only users whose access list includes the platform. */
+export function requirePlatform(platform: PlatformId) {
+  return (req: Request, _res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      return next(new HttpError(401, 'Authentication required'));
+    }
+    if (!hasPlatformAccess(req.user.access, platform)) {
+      return next(new HttpError(403, 'You do not have access to this platform'));
     }
     next();
   };

@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { facebookAdScope } from '../services/access.service.js';
 import { getFbDailyTrend } from '../services/fbDailyTrend.service.js';
 import { reportQuerySchema } from './fbStatistics.controller.js';
 
@@ -11,5 +12,5 @@ import { reportQuerySchema } from './fbStatistics.controller.js';
  */
 export async function getDailyTrend(req: Request, res: Response): Promise<void> {
   const q = reportQuerySchema.parse(req.query);
-  res.json(await getFbDailyTrend(q));
+  res.json(await getFbDailyTrend({ ...q, allowedAds: await facebookAdScope(req.user!.access) }));
 }

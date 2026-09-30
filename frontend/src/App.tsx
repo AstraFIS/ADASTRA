@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router-dom';
 import RequireAuth from '@/auth/RequireAuth';
+import RequirePlatform from '@/auth/RequirePlatform';
 import RequireRole from '@/auth/RequireRole';
 import AdminLayout from '@/layouts/AdminLayout';
 import BingDashboardPage from '@/pages/BingDashboardPage';
@@ -19,9 +20,13 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route path="/" element={<AdminLayout />}>
           <Route index element={<HomePage />} />
-          <Route path="platforms/facebook" element={<FacebookDashboardPage />} />
-          <Route path="platforms/facebook/ads/:adName" element={<FacebookAdDetailPage />} />
-          <Route path="platforms/microsoft" element={<BingDashboardPage />} />
+          <Route element={<RequirePlatform platform="facebook" />}>
+            <Route path="platforms/facebook" element={<FacebookDashboardPage />} />
+            <Route path="platforms/facebook/ads/:adName" element={<FacebookAdDetailPage />} />
+          </Route>
+          <Route element={<RequirePlatform platform="microsoft" />}>
+            <Route path="platforms/microsoft" element={<BingDashboardPage />} />
+          </Route>
           <Route path="platforms/:slug" element={<PlatformPage />} />
           <Route element={<RequireRole roles={['admin']} />}>
             <Route path="users" element={<UsersPage />} />

@@ -9,6 +9,8 @@ export interface FbStatisticsQuery {
   to?: string | undefined;
   ad?: string | undefined;
   offer?: string | undefined;
+  /** Ad names the caller may see (from facebookAdScope); null / undefined means every ad. */
+  allowedAds?: string[] | null | undefined;
 }
 
 export interface FbStatistics {
@@ -102,14 +104,28 @@ export type ReportBounds = { from: string; to: string } | null;
  * looking value matches both representations.
  */
 export function textMatch(value: string): unknown {
-  const asNumber = Number(value);
-  return value.trim() !== '' && Number.isFinite(asNumber) ? { $in: [value, asNumber] } : value;
+  const values = textValues(value);
+  return values.length > 1 ? { $in: values } : value;
 }
 
-/** Mongo match for the ad / offer part of a query. */
-export function reportBaseMatch(query: Pick<FbStatisticsQuery, 'ad' | 'offer'>): ReportFilter {
+/** The stored representations a text value may have: itself, plus the number when it looks like one. */
+function textValues(value: string): (string | number)[] {
+  const asNumber = Number(value);
+  return value.trim() !== '' && Number.isFinite(asNumber) ? [value, asNumber] : [value];
+}
+
+/** Mongo match for the ad / offer / access part of a query. */
+export function reportBaseMatch(query: Pick<FbStatisticsQuery, 'ad' | 'offer' | 'allowedAds'>): ReportFilter {
   const baseMatch: ReportFilter = {};
   if (query.ad) baseMatch.ad_name = textMatch(query.ad);
+  if (query.allowedAds) {
+    // an ad outside the caller's access matches nothing rather than falling back to "all allowed ads"
+    baseMatch.ad_name = query.ad
+      ? query.allowedAds.includes(query.ad)
+        ? textMatch(query.ad)
+        : { $in: [] }
+      : { $in: query.allowedAds.flatMap(textValues) };
+  }
   if (query.offer) baseMatch.offer_name = textMatch(query.offer);
   return baseMatch;
 }

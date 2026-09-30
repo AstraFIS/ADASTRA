@@ -1,17 +1,25 @@
 import type { Request, Response } from 'express';
 import { isValidObjectId } from 'mongoose';
 import { z } from 'zod';
-import { USER_ROLES, User, toPublicUser } from '../models/user.model.js';
+import { FACEBOOK_ACCESS_GROUPS } from '../models/adAccess.model.js';
+import { FULL_ACCESS, USER_ROLES, User, toPublicUser } from '../models/user.model.js';
 import { HttpError } from '../utils/httpError.js';
 
 const emailSchema = z.string().trim().toLowerCase().pipe(z.email());
 const passwordSchema = z.string().min(8, 'Password must be at least 8 characters').max(128);
+
+const accessSchema = z.object({
+  facebook: z.array(z.enum(FACEBOOK_ACCESS_GROUPS)).transform((groups) => [...new Set(groups)]),
+  google: z.boolean(),
+  microsoft: z.boolean(),
+});
 
 const createUserSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(80),
   email: emailSchema,
   password: passwordSchema,
   role: z.enum(USER_ROLES).default('user'),
+  access: accessSchema.default(FULL_ACCESS),
 });
 
 const updateUserSchema = z
@@ -21,6 +29,7 @@ const updateUserSchema = z
     password: passwordSchema.optional(),
     role: z.enum(USER_ROLES).optional(),
     isActive: z.boolean().optional(),
+    access: accessSchema.optional(),
   })
   .refine((v) => Object.values(v).some((x) => x !== undefined), { message: 'Nothing to update' });
 
@@ -63,6 +72,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
     name: input.name,
     email: input.email,
     role: input.role,
+    access: input.access,
     passwordHash: await User.hashPassword(input.password),
   });
 
@@ -97,6 +107,7 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
   if (input.name !== undefined) user.name = input.name;
   if (input.role !== undefined) user.role = input.role;
   if (input.isActive !== undefined) user.isActive = input.isActive;
+  if (input.access !== undefined) user.access = input.access;
   if (input.password !== undefined) user.passwordHash = await User.hashPassword(input.password);
 
   await user.save();

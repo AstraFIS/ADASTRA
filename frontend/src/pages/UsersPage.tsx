@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/auth/AuthContext';
+import { AccessSummary } from '@/components/AccessList';
 import Modal from '@/components/Modal';
 import UserForm from '@/components/UserForm';
 import { formatDate } from '@/lib/format';
@@ -92,7 +93,7 @@ export default function UsersPage() {
           <p className="text-sm font-medium uppercase tracking-[0.12em] text-ink-3">Administration</p>
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-ink md:text-4xl">Users</h1>
           <p className="mt-2 text-base text-ink-2">
-            Accounts that can sign in to this admin panel. Admins can manage users; users can only view dashboards.
+            Accounts that can sign in to this admin panel. Admins can manage users and see everything; users see only the platforms and Facebook ad groups on their access list.
           </p>
         </div>
         <button
@@ -139,12 +140,13 @@ export default function UsersPage() {
 
       {state.kind === 'ok' && (
         <div className="overflow-x-auto rounded-xl border border-line bg-surface">
-          <table className="w-full min-w-[900px] border-collapse text-sm">
+          <table className="w-full min-w-[1080px] border-collapse text-sm">
             <thead>
               <tr className="bg-surface-2/60 text-left text-ink-2">
                 <th className="px-5 py-3.5 font-semibold">Name</th>
                 <th className="px-5 py-3.5 font-semibold">Email</th>
                 <th className="px-5 py-3.5 font-semibold">Role</th>
+                <th className="px-5 py-3.5 font-semibold">Access</th>
                 <th className="px-5 py-3.5 font-semibold">Status</th>
                 <th className="px-5 py-3.5 font-semibold">Last login</th>
                 <th className="px-5 py-3.5 font-semibold">Created</th>
@@ -170,6 +172,9 @@ export default function UsersPage() {
                       >
                         {u.role}
                       </span>
+                    </td>
+                    <td className="px-5 py-3">
+                      <AccessSummary access={u.access} role={u.role} />
                     </td>
                     <td className="px-5 py-3">
                       <span className={`inline-flex items-center gap-1.5 text-sm ${u.isActive ? 'text-revenue' : 'text-ink-3'}`}>

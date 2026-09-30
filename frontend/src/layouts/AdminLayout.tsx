@@ -1,11 +1,13 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthContext';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { canSeePlatform } from '@/lib/access';
+import type { PlatformId } from '@/types/platforms';
 
-const navItems = [
+const navItems: { to: string; label: string; end: boolean; adminOnly: boolean; platform?: PlatformId }[] = [
   { to: '/', label: 'Overview', end: true, adminOnly: false },
-  { to: '/platforms/facebook', label: 'Facebook', end: false, adminOnly: false },
-  { to: '/platforms/microsoft', label: 'Bing', end: false, adminOnly: false },
+  { to: '/platforms/facebook', label: 'Facebook', end: false, adminOnly: false, platform: 'facebook' },
+  { to: '/platforms/microsoft', label: 'Bing', end: false, adminOnly: false, platform: 'microsoft' },
   { to: '/users', label: 'Users', end: false, adminOnly: true },
 ];
 
@@ -30,6 +32,7 @@ export default function AdminLayout() {
           <nav aria-label="Main" className="flex min-w-0 items-center gap-1 overflow-x-auto">
             {navItems
               .filter((item) => !item.adminOnly || user?.role === 'admin')
+              .filter((item) => !item.platform || canSeePlatform(user, item.platform))
               .map((item) => (
               <NavLink
                 key={item.to}

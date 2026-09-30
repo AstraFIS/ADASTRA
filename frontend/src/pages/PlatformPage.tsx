@@ -1,4 +1,7 @@
 import { Link, useParams } from 'react-router-dom';
+import { useAuth } from '@/auth/AuthContext';
+import { NoPlatformAccess } from '@/auth/RequirePlatform';
+import { canSeePlatform } from '@/lib/access';
 import { PLATFORM_ICONS, type PlatformId } from '@/types/platforms';
 
 const NAMES: Record<PlatformId, string> = {
@@ -13,6 +16,7 @@ function isPlatformId(value: string | undefined): value is PlatformId {
 
 export default function PlatformPage() {
   const { slug } = useParams();
+  const { user } = useAuth();
 
   if (!isPlatformId(slug)) {
     return (
@@ -24,6 +28,8 @@ export default function PlatformPage() {
       </div>
     );
   }
+
+  if (!canSeePlatform(user, slug)) return <NoPlatformAccess />;
 
   return (
     <div className="space-y-6">

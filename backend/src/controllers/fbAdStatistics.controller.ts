@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { z } from 'zod';
+import { facebookAdScope } from '../services/access.service.js';
 import { getFbAdStatistics } from '../services/fbAdStatistics.service.js';
 import { HttpError } from '../utils/httpError.js';
 import { reportQuerySchema } from './fbStatistics.controller.js';
@@ -17,7 +18,12 @@ const paramsSchema = z.object({ adName: z.string().trim().min(1).max(200) });
 export async function getAdStatistics(req: Request, res: Response): Promise<void> {
   const { adName } = paramsSchema.parse(req.params);
   const q = reportQuerySchema.parse(req.query);
-  const result = await getFbAdStatistics(adName, { range: q.range, from: q.from, to: q.to });
+  const result = await getFbAdStatistics(adName, {
+    range: q.range,
+    from: q.from,
+    to: q.to,
+    allowedAds: await facebookAdScope(req.user!.access),
+  });
   if (!result) throw new HttpError(404, `Unknown ad: ${adName}`);
   res.json(result);
 }

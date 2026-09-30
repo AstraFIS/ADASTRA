@@ -1,4 +1,6 @@
 import type { PlatformMetrics, PlatformSummary, PortfolioOverview } from '../types/platforms.js';
+import type { UserAccess } from '../models/user.model.js';
+import { hasPlatformAccess } from './access.service.js';
 import { getBingDashboard } from './bing.service.js';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -35,8 +37,9 @@ function platforms(): PlatformSummary[] {
 const CLIENT = 'Direct Meds ED';
 const PORTFOLIO = 'Media Performance Portfolio';
 
-export function getPortfolioOverview(): PortfolioOverview {
-  const all = platforms();
+/** Only the platforms on the caller's access list are listed and counted. */
+export function getPortfolioOverview(access: UserAccess): PortfolioOverview {
+  const all = platforms().filter((p) => hasPlatformAccess(access, p.id));
   const connected = all.filter((p) => p.connected && p.metrics);
   const revenue = round2(connected.reduce((sum, p) => sum + (p.metrics?.revenue ?? 0), 0));
   const spend = round2(connected.reduce((sum, p) => sum + (p.metrics?.spend ?? 0), 0));

@@ -1,7 +1,7 @@
 import { FacebookAdReport } from '../models/facebookAdReport.model.js';
 import type { DateRangeOption } from '../types/facebook.js';
 import { DATE_RANGE_OPTIONS, isoDay } from '../utils/dateRange.js';
-import { latestReportDate } from './fbStatistics.service.js';
+import { latestReportDate, reportBaseMatch, type ReportFilter } from './fbStatistics.service.js';
 
 export interface FbOptionsResult {
   dateRanges: DateRangeOption[];
@@ -12,9 +12,10 @@ export interface FbOptionsResult {
   rows: number;
 }
 
-/** Distinct values over the whole collection, always as strings. */
-async function distinctText(field: string): Promise<string[]> {
+/** Distinct values over the matching rows, always as strings. */
+async function distinctText(field: string, match: ReportFilter): Promise<string[]> {
   const rows = await FacebookAdReport.aggregate<{ _id: string | null }>([
+    { $match: match },
     { $group: { _id: { $toString: `$${field}` } } },
   ]);
   return rows
@@ -23,13 +24,21 @@ async function distinctText(field: string): Promise<string[]> {
     .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 }
 
-export async function getFbOptions(): Promise<FbOptionsResult> {
+/** Row count via the pipeline, which (unlike countDocuments) does not cast numeric ad names to text. */
+async function countRows(match: ReportFilter): Promise<number> {
+  const [row] = await FacebookAdReport.aggregate<{ n: number }>([{ $match: match }, { $count: 'n' }]);
+  return row?.n ?? 0;
+}
+
+/** `allowedAds` limits every list to the ads the caller may see (null = every ad). */
+export async function getFbOptions(allowedAds: string[] | null): Promise<FbOptionsResult> {
+  const match = reportBaseMatch({ allowedAds });
   const [ads, offers, providers, latest, rows] = await Promise.all([
-    distinctText('ad_name'),
-    distinctText('offer_name'),
-    distinctText('provider_name'),
+    distinctText('ad_name', match),
+    distinctText('offer_name', match),
+    distinctText('provider_name', match),
     latestReportDate({}),
-    FacebookAdReport.estimatedDocumentCount(),
+    allowedAds ? countRows(match) : FacebookAdReport.estimatedDocumentCount(),
   ]);
   return {
     dateRanges: DATE_RANGE_OPTIONS,

@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react';
+import AccessListEditor from '@/components/AccessList';
+import { FULL_ACCESS } from '@/lib/access';
 import { ApiError } from '@/lib/api';
 import type { CreateUserInput, UpdateUserInput } from '@/lib/users';
-import type { AuthUser, UserRole } from '@/types/auth';
+import type { AuthUser, UserAccess, UserRole } from '@/types/auth';
 
 const inputClass =
   'mt-1 block w-full rounded-md border border-line bg-surface-2 px-3 py-2 text-sm text-ink placeholder:text-ink-3 focus:border-revenue focus:outline-none focus:ring-1 focus:ring-revenue disabled:opacity-60';
@@ -29,6 +31,7 @@ export default function UserForm({ user, currentUserId, onSubmit, onCancel }: Pr
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>(user?.role ?? 'user');
   const [isActive, setIsActive] = useState(user?.isActive ?? true);
+  const [access, setAccess] = useState<UserAccess>(user?.access ?? FULL_ACCESS);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -44,13 +47,14 @@ export default function UserForm({ user, currentUserId, onSubmit, onCancel }: Pr
         if (password) changes.password = password;
         if (!isSelf && role !== user.role) changes.role = role;
         if (!isSelf && isActive !== user.isActive) changes.isActive = isActive;
+        if (JSON.stringify(access) !== JSON.stringify(user.access)) changes.access = access;
         if (Object.keys(changes).length === 0) {
           onCancel();
           return;
         }
         await onSubmit(changes);
       } else {
-        await onSubmit({ name, email, password, role });
+        await onSubmit({ name, email, password, role, access });
       }
     } catch (err) {
       setError(errorMessage(err));
@@ -120,6 +124,8 @@ export default function UserForm({ user, currentUserId, onSubmit, onCancel }: Pr
       {isSelf && (
         <p className="text-xs text-ink-3">You cannot change your own role or deactivate yourself.</p>
       )}
+
+      <AccessListEditor value={access} onChange={setAccess} role={role} />
 
       {error && (
         <p role="alert" className="rounded-md border border-loss/40 bg-loss/10 px-3 py-2 text-sm text-loss">

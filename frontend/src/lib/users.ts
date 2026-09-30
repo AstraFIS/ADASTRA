@@ -1,11 +1,12 @@
 import { api } from '@/lib/api';
-import type { AuthUser, UserRole } from '@/types/auth';
+import type { AuthUser, UserAccess, UserRole } from '@/types/auth';
 
 export interface CreateUserInput {
   name: string;
   email: string;
   password: string;
   role: UserRole;
+  access: UserAccess;
 }
 
 export interface UpdateUserInput {
@@ -14,6 +15,7 @@ export interface UpdateUserInput {
   password?: string;
   role?: UserRole;
   isActive?: boolean;
+  access?: UserAccess;
 }
 
 export const usersApi = {

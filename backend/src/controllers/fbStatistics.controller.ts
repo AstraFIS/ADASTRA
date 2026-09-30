@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { z } from 'zod';
+import { facebookAdScope } from '../services/access.service.js';
 import { getFbStatistics } from '../services/fbStatistics.service.js';
 import { DATE_RANGE_KEYS } from '../types/facebook.js';
 
@@ -27,5 +28,5 @@ export const reportQuerySchema = z
  */
 export async function getStatistics(req: Request, res: Response): Promise<void> {
   const q = reportQuerySchema.parse(req.query);
-  res.json(await getFbStatistics(q));
+  res.json(await getFbStatistics({ ...q, allowedAds: await facebookAdScope(req.user!.access) }));
 }
