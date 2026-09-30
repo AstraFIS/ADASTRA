@@ -52,8 +52,58 @@ export type ReportFilter = Record<string, unknown>;
 // or with derived columns stored as text. Mirrors deriveFields() in the model.
 // ---------------------------------------------------------------------------
 
-/** A numeric field read defensively: text / missing / null → 0. */
-export const num = (field: string) => ({ $convert: { input: `$${field}`, to: 'double', onError: 0, onNull: 0 } });
+/**
+ * Sheet text as plain number text: "$1.234,56" → "1234.56", "-$0,06" → "-0.06",
+ * "6,38%" → "6.38", "$1,234.56" → "1234.56". Whichever of ',' / '.' comes last
+ * is the decimal mark; the other is a thousands separator. A lone ',' is decimal.
+ */
+const numberText = (input: unknown) => ({
+  $let: {
+    vars: {
+      s: {
+        $reduce: {
+          input: [{ $literal: '$' }, '%', ' ', '\u00a0'],
+          initialValue: { $trim: { input } },
+          in: { $replaceAll: { input: '$$value', find: '$$this', replacement: '' } },
+        },
+      },
+    },
+    in: {
+      $let: {
+        vars: { comma: { $indexOfCP: ['$$s', ','] }, dot: { $indexOfCP: ['$$s', '.'] } },
+        in: {
+          $switch: {
+            branches: [
+              // "1.234,56" / "0,06": ',' is the decimal mark
+              {
+                case: { $gt: ['$$comma', '$$dot'] },
+                then: {
+                  $replaceAll: { input: { $replaceAll: { input: '$$s', find: '.', replacement: '' } }, find: ',', replacement: '.' },
+                },
+              },
+              // "1,234.56": ',' separates thousands
+              { case: { $gte: ['$$comma', 0] }, then: { $replaceAll: { input: '$$s', find: ',', replacement: '' } } },
+            ],
+            default: '$$s',
+          },
+        },
+      },
+    },
+  },
+});
+
+/**
+ * A numeric field read defensively: numbers pass through, sheet text such as
+ * "$0,06" or "6,38%" is parsed, anything unreadable / missing / null → 0.
+ */
+export const num = (field: string) => ({
+  $convert: {
+    input: { $cond: [{ $eq: [{ $type: `$${field}` }, 'string'] }, numberText(`$${field}`), `$${field}`] },
+    to: 'double',
+    onError: 0,
+    onNull: 0,
+  },
+});
 
 /** provider_fee_pct as a real percentage: 7.53 stays 7.53, 753 becomes 7.53. */
 export const FEE_PCT = {
@@ -187,9 +237,9 @@ export async function getFbStatistics(query: FbStatisticsQuery): Promise<FbStati
         total_amount_spend: { $sum: TOTAL_SPEND },
         spend_before_fees: { $sum: num('spend_usd') },
         provider_fees: { $sum: FEE_USD },
-        landing_page_views: { $sum: '$landing_page_views' },
-        link_clicks: { $sum: '$link_clicks' },
-        impressions: { $sum: '$impressions' },
+        landing_page_views: { $sum: num('landing_page_views') },
+        link_clicks: { $sum: num('link_clicks') },
+        impressions: { $sum: num('impressions') },
         rows: { $sum: 1 },
         ads: { $addToSet: '$ad_name' },
       },

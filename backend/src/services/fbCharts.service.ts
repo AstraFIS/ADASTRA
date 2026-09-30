@@ -86,7 +86,7 @@ export async function getFbCharts(query: FbStatisticsQuery): Promise<FbChartsRes
         revenue_usd: { $sum: num('revenue_usd') },
         total_spend_usd: { $sum: TOTAL_SPEND },
         spend_usd: { $sum: num('spend_usd') },
-        link_clicks: { $sum: '$link_clicks' },
+        link_clicks: { $sum: num('link_clicks') },
         rows: { $sum: 1 },
       },
     },
@@ -107,10 +107,10 @@ export async function getFbCharts(query: FbStatisticsQuery): Promise<FbChartsRes
       {
         $group: {
           _id: bucketExpr(field),
-          link_clicks: { $sum: '$link_clicks' },
-          impressions: { $sum: '$impressions' },
+          link_clicks: { $sum: num('link_clicks') },
+          impressions: { $sum: num('impressions') },
           spend_usd: { $sum: num('spend_usd') },
-          conversions: { $sum: '$conversions' },
+          conversions: { $sum: num('conversions') },
           rows: { $sum: 1 },
         },
       },
