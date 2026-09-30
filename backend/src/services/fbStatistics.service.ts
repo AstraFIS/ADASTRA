@@ -1,3 +1,4 @@
+import type { PipelineStage } from 'mongoose';
 import { FacebookAdReport } from '../models/facebookAdReport.model.js';
 import type { DateRangeKey } from '../types/facebook.js';
 import { DATE_RANGE_OPTIONS, isoDay, resolveRange } from '../utils/dateRange.js';
@@ -68,13 +69,49 @@ export const FEE_USD = { $round: [{ $divide: [{ $multiply: [num('spend_usd'), FE
 export const TOTAL_SPEND = { $add: [num('spend_usd'), FEE_USD] };
 
 /**
+ * report_date as a real Date. Imports store it either as a Date or as sheet
+ * text "DD/MM/YYYY" ("05/08/2026" = 5 Aug 2026); ISO text ("2026-08-05") is
+ * accepted too. Anything unreadable becomes null and is excluded by dateMatch.
+ */
+export const REPORT_DATE = {
+  $switch: {
+    branches: [
+      { case: { $eq: [{ $type: '$report_date' }, 'date'] }, then: '$report_date' },
+      {
+        case: { $eq: [{ $type: '$report_date' }, 'string'] },
+        then: {
+          $dateFromString: {
+            dateString: { $trim: { input: '$report_date' } },
+            format: '%d/%m/%Y',
+            timezone: 'UTC',
+            onError: {
+              $dateFromString: { dateString: { $trim: { input: '$report_date' } }, timezone: 'UTC', onError: null },
+            },
+          },
+        },
+      },
+    ],
+    default: null,
+  },
+};
+
+/**
+ * Aggregate over facebook_ad_reports with report_date normalised to a Date
+ * first, so every date filter, sort and per-day group works whichever way the
+ * row was imported. Use this instead of FacebookAdReport.aggregate.
+ */
+export function reportAggregate<T>(pipeline: PipelineStage[]) {
+  return FacebookAdReport.aggregate<T>([{ $addFields: { report_date: REPORT_DATE } }, ...pipeline]);
+}
+
+/**
  * Newest report_date matching a filter. Uses the aggregation pipeline rather
  * than findOne because Mongoose casts query values to the schema type, which
  * would turn `{ $in: ['3.1', 3.1] }` into two strings and miss rows imported
  * with a numeric ad_name. Pipelines are not cast.
  */
 export async function latestReportDate(match: ReportFilter): Promise<Date | null> {
-  const [row] = await FacebookAdReport.aggregate<{ report_date: Date }>([
+  const [row] = await reportAggregate<{ report_date: Date }>([
     { $match: { ...match, report_date: { $type: 'date' } } },
     { $sort: { report_date: -1 } },
     { $limit: 1 },
@@ -168,7 +205,7 @@ export async function getFbStatistics(query: FbStatisticsQuery): Promise<FbStati
   const bounds = await resolveReportBounds(query);
   const match: ReportFilter = { ...baseMatch, ...dateMatch(bounds) }; // dateMatch always excludes rows without a date
 
-  const [agg] = await FacebookAdReport.aggregate<{
+  const [agg] = await reportAggregate<{
     total_revenue: number;
     total_amount_spend: number;
     spend_before_fees: number;
@@ -243,10 +280,10 @@ export async function getFbStatistics(query: FbStatisticsQuery): Promise<FbStati
  */
 async function providerFees(match: ReportFilter): Promise<ProviderFeeStat[]> {
   const [known, inRange] = await Promise.all([
-    FacebookAdReport.aggregate<{ _id: string | null }>([
+    reportAggregate<{ _id: string | null }>([
       { $group: { _id: { $toString: '$provider_name' } } },
     ]),
-    FacebookAdReport.aggregate<{
+    reportAggregate<{
       _id: string | null;
       spend_usd: number;
       provider_fee_usd: number;

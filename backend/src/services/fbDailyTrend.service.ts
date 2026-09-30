@@ -1,4 +1,3 @@
-import { FacebookAdReport } from '../models/facebookAdReport.model.js';
 import type { DateRangeKey } from '../types/facebook.js';
 import { isoDay } from '../utils/dateRange.js';
 import {
@@ -6,6 +5,7 @@ import {
   describeRange,
   FEE_USD,
   num,
+  reportAggregate,
   reportBaseMatch,
   resolveReportBounds,
   TOTAL_SPEND,
@@ -52,7 +52,7 @@ export async function getFbDailyTrend(query: FbStatisticsQuery): Promise<FbDaily
   const bounds = await resolveReportBounds(query);
   const match = { ...baseMatch, ...dateMatch(bounds) };
 
-  const days = await FacebookAdReport.aggregate<{
+  const days = await reportAggregate<{
     _id: Date;
     revenue_usd: number;
     spend_usd: number;

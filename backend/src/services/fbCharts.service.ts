@@ -1,13 +1,14 @@
-import { AGE_BUCKETS, FacebookAdReport, GENDER_BUCKETS } from '../models/facebookAdReport.model.js';
+import { AGE_BUCKETS, GENDER_BUCKETS } from '../models/facebookAdReport.model.js';
 import type { DateRangeKey } from '../types/facebook.js';
 import {
   dateMatch,
   describeRange,
+  type FbStatisticsQuery,
   num,
+  reportAggregate,
   reportBaseMatch,
   resolveReportBounds,
   TOTAL_SPEND,
-  type FbStatisticsQuery,
 } from './fbStatistics.service.js';
 
 export interface AdRevenueSpend {
@@ -70,7 +71,7 @@ export async function getFbCharts(query: FbStatisticsQuery): Promise<FbChartsRes
   const match = { ...baseMatch, ...dateMatch(bounds) };
 
   // ---- revenue vs spend per ad ----
-  const byAd = await FacebookAdReport.aggregate<{
+  const byAd = await reportAggregate<{
     _id: string;
     revenue_usd: number;
     total_spend_usd: number;
@@ -95,7 +96,7 @@ export async function getFbCharts(query: FbStatisticsQuery): Promise<FbChartsRes
 
   // ---- audience: the same rows, grouped by their age / gender breakdown ----
   const groupBy = (field: AudienceBreakdown) =>
-    FacebookAdReport.aggregate<{
+    reportAggregate<{
       _id: string;
       link_clicks: number;
       impressions: number;

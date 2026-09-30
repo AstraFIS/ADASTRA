@@ -1,4 +1,3 @@
-import { FacebookAdReport } from '../models/facebookAdReport.model.js';
 import type { DateRangeKey, MetricComparison } from '../types/facebook.js';
 import { isoDay } from '../utils/dateRange.js';
 import { compareMetric } from './facebook.service.js';
@@ -7,14 +6,15 @@ import { buildRecommendation, type AdRecommendation, type LatestSpendDay } from 
 import {
   dateMatch,
   describeRange,
+  type FbStatisticsQuery,
   FEE_USD,
   latestReportDate,
   num,
+  reportAggregate,
   reportBaseMatch,
   resolveReportBounds,
   textMatch,
   TOTAL_SPEND,
-  type FbStatisticsQuery,
 } from './fbStatistics.service.js';
 
 export interface AdStatistics {
@@ -90,7 +90,7 @@ interface Totals {
 }
 
 async function totals(match: Record<string, unknown>): Promise<Totals | null> {
-  const [t] = await FacebookAdReport.aggregate<Totals>([
+  const [t] = await reportAggregate<Totals>([
     { $match: match },
     {
       $group: {
@@ -154,7 +154,7 @@ const clean = (values: (string | null)[] | undefined) =>
 
 /** The ad's most recent day with spend in the range, and its ROAS over the other days. */
 async function latestSpendDay(match: Record<string, unknown>): Promise<LatestSpendDay | null> {
-  const days = await FacebookAdReport.aggregate<{ _id: Date; spend: number; revenue: number; conversions: number }>([
+  const days = await reportAggregate<{ _id: Date; spend: number; revenue: number; conversions: number }>([
     { $match: match },
     {
       $group: {

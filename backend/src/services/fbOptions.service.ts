@@ -1,7 +1,7 @@
 import { FacebookAdReport } from '../models/facebookAdReport.model.js';
 import type { DateRangeOption } from '../types/facebook.js';
 import { DATE_RANGE_OPTIONS, isoDay } from '../utils/dateRange.js';
-import { latestReportDate, reportBaseMatch, type ReportFilter } from './fbStatistics.service.js';
+import { latestReportDate, reportAggregate, reportBaseMatch, type ReportFilter } from './fbStatistics.service.js';
 
 export interface FbOptionsResult {
   dateRanges: DateRangeOption[];
@@ -14,7 +14,7 @@ export interface FbOptionsResult {
 
 /** Distinct values over the matching rows, always as strings. */
 async function distinctText(field: string, match: ReportFilter): Promise<string[]> {
-  const rows = await FacebookAdReport.aggregate<{ _id: string | null }>([
+  const rows = await reportAggregate<{ _id: string | null }>([
     { $match: match },
     { $group: { _id: { $toString: `$${field}` } } },
   ]);
@@ -26,7 +26,7 @@ async function distinctText(field: string, match: ReportFilter): Promise<string[
 
 /** Row count via the pipeline, which (unlike countDocuments) does not cast numeric ad names to text. */
 async function countRows(match: ReportFilter): Promise<number> {
-  const [row] = await FacebookAdReport.aggregate<{ n: number }>([{ $match: match }, { $count: 'n' }]);
+  const [row] = await reportAggregate<{ n: number }>([{ $match: match }, { $count: 'n' }]);
   return row?.n ?? 0;
 }
 

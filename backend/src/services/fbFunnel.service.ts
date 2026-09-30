@@ -1,15 +1,15 @@
-import { FacebookAdReport } from '../models/facebookAdReport.model.js';
 import type { DateRangeKey } from '../types/facebook.js';
 import { isoDay } from '../utils/dateRange.js';
 import {
   dateMatch,
   describeRange,
+  type FbStatisticsQuery,
   FEE_USD,
   num,
+  reportAggregate,
   reportBaseMatch,
   resolveReportBounds,
   TOTAL_SPEND,
-  type FbStatisticsQuery,
 } from './fbStatistics.service.js';
 
 /** An ad is "active" if it reported within this many days of the latest day in the result. */
@@ -64,7 +64,7 @@ export async function getFbFunnel(query: FbStatisticsQuery): Promise<FbFunnelRes
   const bounds = await resolveReportBounds(query);
   const match = { ...baseMatch, ...dateMatch(bounds) };
 
-  const groups = await FacebookAdReport.aggregate<{
+  const groups = await reportAggregate<{
     _id: { ad_name: string; offer_name: string };
     providers: (string | null)[];
     first_date: Date;
