@@ -88,8 +88,14 @@ export default function LineChart({
   const spacing = n > 1 ? innerW / (n - 1) : 0;
   const xFor = (i: number) => marginLeft + INNER_PAD + (n > 1 ? i * spacing : innerW / 2);
 
-  const showPointLabels = n <= 1 || spacing >= MIN_SPACING_FOR_LABELS;
   const axisEvery = spacing > 0 && spacing < MIN_SPACING_FOR_AXIS ? Math.ceil(MIN_SPACING_FOR_AXIS / spacing) : 1;
+  // when points are too close for every value label, label every k-th point (on the same days the axis
+  // shows a date) instead of hiding them all; the hovered point is always labelled
+  const labelEvery =
+    spacing > 0 && spacing < MIN_SPACING_FOR_LABELS
+      ? Math.ceil(Math.ceil(MIN_SPACING_FOR_LABELS / spacing) / axisEvery) * axisEvery
+      : axisEvery;
+  const showPointLabel = (i: number) => i % labelEvery === 0 || hover?.index === i;
 
   function nearestIndex(clientX: number): number | null {
     const rect = wrapRef.current?.getBoundingClientRect();
@@ -251,7 +257,7 @@ export default function LineChart({
                         stroke="var(--color-surface)"
                         strokeWidth={2}
                       />
-                      {showPointLabels && (
+                      {showPointLabel(i) && (
                         <text
                           x={xFor(i)}
                           y={side === 'above' ? yFor(v) - 11 : yFor(v) + 19}

@@ -233,24 +233,15 @@ export default function FacebookDashboardPage() {
   const statsData = stats.kind === 'ok' ? stats.data : stats.kind === 'loading' ? stats.previous : null;
   const statsBusy = stats.kind === 'loading';
   const kpi = statsData?.statistics ?? null;
-  // provider cards: from the statistics API when the collection has rows, else the seed dashboard's list
-  // (the seed only knows the named ranges, so a custom range always uses the statistics API)
-  const providerCards =
-    statsData && (statsData.meta.rows > 0 || custom)
-      ? statsData.providers.map((p) => ({
-          name: p.provider_name,
-          feeRate: p.fee_pct === null ? null : p.fee_pct / 100,
-          amountSpent: p.amount_spent,
-          providerFee: p.provider_fee,
-          totalWithFee: p.total_with_fee,
-        }))
-      : data.providers.map((p) => ({
-          name: p.name,
-          feeRate: p.feeRate,
-          amountSpent: p.amountSpent,
-          providerFee: p.providerFee,
-          totalWithFee: p.totalWithFee,
-        }));
+  // provider cards: always from the statistics API (every provider in the collection, zeros when it had no
+  // spend in the period) — never the seed dashboard's demo list, which would flash fake numbers on load
+  const providerCards = (statsData?.providers ?? []).map((p) => ({
+    name: p.provider_name,
+    feeRate: p.fee_pct === null ? null : p.fee_pct / 100,
+    amountSpent: p.amount_spent,
+    providerFee: p.provider_fee,
+    totalWithFee: p.total_with_fee,
+  }));
   const roas = kpi && kpi.total_amount_spend > 0 ? kpi.net_profit / kpi.total_amount_spend : null;
   const NA = '—';
 
@@ -431,6 +422,9 @@ export default function FacebookDashboardPage() {
             <ProviderFeeCard key={p.name} provider={p} />
           ))}
         </div>
+        {statsData && providerCards.length === 0 && (
+          <p className="text-center text-sm text-ink-3">No provider fees recorded.</p>
+        )}
       </section>
 
       <ErrorBoundary label="The by-ad and audience charts">

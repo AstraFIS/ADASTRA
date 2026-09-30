@@ -95,13 +95,20 @@ export const REPORT_DATE = {
   },
 };
 
+/** The row's provider: `provider_name`, or the sheet's `Provider` column when imported as-is. */
+export const PROVIDER_NAME = { $ifNull: ['$provider_name', '$Provider', null] };
+
 /**
- * Aggregate over facebook_ad_reports with report_date normalised to a Date
- * first, so every date filter, sort and per-day group works whichever way the
- * row was imported. Use this instead of FacebookAdReport.aggregate.
+ * Aggregate over facebook_ad_reports with report_date normalised to a Date and
+ * provider_name filled from the sheet's `Provider` column first, so every date
+ * filter, per-day group and provider breakdown works whichever way the row was
+ * imported. Use this instead of FacebookAdReport.aggregate.
  */
 export function reportAggregate<T>(pipeline: PipelineStage[]) {
-  return FacebookAdReport.aggregate<T>([{ $addFields: { report_date: REPORT_DATE } }, ...pipeline]);
+  return FacebookAdReport.aggregate<T>([
+    { $addFields: { report_date: REPORT_DATE, provider_name: PROVIDER_NAME } },
+    ...pipeline,
+  ]);
 }
 
 /**
