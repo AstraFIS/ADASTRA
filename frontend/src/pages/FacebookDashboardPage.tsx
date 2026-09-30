@@ -345,7 +345,6 @@ export default function FacebookDashboardPage() {
           className="w-full flex-1 sm:min-w-[360px]"
         />
         <div className="flex gap-3">
-          <ActionButton icon="📋" label="Recommendations" />
           <ActionButton icon="🎨" label="Creatives" />
         </div>
       </section>

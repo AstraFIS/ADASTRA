@@ -22,7 +22,7 @@ export async function getAdStatistics(req: Request, res: Response): Promise<void
     range: q.range,
     from: q.from,
     to: q.to,
-    allowedAds: await facebookAdScope(req.user!.access),
+    allowedAds: await facebookAdScope(req.user!),
   });
   if (!result) throw new HttpError(404, `Unknown ad: ${adName}`);
   res.json(result);

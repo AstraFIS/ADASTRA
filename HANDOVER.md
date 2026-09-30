@@ -30,8 +30,8 @@ Repo: `github.com/Vuqar111/ADASTRA` (npm workspaces: root `package.json` runs bo
   offers a one-time "create the first admin" form.
 - **Access lists.** Each user has `access: { facebook: ['Meta1'|'Meta2'], google, microsoft }`,
   edited on `/users`. Collection `ad_access` (`ad_name` → `user_access_type`) says which
-  Facebook ads are in Meta1 / Meta2; a user with one group sees only those ads, a user with
-  both sees every ad. Admins always see everything. Enforced in the API
+  Facebook ads are in Meta1 / Meta2; a user sees only the ads listed under their groups
+  (ads missing from `ad_access` are hidden from every non-admin). Admins always see everything. Enforced in the API
   (`requirePlatform`, `facebookAdScope` → `reportBaseMatch`), mirrored in the nav and routes.
 - **Ranges are anchored on the data, not the clock.** "This Month" means the
   month of the latest `report_date` in the collection (currently 2026-09-25).
@@ -110,7 +110,7 @@ columns are still wrong until the normaliser runs.
    `frontend/data.json` (edit that file to add / change classifications; it
    is bundled into the frontend at build time).
 4. Overview page `/` onto real data (`platforms.service.ts` is static).
-5. "Recommendations" and "Creatives" buttons are disabled placeholders.
+5. The "Creatives" button on the Facebook dashboard is a disabled placeholder.
 6. The ad page's creative (image / video / landing link) comes from
    `frontend/creatives.json`, matched on the exact ad name and bundled at build
    time. `image_url` / `video_url` on the model are still not displayed.

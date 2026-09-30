@@ -12,5 +12,5 @@ import { reportQuerySchema } from './fbStatistics.controller.js';
  */
 export async function getFunnel(req: Request, res: Response): Promise<void> {
   const q = reportQuerySchema.parse(req.query);
-  res.json(await getFbFunnel({ ...q, allowedAds: await facebookAdScope(req.user!.access) }));
+  res.json(await getFbFunnel({ ...q, allowedAds: await facebookAdScope(req.user!) }));
 }

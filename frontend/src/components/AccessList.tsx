@@ -75,8 +75,8 @@ export default function AccessListEditor({ value, onChange, role, disabled = fal
 
       {!isAdmin && (
         <p className="mt-3 text-xs text-ink-3">
-          Meta1 / Meta2 are the Facebook ad groups in the ad access list. With both, the user sees every Facebook
-          ad; with one, only that group's ads.
+          Meta1 / Meta2 are the Facebook ad groups in the ad access list. The user sees only the ads listed under
+          the groups ticked here.
         </p>
       )}
     </fieldset>

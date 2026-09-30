@@ -28,5 +28,5 @@ export const reportQuerySchema = z
  */
 export async function getStatistics(req: Request, res: Response): Promise<void> {
   const q = reportQuerySchema.parse(req.query);
-  res.json(await getFbStatistics({ ...q, allowedAds: await facebookAdScope(req.user!.access) }));
+  res.json(await getFbStatistics({ ...q, allowedAds: await facebookAdScope(req.user!) }));
 }
