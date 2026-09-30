@@ -12,5 +12,5 @@ import { reportQuerySchema } from './fbStatistics.controller.js';
  */
 export async function getDailyTrend(req: Request, res: Response): Promise<void> {
   const q = reportQuerySchema.parse(req.query);
-  res.json(await getFbDailyTrend({ ...q, allowedAds: await facebookAdScope(req.user!) }));
+  res.json(await getFbDailyTrend({ ...q, allowedAds: await facebookAdScope(req.user!, q.group) }));
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/auth/AuthContext';
 import AudienceCard from '@/components/AudienceCard';
 import BarChart from '@/components/BarChart';
 import ChartLegend from '@/components/ChartLegend';
@@ -19,6 +20,7 @@ import {
   formatInteger,
   formatPercent,
 } from '@/lib/format';
+import { FACEBOOK_ACCESS_GROUPS } from '@/types/auth';
 import type { FacebookDashboard } from '@/types/facebook';
 import type { FbChartsResult } from '@/types/fbCharts';
 import type { FbDailyTrendResult } from '@/types/fbDailyTrend';
@@ -56,6 +58,8 @@ const TOP_ADS = 10;
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const dayParam = (value: string | null) => (value && ISO_DAY.test(value) ? value : '');
+const groupParam = (value: string | null) =>
+  (FACEBOOK_ACCESS_GROUPS as readonly string[]).includes(value ?? '') ? (value as string) : ALL;
 
 const REVENUE_COLOR = 'var(--color-revenue)';
 const SPEND_COLOR = 'var(--color-spend)';
@@ -71,6 +75,10 @@ export default function FacebookDashboardPage() {
   const custom = from !== '' || to !== '';
   const ad = params.get('ad') ?? ALL;
   const offer = params.get('offer') ?? ALL;
+  // Meta1 / Meta2 (ad_access groups): admins can narrow the whole page to one group's ads
+  const { user } = useAuth();
+  const canFilterGroup = user?.role === 'admin';
+  const group = canFilterGroup ? groupParam(params.get('group')) : ALL;
 
   const [state, setState] = useState<State>({ kind: 'loading', previous: null });
   const [stats, setStats] = useState<StatsState>({ kind: 'loading', previous: null });
@@ -79,11 +87,11 @@ export default function FacebookDashboardPage() {
   const [funnel, setFunnel] = useState<FunnelState>({ kind: 'loading', previous: null });
   const [options, setOptions] = useState<FbOptionsResult | null>(null);
 
-  // dropdown choices come from the report collection; loaded once, independent of the filters
+  // dropdown choices come from the report collection; reloaded only when the access group changes
   useEffect(() => {
     let cancelled = false;
     api
-      .get<FbOptionsResult>('/platforms/facebook/options')
+      .get<FbOptionsResult>(`/platforms/facebook/options${group ? `?group=${encodeURIComponent(group)}` : ''}`)
       .then((o) => {
         if (!cancelled) setOptions(o);
       })
@@ -93,7 +101,7 @@ export default function FacebookDashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [group]);
   const [reloadKey, setReloadKey] = useState(0);
   const [showAllAds, setShowAllAds] = useState(false);
 
@@ -106,6 +114,7 @@ export default function FacebookDashboardPage() {
     if (to) qs.set('to', to);
     if (ad) qs.set('ad', ad);
     if (offer) qs.set('offer', offer);
+    if (group) qs.set('group', group);
 
     api
       .get<FacebookDashboard>(`/platforms/facebook/dashboard?${qs.toString()}`)
@@ -172,12 +181,14 @@ export default function FacebookDashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [range, from, to, custom, ad, offer, reloadKey]);
+  }, [range, from, to, custom, ad, offer, group, reloadKey]);
 
-  function setFilter(key: 'ad' | 'offer', value: string) {
+  function setFilter(key: 'ad' | 'offer' | 'group', value: string) {
     const next = new URLSearchParams(params);
     if (value === ALL) next.delete(key);
     else next.set(key, value);
+    // the selected ad may not belong to the new group
+    if (key === 'group') next.delete('ad');
     setParams(next, { replace: true });
   }
 
@@ -275,8 +286,9 @@ export default function FacebookDashboardPage() {
   const funnelBusy = funnel.kind === 'loading';
 
   // prefer the database's ad / offer lists; keep the current selection selectable even if it's not listed
-  const adOptions = options && options.rows > 0 ? options.ads : filters.options.ads;
-  const offerOptions = options && options.rows > 0 ? options.offers : filters.options.offers;
+  // once the real options have loaded they are authoritative, even when empty (e.g. a group with no rows yet)
+  const adOptions = options ? options.ads : filters.options.ads;
+  const offerOptions = options ? options.offers : filters.options.offers;
   const withCurrent = (list: string[], current: string | null) =>
     current && !list.includes(current) ? [current, ...list] : list;
   const roasCaption = `${roas === null ? 'n/a' : formatPercent(roas, 1)} ROAS · ${periodCaption}`;
@@ -314,6 +326,19 @@ export default function FacebookDashboardPage() {
             from={from}
             to={to}
             onApply={(start, end) => setDates(CUSTOM, [start, end])}
+          />
+        )}
+        {canFilterGroup && (
+          <FilterSelect
+            id="access-group"
+            label="Access Group"
+            value={group}
+            options={[
+              { value: ALL, label: 'All Groups' },
+              ...FACEBOOK_ACCESS_GROUPS.map((g) => ({ value: g, label: g })),
+            ]}
+            onChange={(v) => setFilter('group', v)}
+            className="w-full sm:w-auto sm:min-w-[200px]"
           />
         )}
         <FilterSelect
