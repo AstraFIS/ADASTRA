@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom';
 import RequireAuth from '@/auth/RequireAuth';
 import RequireRole from '@/auth/RequireRole';
 import AdminLayout from '@/layouts/AdminLayout';
+import BingDashboardPage from '@/pages/BingDashboardPage';
 import FacebookAdDetailPage from '@/pages/FacebookAdDetailPage';
 import FacebookDashboardPage from '@/pages/FacebookDashboardPage';
 import HomePage from '@/pages/HomePage';
@@ -20,6 +21,7 @@ export default function App() {
           <Route index element={<HomePage />} />
           <Route path="platforms/facebook" element={<FacebookDashboardPage />} />
           <Route path="platforms/facebook/ads/:adName" element={<FacebookAdDetailPage />} />
+          <Route path="platforms/microsoft" element={<BingDashboardPage />} />
           <Route path="platforms/:slug" element={<PlatformPage />} />
           <Route element={<RequireRole roles={['admin']} />}>
             <Route path="users" element={<UsersPage />} />

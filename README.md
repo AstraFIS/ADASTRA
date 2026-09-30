@@ -182,13 +182,16 @@ the extra days at the end of the previous month had no spend.
 | GET    | `/api/platforms/facebook/dashboard` | Facebook KPIs + provider fees. Query: `range` (`this_month`, `last_month`, `last_7_days`, `last_30_days`, `all_time`), `ad`, `offer` |
 | GET    | `/api/platforms/facebook/ads/:adName/statistics` | One ad's KPIs from the report collection for the `range` (or `from`/`to`): `amount_spent` (incl. fees), `link_clicks`, `ctr` (link clicks ÷ impressions, %), `cpc` (spend before fees ÷ link clicks), `cac` (amount spent ÷ conversions), `roas` (net profit ÷ amount spent, %), `revenue`, plus supporting totals, the ad's offers / providers / campaigns / dates / `active`, the account-wide blended CTR / CPC / CAC for the same range and `comparisons`. Ranges are anchored on the whole collection's latest day. 404 if the ad has never reported |
 | GET    | `/api/platforms/facebook/ads/:adName` | One ad for the `range` (seed-based): metrics, account-average comparisons (CTR, CPC, CAC), a rule-based marketing read (`scale` / `monitor` / `review` / `low_sample` / `no_data`), its creative taxonomy (two field groups with per-field confidence), its own audience buckets (link clicks by age / gender) and a daily series covering every reporting day in the range (zeros when the ad did not run; each day carries `funnel` counts, `cac` — null without purchases — and `roas` — null without spend). 404 for unknown ads |
+| GET    | `/api/platforms/microsoft/dashboard` | Bing Ads campaign performance in one payload. Query: `range` (default `all_time` = the whole partner export; the other keys are anchored on its latest day) and `offer`. Returns `statistics` (the KPI tiles: `total_revenue`, `total_amount_spend`, `net_profit`, `roas_pct`, `landing_page_views`, `link_clicks`, `cpc`, `ctr`), `daily[]` (`revenue_usd`, `clicks`, `spend_usd`, `gross_profit_usd`), `audience_by_age` / `audience_by_gender`, `funnel.by_date` and `funnel.by_offer` (`clicks`, `base`, `start_quiz`, `quiz_completed`, `add_to_cart`, `purchase`, `revenue_usd`, plus `spend_usd`, `ctr`, `cpc_usd`, `cac_usd`, `roas_pct`), `options` and `meta`. Funnel counts come from the partner conversion export; everything spend-based comes from the Bing Ads spend / impression export, which is not loaded yet, so those fields are `null` (shown as "Pending"), the tiles read zero and the audience lists are empty. Both datasets are in-memory in `backend/src/services/bing.service.ts` (`PARTNER_ROWS`, `AD_ROWS`) |
 
 Errors are JSON: `{ error }`, plus `details: [{ path, message }]` on `400`
 validation failures. Roles are `admin` and `user`. Passwords are hashed with
 bcrypt and never returned by the API.
 
 Platform data currently lives in `backend/src/services/platforms.service.ts`
-as static values until the Facebook / Google / Microsoft integrations exist.
+as static values until the Facebook / Google integrations exist; the Microsoft
+(Bing) summary is computed from `bing.service.ts` (all loaded data, offers
+counted as ads).
 
 The Facebook dashboard aggregates per-ad daily rows in
 `backend/src/services/facebook.service.ts` (seed data for now). Date ranges are
@@ -219,8 +222,9 @@ exposes `user`, `status`, `login`, `setup` and `logout`.
 | Route              | Page                                                       |
 | ------------------ | ---------------------------------------------------------- |
 | `/`                | All Platforms Overview: tabs, KPI tiles, chart, platform cards |
-| `/platforms/facebook` | Ad Performance Dashboard: filters (URL-synced), 7 KPI tiles **fed by `/api/platforms/facebook/statistics`**, provider fee cards, revenue-vs-spend by ad chart and audience by age / gender **fed by `/api/platforms/facebook/charts`**, daily revenue vs. gross profit trend **fed by `/api/platforms/facebook/daily-trend`**, funnel table **fed by `/api/platforms/facebook/funnel`** (all from the report collections), daily revenue vs. gross profit trend, sortable funnel table by ad & offer |
+| `/platforms/facebook` | Ad Performance Dashboard: filters (URL-synced; the Date Range dropdown ends with "Custom Range", which shows From / To day pickers and an Apply button — `src/components/CustomDateRange.tsx` — and is sent to the report endpoints as `from` / `to` instead of `range`), 7 KPI tiles **fed by `/api/platforms/facebook/statistics`**, provider fee cards, revenue-vs-spend by ad chart and audience by age / gender **fed by `/api/platforms/facebook/charts`**, daily revenue vs. gross profit trend **fed by `/api/platforms/facebook/daily-trend`**, funnel table **fed by `/api/platforms/facebook/funnel`** (all from the report collections), daily revenue vs. gross profit trend, sortable funnel table by ad & offer |
 | `/platforms/facebook/ads/:adName` | Ad detail: KPI tiles **fed by `/ads/:adName/statistics`** with account-average comparisons, "Marketing read" card (status badge, bullets, recommended next step), a row of four mini charts (funnel stages as independent shares of link clicks with the weakest stage called out, revenue vs. spend, audience by age / gender for this ad), Creative Taxonomy card, Cost of Acquisition daily trend (filled dot = CAC, hollow red ring = spend but no purchases, gap = no spend), Daily Performance table (per-day funnel with step-over-step %, CAC, ROAS; idle days omitted), Cost of Acquisition trend, Daily Performance table and the ad's revenue vs. gross profit trend **fed by `/daily-trend?ad=`**. Header, tiles, the three daily sections come from the report collection; the marketing read, taxonomy and mini charts still come from the seed detail endpoint and are omitted for ads it does not know. Linked from the funnel table |
+| `/platforms/microsoft` | Bing Ads Campaign Performance, **fed by `/api/platforms/microsoft/dashboard`**: date range and offer filters (URL-synced), 7 KPI tiles, daily revenue vs. gross profit trend, audience by age / gender, and the "Funnel Performance by Offer" table (`src/components/BingFunnelTable.tsx`) with a By Date / By Offer (summed) toggle. Spend-based columns show "Pending" until Bing Ads spend data is added |
 | `/platforms/:slug` | Placeholder for platforms not yet connected                |
 | `/login`           | Sign in, or first-run admin setup when no users exist      |
 | `/users`           | Admin only (`RequireRole`): list, add, edit, activate/deactivate, delete users. Nav link shows only for admins |
@@ -262,10 +266,10 @@ between −25% and 25% → Monitor, below −25% → Review; under 10 clicks →
 sample; no spend or clicks → No data. Comparisons use the account-wide blended
 CTR / CPC / CAC for the same period; within ±2% reads as "in line".
 
-`src/layouts/AdminLayout.tsx` is a top bar only (brand, Overview / Facebook
-links, current user, sign out) — there is no sidebar; pages use the full width.
+`src/layouts/AdminLayout.tsx` is a top bar only (brand, Overview / Facebook /
+Bing links, current user, sign out) — there is no sidebar; pages use the full width.
 
-Theme tokens (surfaces, ink, `revenue` / `spend` / `loss` accents) are defined
+Theme tokens (surfaces, ink, `revenue` / `spend` / `loss` accents, `azure` for the Bing page) are defined
 in `frontend/src/index.css` under `@theme` and used as Tailwind utilities
 (`bg-surface`, `text-ink-2`, `border-l-revenue`, ...).
 

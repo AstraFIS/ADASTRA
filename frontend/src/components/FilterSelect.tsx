@@ -11,13 +11,23 @@ interface Props {
   value: string;
   options: Option[];
   onChange: (value: string) => void;
+  /** Keep the label for screen readers only (the selected option already says what the filter is). */
+  hideLabel?: boolean;
   className?: string;
 }
 
-export default function FilterSelect({ id, label, value, options, onChange, className = '' }: Props) {
+export default function FilterSelect({
+  id,
+  label,
+  value,
+  options,
+  onChange,
+  hideLabel = false,
+  className = '',
+}: Props) {
   return (
     <div className={`flex items-center gap-3 ${className}`}>
-      <label htmlFor={id} className="shrink-0 text-base text-ink-2">
+      <label htmlFor={id} className={hideLabel ? 'sr-only' : 'shrink-0 text-base text-ink-2'}>
         {label}
       </label>
       <div className="relative min-w-0 flex-1">

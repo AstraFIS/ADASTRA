@@ -55,7 +55,7 @@ export default function HomePage() {
     connected.length > 0 &&
       `${joinNames(connected)} ${connected.length === 1 ? 'is' : 'are'} fully connected and reporting live.`,
     pending.length > 0 &&
-      `${joinNames(pending)} ${pending.length === 1 ? 'is' : 'are'} shown as placeholders — not yet connected.`,
+      `${joinNames(pending)} ${pending.length === 1 ? 'is shown as a placeholder' : 'are shown as placeholders'} — not yet connected.`,
   ]
     .filter(Boolean)
     .join(' ');

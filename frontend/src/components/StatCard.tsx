@@ -1,4 +1,4 @@
-export type StatTone = 'revenue' | 'spend' | 'loss' | 'neutral';
+export type StatTone = 'revenue' | 'spend' | 'loss' | 'accent' | 'neutral';
 export type CaptionTone = 'default' | 'good' | 'bad';
 
 interface Props {
@@ -15,6 +15,7 @@ const toneClasses: Record<StatTone, { border: string; text: string }> = {
   revenue: { border: 'border-l-[3px] border-l-revenue', text: 'text-revenue' },
   spend: { border: 'border-l-[3px] border-l-spend', text: 'text-spend' },
   loss: { border: 'border-l-[3px] border-l-loss', text: 'text-loss' },
+  accent: { border: 'border-l-[3px] border-l-azure', text: 'text-ink' },
   neutral: { border: '', text: 'text-ink' },
 };
 

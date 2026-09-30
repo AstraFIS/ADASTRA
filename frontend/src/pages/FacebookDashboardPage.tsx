@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import AudienceCard from '@/components/AudienceCard';
 import BarChart from '@/components/BarChart';
 import ChartLegend from '@/components/ChartLegend';
+import CustomDateRange from '@/components/CustomDateRange';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import FilterSelect from '@/components/FilterSelect';
 import FunnelTable from '@/components/FunnelTable';
@@ -17,7 +19,7 @@ import {
   formatInteger,
   formatPercent,
 } from '@/lib/format';
-import type { AudienceBucket, FacebookDashboard } from '@/types/facebook';
+import type { FacebookDashboard } from '@/types/facebook';
 import type { FbChartsResult } from '@/types/fbCharts';
 import type { FbDailyTrendResult } from '@/types/fbDailyTrend';
 import type { FbFunnelResult } from '@/types/fbFunnel';
@@ -49,7 +51,11 @@ type FunnelState =
   | { kind: 'error'; message: string };
 
 const ALL = '';
+const CUSTOM = 'custom';
 const TOP_ADS = 10;
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const dayParam = (value: string | null) => (value && ISO_DAY.test(value) ? value : '');
 
 const REVENUE_COLOR = 'var(--color-revenue)';
 const SPEND_COLOR = 'var(--color-spend)';
@@ -59,6 +65,10 @@ const LOSS_COLOR = 'var(--color-loss)';
 export default function FacebookDashboardPage() {
   const [params, setParams] = useSearchParams();
   const range = params.get('range') ?? 'this_month';
+  // a custom range lives in the URL as from / to (YYYY-MM-DD) and takes precedence over the named range
+  const from = dayParam(params.get('from'));
+  const to = dayParam(params.get('to'));
+  const custom = from !== '' || to !== '';
   const ad = params.get('ad') ?? ALL;
   const offer = params.get('offer') ?? ALL;
 
@@ -91,7 +101,9 @@ export default function FacebookDashboardPage() {
     let cancelled = false;
     setState((s) => ({ kind: 'loading', previous: s.kind === 'ok' ? s.data : s.kind === 'loading' ? s.previous : null }));
 
-    const qs = new URLSearchParams({ range });
+    const qs = new URLSearchParams(custom ? {} : { range });
+    if (from) qs.set('from', from);
+    if (to) qs.set('to', to);
     if (ad) qs.set('ad', ad);
     if (offer) qs.set('offer', offer);
 
@@ -160,12 +172,38 @@ export default function FacebookDashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [range, ad, offer, reloadKey]);
+  }, [range, from, to, custom, ad, offer, reloadKey]);
 
-  function setFilter(key: 'range' | 'ad' | 'offer', value: string) {
+  function setFilter(key: 'ad' | 'offer', value: string) {
     const next = new URLSearchParams(params);
-    if (value === ALL || (key === 'range' && value === 'this_month')) next.delete(key);
+    if (value === ALL) next.delete(key);
     else next.set(key, value);
+    setParams(next, { replace: true });
+  }
+
+  /** The day window currently on screen: where a custom range starts, so nothing jumps until a date is edited. */
+  function shownWindow(): [string, string] {
+    const shown = stats.kind === 'ok' ? stats.data.range : null;
+    if (shown?.from && shown.to) return [shown.from, shown.to];
+    const days = trend.kind === 'ok' ? trend.data.daily : [];
+    const first = days[0];
+    const last = days[days.length - 1];
+    if (first && last) return [first.date, last.date];
+    const end = options?.dataThrough ?? new Date().toISOString().slice(0, 10);
+    return [`${end.slice(0, 8)}01`, end];
+  }
+
+  function setDates(nextRange: string, bounds: [string, string] | null) {
+    const next = new URLSearchParams(params);
+    next.delete('range');
+    next.delete('from');
+    next.delete('to');
+    if (bounds) {
+      next.set('from', bounds[0]);
+      next.set('to', bounds[1]);
+    } else if (nextRange !== 'this_month') {
+      next.set('range', nextRange);
+    }
     setParams(next, { replace: true });
   }
 
@@ -196,8 +234,9 @@ export default function FacebookDashboardPage() {
   const statsBusy = stats.kind === 'loading';
   const kpi = statsData?.statistics ?? null;
   // provider cards: from the statistics API when the collection has rows, else the seed dashboard's list
+  // (the seed only knows the named ranges, so a custom range always uses the statistics API)
   const providerCards =
-    statsData && statsData.meta.rows > 0
+    statsData && (statsData.meta.rows > 0 || custom)
       ? statsData.providers.map((p) => ({
           name: p.provider_name,
           feeRate: p.fee_pct === null ? null : p.fee_pct / 100,
@@ -215,12 +254,19 @@ export default function FacebookDashboardPage() {
   const roas = kpi && kpi.total_amount_spend > 0 ? kpi.net_profit / kpi.total_amount_spend : null;
   const NA = '—';
 
-  const periodLabel =
-    filters.options.dateRanges.find((r) => r.key === filters.dateRange)?.label.toLowerCase() ??
-    'selected period';
+  const namedLabel = filters.options.dateRanges.find((r) => r.key === filters.dateRange)?.label;
+  const customLabel =
+    from && to
+      ? from === to
+        ? formatDate(from, 'medium')
+        : `${formatDate(from, from.slice(0, 4) === to.slice(0, 4) ? 'short' : 'medium')} – ${formatDate(to, 'medium')}`
+      : from
+        ? `from ${formatDate(from, 'medium')}`
+        : `up to ${formatDate(to, 'medium')}`;
+  const periodLabel = custom ? customLabel : (namedLabel?.toLowerCase() ?? 'selected period');
   const periodCaption = `across all ads · ${periodLabel}`;
   const audienceCaption = `${filters.ad ?? 'All ads'} · ${periodLabel}`;
-  const trendCaption = `${filters.options.dateRanges.find((r) => r.key === filters.dateRange)?.label ?? 'Selected period'} · ${filters.ad ?? 'all ads'}`;
+  const trendCaption = `${custom ? customLabel : (namedLabel ?? 'Selected period')} · ${filters.ad ?? 'all ads'}`;
 
   const chartsData = charts.kind === 'ok' ? charts.data : charts.kind === 'loading' ? charts.previous : null;
   const chartsBusy = charts.kind === 'loading';
@@ -263,11 +309,22 @@ export default function FacebookDashboardPage() {
         <FilterSelect
           id="date-range"
           label="Date Range"
-          value={filters.dateRange}
-          options={filters.options.dateRanges.map((r) => ({ value: r.key, label: r.label }))}
-          onChange={(v) => setFilter('range', v)}
+          value={custom ? CUSTOM : filters.dateRange}
+          options={[
+            ...filters.options.dateRanges.map((r) => ({ value: r.key, label: r.label })),
+            { value: CUSTOM, label: 'Custom Range' },
+          ]}
+          onChange={(v) => setDates(v, v === CUSTOM ? shownWindow() : null)}
           className="w-full sm:w-auto sm:min-w-[300px]"
         />
+        {custom && (
+          <CustomDateRange
+            key={`${from}|${to}`}
+            from={from}
+            to={to}
+            onApply={(start, end) => setDates(CUSTOM, [start, end])}
+          />
+        )}
         <FilterSelect
           id="ad-name"
           label="Filter by Ad Name"
@@ -546,47 +603,6 @@ export default function FacebookDashboardPage() {
         )}
       </section>
       </ErrorBoundary>
-    </div>
-  );
-}
-
-function AudienceCard({
-  title,
-  caption,
-  buckets,
-  color,
-  empty = false,
-}: {
-  title: string;
-  caption: string;
-  buckets: AudienceBucket[];
-  color: string;
-  empty?: boolean;
-}) {
-  return (
-    <div className="rounded-xl border border-line bg-surface p-7">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 className="text-lg font-bold text-ink">{title}</h2>
-        <p className="text-sm text-ink-2">{caption}</p>
-      </div>
-      {empty || buckets.length === 0 ? (
-        <div className="flex h-[250px] items-center justify-center text-sm text-ink-3">
-          {empty ? 'No audience rows in the database for this selection yet.' : 'Loading…'}
-        </div>
-      ) : (
-      <BarChart
-        className="mt-4"
-        height={250}
-        ariaLabel={`${title} (link clicks)`}
-        categories={buckets.map((b) => b.label)}
-        series={[{ key: 'clicks', label: 'Link clicks', color, values: buckets.map((b) => b.value) }]}
-        formatValue={(v) => String(Math.round(v))}
-        formatTooltipValue={formatInteger}
-        intervals={3}
-        headroom={1.2}
-        barMaxWidth={150}
-      />
-      )}
     </div>
   );
 }

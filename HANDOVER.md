@@ -5,8 +5,10 @@ Short orientation for whoever picks this up. `README.md` has the full detail
 
 ## What it is
 
-An admin panel for **Direct Meds ED media performance**. Facebook is the only
-connected platform; Google and Microsoft are placeholders on the overview page.
+An admin panel for **Direct Meds ED media performance**. Facebook and Microsoft
+(Bing) are the connected platforms; Google is a placeholder on the overview page.
+The Bing page (`/platforms/microsoft`, "Bing" in the top bar, linked from the
+overview) so far shows the partner conversion export only — see "How data flows".
 
 | Part | Stack | Where |
 |---|---|---|
@@ -63,6 +65,13 @@ DB is the real Atlas database, so be careful with write scripts.
    seed that still powers the overview page and the two seed-based cards on the
    ad page. `npm run seed:facebook -w backend` loads the same rows into the DB
    for local testing — **don't run it against production.**
+5. **Bing:** `GET /api/platforms/microsoft/dashboard` →
+   `backend/src/services/bing.service.ts`. The partner conversion export
+   (clicks and funnel stages per day × offer) is an in-memory list,
+   `PARTNER_ROWS`. `AD_ROWS` (Bing Ads spend / impressions / clicks per
+   day × offer) is empty, so the KPI tiles read zero and Amount Spent / CTR /
+   CPC / CAC / ROAS show "Pending". Add rows there (or move both to a
+   collection) and the page fills in without frontend changes.
 
 ## The current pain point: imports
 

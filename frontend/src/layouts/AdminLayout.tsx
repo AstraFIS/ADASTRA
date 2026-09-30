@@ -5,6 +5,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 const navItems = [
   { to: '/', label: 'Overview', end: true, adminOnly: false },
   { to: '/platforms/facebook', label: 'Facebook', end: false, adminOnly: false },
+  { to: '/platforms/microsoft', label: 'Bing', end: false, adminOnly: false },
   { to: '/users', label: 'Users', end: false, adminOnly: true },
 ];
 
@@ -26,7 +27,7 @@ export default function AdminLayout() {
             <span className="text-xs font-medium uppercase tracking-wide text-ink-3">Admin</span>
           </Link>
 
-          <nav aria-label="Main" className="flex items-center gap-1">
+          <nav aria-label="Main" className="flex min-w-0 items-center gap-1 overflow-x-auto">
             {navItems
               .filter((item) => !item.adminOnly || user?.role === 'admin')
               .map((item) => (
@@ -45,7 +46,7 @@ export default function AdminLayout() {
               ))}
           </nav>
 
-          <div className="ml-auto flex items-center gap-4">
+          <div className="ml-auto flex shrink-0 items-center gap-4 whitespace-nowrap">
             {user && (
               <span className="hidden text-sm text-ink-2 sm:inline">
                 {user.name}
