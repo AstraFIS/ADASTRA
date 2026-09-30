@@ -3,6 +3,7 @@ import type { DateRangeKey, MetricComparison } from '../types/facebook.js';
 import { isoDay } from '../utils/dateRange.js';
 import { compareMetric } from './facebook.service.js';
 import { ACTIVE_WINDOW_DAYS } from './fbFunnel.service.js';
+import { buildRecommendation, type AdRecommendation, type LatestSpendDay } from './fbRecommendation.service.js';
 import {
   dateMatch,
   describeRange,
@@ -55,6 +56,7 @@ export interface FbAdStatisticsResult {
   /** Blended values over every ad in the same range. */
   account: { ctr: number | null; cpc: number | null; cac: number | null };
   comparisons: { ctr: MetricComparison | null; cpc: MetricComparison | null; cac: MetricComparison | null };
+  recommendation: AdRecommendation;
   meta: { rows: number; account_rows: number };
 }
 
@@ -149,6 +151,33 @@ const stats = (t: Totals | null): AdStatistics => {
 const clean = (values: (string | null)[] | undefined) =>
   (values ?? []).filter((v): v is string => typeof v === 'string' && v !== '' && v !== 'null').sort();
 
+/** The ad's most recent day with spend in the range, and its ROAS over the other days. */
+async function latestSpendDay(match: Record<string, unknown>): Promise<LatestSpendDay | null> {
+  const days = await FacebookAdReport.aggregate<{ _id: Date; spend: number; revenue: number; conversions: number }>([
+    { $match: match },
+    {
+      $group: {
+        _id: '$report_date',
+        spend: { $sum: TOTAL_SPEND },
+        revenue: { $sum: num('revenue_usd') },
+        conversions: { $sum: '$conversions' },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ]);
+  const last = days.filter((d) => d.spend > 0).pop();
+  if (!last) return null;
+  const earlier = days.filter((d) => d !== last);
+  const spendBefore = earlier.reduce((sum, d) => sum + d.spend, 0);
+  const revenueBefore = earlier.reduce((sum, d) => sum + d.revenue, 0);
+  return {
+    date: isoDay(last._id),
+    spend: round2(last.spend),
+    conversions: last.conversions,
+    roas_before: ratio(revenueBefore - spendBefore, spendBefore, 100),
+  };
+}
+
 /** Returns null when the ad has never reported (→ 404). */
 export async function getFbAdStatistics(adName: string, query: FbStatisticsQuery): Promise<FbAdStatisticsResult | null> {
   const adMatch = { ad_name: textMatch(adName) };
@@ -159,10 +188,11 @@ export async function getFbAdStatistics(adName: string, query: FbStatisticsQuery
   const bounds = await resolveReportBounds(query);
   const inRange = dateMatch(bounds);
 
-  const [ad, account, latestOverall] = await Promise.all([
+  const [ad, account, latestOverall, latestDay] = await Promise.all([
     totals({ ...adMatch, ...inRange }),
     totals(inRange),
     latestReportDate({}),
+    latestSpendDay({ ...adMatch, ...inRange }),
   ]);
 
   const adStats = stats(ad);
@@ -188,6 +218,7 @@ export async function getFbAdStatistics(adName: string, query: FbStatisticsQuery
       cpc: compareMetric(adStats.cpc, accountStats.cpc, false),
       cac: compareMetric(adStats.cac, accountStats.cac, false),
     },
+    recommendation: buildRecommendation(adStats, latestDay),
     meta: { rows: ad?.rows ?? 0, account_rows: account?.rows ?? 0 },
   };
 }

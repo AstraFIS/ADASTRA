@@ -1,4 +1,4 @@
-import type { DateRangeKey, MetricComparison } from './facebook';
+import type { DateRangeKey, MetricComparison, ReadStatus } from './facebook';
 
 export interface AdStatistics {
   amount_spent: number;
@@ -24,6 +24,23 @@ export interface AdStatistics {
   purchase_events: number;
 }
 
+export interface AdTestPlan {
+  budget: string;
+  increase: string;
+  decrease: string;
+  stop_rule: string;
+}
+
+/** Rule-based read of the ad's numbers for the selected range. */
+export interface AdRecommendation {
+  status: ReadStatus;
+  status_label: string;
+  summary: string;
+  actions: string[];
+  /** null when there is too little data to plan around. */
+  test_plan: AdTestPlan | null;
+}
+
 export interface FbAdStatisticsResult {
   ad: {
     ad_name: string;
@@ -39,5 +56,6 @@ export interface FbAdStatisticsResult {
   statistics: AdStatistics;
   account: { ctr: number | null; cpc: number | null; cac: number | null };
   comparisons: { ctr: MetricComparison | null; cpc: MetricComparison | null; cac: MetricComparison | null };
+  recommendation: AdRecommendation;
   meta: { rows: number; account_rows: number };
 }

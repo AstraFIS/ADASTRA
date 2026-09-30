@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import BarChart from '@/components/BarChart';
 import ChartLegend from '@/components/ChartLegend';
+import CreativeRecommendationCard from '@/components/CreativeRecommendationCard';
 import CreativeTaxonomyCard from '@/components/CreativeTaxonomyCard';
 import DailyPerformanceTable from '@/components/DailyPerformanceTable';
 import FilterSelect from '@/components/FilterSelect';
@@ -9,6 +10,7 @@ import LineChart from '@/components/LineChart';
 import StatCard, { type CaptionTone } from '@/components/StatCard';
 import { api, ApiError } from '@/lib/api';
 import { getCreativeTaxonomy } from '@/lib/creativeTaxonomy';
+import { getAdCreative } from '@/lib/creatives';
 import {
   formatCurrency,
   formatDate,
@@ -18,7 +20,7 @@ import {
   formatNumber,
   formatPercent,
 } from '@/lib/format';
-import type { AdDetail, AudienceBucket, MetricComparison, ReadStatus } from '@/types/facebook';
+import type { AdDetail, AudienceBucket, MetricComparison } from '@/types/facebook';
 import type { FbAdStatisticsResult } from '@/types/fbAdStatistics';
 import type { FbChartsResult } from '@/types/fbCharts';
 import type { FbDailyTrendResult } from '@/types/fbDailyTrend';
@@ -55,14 +57,6 @@ const FUNNEL_STAGES: { key: 'first_page_views' | 'questionnaire_starts' | 'leads
   { key: 'add_to_carts', label: 'Add To Cart' },
   { key: 'purchase_events', label: 'Purchase' },
 ];
-
-const STATUS_CLASSES: Record<ReadStatus, string> = {
-  scale: 'border-revenue/60 text-revenue',
-  monitor: 'border-spend/60 text-spend',
-  review: 'border-loss/60 text-loss',
-  low_sample: 'border-line-strong text-ink-2',
-  no_data: 'border-line-strong text-ink-3',
-};
 
 const captionToneFor = (c: MetricComparison | null): CaptionTone =>
   c === null || c.sentiment === 'neutral' ? 'default' : c.sentiment;
@@ -174,8 +168,8 @@ export default function FacebookAdDetailPage() {
   const data = state.kind === 'ok' ? state.data : state.kind === 'loading' ? state.previous : null;
   if (!data && !statsData) return <AdDetailSkeleton />;
 
-  // header + tiles prefer the report collection; the remaining sections use the detail
-  // endpoint and are simply omitted for ads it does not know about
+  // everything is served by the report collection; the seed detail endpoint only backs
+  // the header while the statistics are unavailable
   const busy = state.kind === 'loading' || statsBusy;
   const rangeOptions = statsData
     ? [
@@ -362,11 +356,18 @@ export default function FacebookAdDetailPage() {
       </section>
 
 
-      {data ? (
-        <AdDetailSeedSections data={data} />
+      {statsData ? (
+        <div className={`transition-opacity ${statsBusy ? 'opacity-70' : ''}`} aria-busy={statsBusy}>
+          <CreativeRecommendationCard
+            adName={headerName}
+            creative={getAdCreative(headerName)}
+            recommendation={statsData.recommendation}
+            roas={statsData.statistics.roas}
+          />
+        </div>
       ) : (
         <p className="rounded-xl border border-line bg-surface p-6 text-sm text-ink-3">
-          The marketing read is not available for this ad yet.
+          The creative and recommendation are not available for this ad yet.
         </p>
       )}
 
@@ -507,38 +508,6 @@ export default function FacebookAdDetailPage() {
         )}
       </section>
     </div>
-  );
-}
-
-/** The sections still served by the seed-based detail endpoint. */
-function AdDetailSeedSections({ data }: { data: AdDetail }) {
-  const { read } = data;
-
-  return (
-    <>
-      <section aria-labelledby="read-heading" className="rounded-xl border border-line bg-surface p-7">
-        <div className="flex flex-wrap items-center gap-4">
-          <span
-            className={`rounded-full border-2 bg-canvas px-5 py-1.5 text-base font-bold ${STATUS_CLASSES[read.status]}`}
-          >
-            {read.statusLabel}
-          </span>
-          <h2 id="read-heading" className="text-lg font-bold text-ink">
-            Marketing read on this ad
-          </h2>
-        </div>
-        <ul className="mt-5 list-disc space-y-2 pl-5 text-base text-ink marker:text-ink-2">
-          {read.bullets.map((b) => (
-            <li key={b}>{b}</li>
-          ))}
-        </ul>
-        <p className="mt-6 rounded-lg border border-line bg-canvas/60 px-5 py-4 text-base text-ink">
-          <span className="font-bold text-revenue">Recommended next step:</span> {read.nextStep}
-        </p>
-      </section>
-
-
-    </>
   );
 }
 

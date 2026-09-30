@@ -59,11 +59,12 @@ DB is the real Atlas database, so be careful with write scripts.
    in `backend/src/services/fb*.service.ts`; shared range/filter helpers in
    `fbStatistics.service.ts`.
 3. **Pages:** `/platforms/facebook` (dashboard, fully DB-driven),
-   `/platforms/facebook/ads/:adName` (DB-driven except the "marketing read"
-   card; the creative taxonomy card reads `frontend/data.json`), `/` (overview — still demo data), `/users`.
+   `/platforms/facebook/ads/:adName` (DB-driven, including the "Creative &
+   Recommendation" card's text; its creative reads `frontend/creatives.json`
+   and the creative taxonomy card reads `frontend/data.json`), `/` (overview — still demo data), `/users`.
 4. **Demo data:** `backend/src/services/facebook.service.ts` is an in-memory
-   seed that still powers the overview page and the two seed-based cards on the
-   ad page. `npm run seed:facebook -w backend` loads the same rows into the DB
+   seed that still powers the overview page (and the ad page's header as a
+   fallback when the statistics call fails). `npm run seed:facebook -w backend` loads the same rows into the DB
    for local testing — **don't run it against production.**
 5. **Bing:** `GET /api/platforms/microsoft/dashboard` →
    `backend/src/services/bing.service.ts`. The partner conversion export
@@ -98,13 +99,16 @@ columns are still wrong until the normaliser runs.
 1. Import endpoint (CSV/XLSX upload or JSON) using `upsertRow`; then retire the
    normaliser as a one-off tool.
 2. Run the normaliser on production (see above).
-3. Ad page: move the marketing read (`buildRead()` rules already exist in
-   `facebook.service.ts`) onto real data. The creative taxonomy already reads
+3. Ad page: the recommendation rules (`fbRecommendation.service.ts`) are a
+   first pass on real data — statuses, thresholds and test-plan wording are
+   worth reviewing with the media buyers. The creative taxonomy reads
    `frontend/data.json` (edit that file to add / change classifications; it
    is bundled into the frontend at build time).
 4. Overview page `/` onto real data (`platforms.service.ts` is static).
 5. "Recommendations" and "Creatives" buttons are disabled placeholders.
-6. `image_url` / `video_url` exist on the model; nothing displays them yet.
+6. The ad page's creative (image / video / landing link) comes from
+   `frontend/creatives.json`, matched on the exact ad name and bundled at build
+   time. `image_url` / `video_url` on the model are still not displayed.
 7. Decide the CTR/CPC definition: KPI tiles use link clicks ÷ impressions and
    spend ÷ link clicks; the funnel table uses `clicks_all` (Facebook's
    "(all)" metrics). Both are one-line changes in the services.

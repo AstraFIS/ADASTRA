@@ -377,10 +377,10 @@ export function getFacebookDashboard(query: FacebookDashboardQuery): FacebookDas
 // Ad detail + marketing read
 // ---------------------------------------------------------------------------
 
-const LOW_SAMPLE_CLICKS = 10;
+export const LOW_SAMPLE_CLICKS = 10;
 const INLINE_THRESHOLD = 0.02; // within ±2 % counts as "in line"
-const SCALE_ROAS = 0.25; // net return ≥ 25 % of spend → scale
-const REVIEW_ROAS = -0.25; // net return ≤ −25 % of spend → review
+export const SCALE_ROAS = 0.25; // net return ≥ 25 % of spend → scale
+export const REVIEW_ROAS = -0.25; // net return ≤ −25 % of spend → review
 
 export function compareMetric(
   value: number | null,

@@ -180,7 +180,7 @@ the extra days at the end of the previous month had no spend.
 | GET    | `/api/platforms/facebook/funnel` | "Funnel Performance by Ad Name & Offer": one row per `ad_name` × `offer_name` with `providers`, `first_date`/`last_date`/`days`, `active` (reported within the last 7 days of the result), `spend_usd`, `provider_fee_usd`, `total_spend_usd`, `impressions`, `clicks_all`, `link_clicks`, `ctr_all`, `cpc_usd`, the stage counts `first_page_views` → `questionnaire_starts` → `leads_partial` → `add_to_carts` → `purchase_events`, `conversions`, `revenue_usd`, `net_profit_usd`, `cac_usd`, `roas_pct`; same query params as statistics |
 | GET    | `/api/platforms/facebook/options` | Dropdown choices from the report collection: `ads`, `offers`, `providers` (distinct, as text, natural-sorted), `dateRanges`, `dataThrough`, `rows` |
 | GET    | `/api/platforms/facebook/dashboard` | Facebook KPIs + provider fees. Query: `range` (`this_month`, `last_month`, `last_7_days`, `last_30_days`, `all_time`), `ad`, `offer` |
-| GET    | `/api/platforms/facebook/ads/:adName/statistics` | One ad's KPIs from the report collection for the `range` (or `from`/`to`): `amount_spent` (incl. fees), `link_clicks`, `ctr` (link clicks ÷ impressions, %), `cpc` (spend before fees ÷ link clicks), `cac` (amount spent ÷ conversions), `roas` (net profit ÷ amount spent, %), `revenue`, plus supporting totals, the ad's offers / providers / campaigns / dates / `active`, the account-wide blended CTR / CPC / CAC for the same range and `comparisons`. Ranges are anchored on the whole collection's latest day. 404 if the ad has never reported |
+| GET    | `/api/platforms/facebook/ads/:adName/statistics` | One ad's KPIs from the report collection for the `range` (or `from`/`to`): `amount_spent` (incl. fees), `link_clicks`, `ctr` (link clicks ÷ impressions, %), `cpc` (spend before fees ÷ link clicks), `cac` (amount spent ÷ conversions), `roas` (net profit ÷ amount spent, %), `revenue`, plus supporting totals, the ad's offers / providers / campaigns / dates / `active`, the account-wide blended CTR / CPC / CAC for the same range and `comparisons`, and `recommendation` (`status` `scale` / `monitor` / `review` / `low_sample` / `no_data`, `status_label`, `summary`, `actions[]`, `test_plan` with `budget` / `increase` / `decrease` / `stop_rule`, null for low sample / no data). Ranges are anchored on the whole collection's latest day. 404 if the ad has never reported |
 | GET    | `/api/platforms/facebook/ads/:adName` | One ad for the `range` (seed-based): metrics, account-average comparisons (CTR, CPC, CAC), a rule-based marketing read (`scale` / `monitor` / `review` / `low_sample` / `no_data`), its creative taxonomy (two field groups with per-field confidence), its own audience buckets (link clicks by age / gender) and a daily series covering every reporting day in the range (zeros when the ad did not run; each day carries `funnel` counts, `cac` — null without purchases — and `roas` — null without spend). 404 for unknown ads |
 | GET    | `/api/platforms/microsoft/dashboard` | Bing Ads campaign performance in one payload. Query: `range` (default `all_time` = the whole partner export; the other keys are anchored on its latest day) and `offer`. Returns `statistics` (the KPI tiles: `total_revenue`, `total_amount_spend`, `net_profit`, `roas_pct`, `landing_page_views`, `link_clicks`, `cpc`, `ctr`), `daily[]` (`revenue_usd`, `clicks`, `spend_usd`, `gross_profit_usd`), `audience_by_age` / `audience_by_gender`, `funnel.by_date` and `funnel.by_offer` (`clicks`, `base`, `start_quiz`, `quiz_completed`, `add_to_cart`, `purchase`, `revenue_usd`, plus `spend_usd`, `ctr`, `cpc_usd`, `cac_usd`, `roas_pct`), `options` and `meta`. Funnel counts come from the partner conversion export; everything spend-based comes from the Bing Ads spend / impression export, which is not loaded yet, so those fields are `null` (shown as "Pending"), the tiles read zero and the audience lists are empty. Both datasets are in-memory in `backend/src/services/bing.service.ts` (`PARTNER_ROWS`, `AD_ROWS`) |
 
@@ -223,7 +223,7 @@ exposes `user`, `status`, `login`, `setup` and `logout`.
 | ------------------ | ---------------------------------------------------------- |
 | `/`                | All Platforms Overview: tabs, KPI tiles, chart, platform cards |
 | `/platforms/facebook` | Ad Performance Dashboard: filters (URL-synced; the Date Range dropdown ends with "Custom Range", which shows From / To day pickers and an Apply button — `src/components/CustomDateRange.tsx` — and is sent to the report endpoints as `from` / `to` instead of `range`), 7 KPI tiles **fed by `/api/platforms/facebook/statistics`**, provider fee cards, revenue-vs-spend by ad chart and audience by age / gender **fed by `/api/platforms/facebook/charts`**, daily revenue vs. gross profit trend **fed by `/api/platforms/facebook/daily-trend`**, funnel table **fed by `/api/platforms/facebook/funnel`** (all from the report collections), daily revenue vs. gross profit trend, sortable funnel table by ad & offer |
-| `/platforms/facebook/ads/:adName` | Ad detail: KPI tiles **fed by `/ads/:adName/statistics`** with account-average comparisons, "Marketing read" card (status badge, bullets, recommended next step), a row of four mini charts (funnel stages as independent shares of link clicks with the weakest stage called out, revenue vs. spend, audience by age / gender for this ad), Creative Taxonomy card, Cost of Acquisition daily trend (filled dot = CAC, hollow red ring = spend but no purchases, gap = no spend), Daily Performance table (per-day funnel with step-over-step %, CAC, ROAS; idle days omitted), Cost of Acquisition trend, Daily Performance table and the ad's revenue vs. gross profit trend **fed by `/daily-trend?ad=`**. Header, tiles, the three daily sections come from the report collection; the marketing read, taxonomy and mini charts still come from the seed detail endpoint and are omitted for ads it does not know. Linked from the funnel table |
+| `/platforms/facebook/ads/:adName` | Ad detail: KPI tiles **fed by `/ads/:adName/statistics`** with account-average comparisons, a row of four mini charts (funnel stages as independent shares of link clicks with the weakest stage called out, revenue vs. spend, audience by age / gender for this ad), "Creative & Recommendation" card (`src/components/CreativeRecommendationCard.tsx`: the ad's image or video and a landing page link on the left, from `frontend/creatives.json`; status pill, ROAS, summary, numbered next steps and test plan on the right, from `/ads/:adName/statistics`), Creative Taxonomy card, Cost of Acquisition daily trend (filled dot = CAC, hollow red ring = spend but no purchases, gap = no spend), Daily Performance table (per-day funnel with step-over-step %, CAC, ROAS; idle days omitted), Cost of Acquisition trend, Daily Performance table and the ad's revenue vs. gross profit trend **fed by `/daily-trend?ad=`**. Every section comes from the report collection except the taxonomy (`frontend/data.json`) and the creative (`frontend/creatives.json`). Linked from the funnel table |
 | `/platforms/microsoft` | Bing Ads Campaign Performance, **fed by `/api/platforms/microsoft/dashboard`**: date range and offer filters (URL-synced), 7 KPI tiles, daily revenue vs. gross profit trend, audience by age / gender, and the "Funnel Performance by Offer" table (`src/components/BingFunnelTable.tsx`) with a By Date / By Offer (summed) toggle. Spend-based columns show "Pending" until Bing Ads spend data is added |
 | `/platforms/:slug` | Placeholder for platforms not yet connected                |
 | `/login`           | Sign in, or first-run admin setup when no users exist      |
@@ -247,7 +247,13 @@ data comes from `frontend/data.json` via `src/lib/creativeTaxonomy.ts`: one
 record per `ad_name` with `creative_taxonomy.intention_message` /
 `physical_execution` maps of `{ value, confidence }`. Matching is
 case-insensitive and tolerant of numeric names; if an ad name appears twice the
-last record wins; ads not in the file show "No creative classification". `src/components/DailyPerformanceTable.tsx`
+last record wins; ads not in the file show "No creative classification".
+The creative itself comes from `frontend/creatives.json` via
+`src/lib/creatives.ts`: one record per ad, `{ ad, type, image, video, landing }`
+(`image` is the static creative or a video's thumbnail; `landing` enables the
+"Open landing page" button). Matching on `ad` is exact and case-sensitive,
+because names that differ only in case are different ads (`DM5` vs. `dm5`);
+ads not in the file show a placeholder. `src/components/DailyPerformanceTable.tsx`
 is the per-day funnel table on the ad page.
 
 Funnel stage naming: the source sheet's "Q.S." is the quiz-start stage and
@@ -260,10 +266,14 @@ formula; "Hide inactive ads" toggle; ads under 10 clicks show "low sample";
 clicking an ad name opens its detail page). CTR (all) and CPC (all) in this
 table use `clicks_all`, as in the model; the KPI tiles use link clicks.
 
-The marketing read is deterministic and lives in `buildRead()` in
-`backend/src/services/facebook.service.ts`: net ROAS ≥ 25% → Scale,
-between −25% and 25% → Monitor, below −25% → Review; under 10 clicks → Low
-sample; no spend or clicks → No data. Comparisons use the account-wide blended
+The ad recommendation is deterministic and lives in `buildRecommendation()` in
+`backend/src/services/fbRecommendation.service.ts`, computed from the report
+collection: net ROAS ≥ 25% → Scale, between −25% and 25% → Monitor, below
+−25% → Review; under 10 clicks → Low sample; no spend or clicks → No data.
+The summary also describes the ad's latest spending day in the range (what it
+spent, whether it sold, and how ROAS moved). Thresholds are shared with the
+older seed-based `buildRead()` in `facebook.service.ts`, which the page no
+longer shows. Comparisons use the account-wide blended
 CTR / CPC / CAC for the same period; within ±2% reads as "in line".
 
 `src/layouts/AdminLayout.tsx` is a top bar only (brand, Overview / Facebook /
