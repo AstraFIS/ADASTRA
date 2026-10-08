@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
+import { adAccessRouter } from './adAccess.routes.js';
 import { authRouter } from './auth.routes.js';
 import { healthRouter } from './health.routes.js';
 import { platformsRouter } from './platforms.routes.js';
@@ -13,4 +14,5 @@ apiRouter.use('/auth', authRouter);
 
 // signed-in users only
 apiRouter.use('/users', userRouter);
+apiRouter.use('/ad-access', adAccessRouter);
 apiRouter.use('/platforms', requireAuth, platformsRouter);

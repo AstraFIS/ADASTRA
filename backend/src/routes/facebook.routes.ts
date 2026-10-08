@@ -6,6 +6,7 @@ import { getDailyTrend } from '../controllers/fbDailyTrend.controller.js';
 import { getFunnel } from '../controllers/fbFunnel.controller.js';
 import { getOptions } from '../controllers/fbOptions.controller.js';
 import { getStatistics } from '../controllers/fbStatistics.controller.js';
+import { getAdLinks, getAdTaxonomy } from '../services/adAccessAdmin.service.js';
 import { facebookAdScope } from '../services/access.service.js';
 import { getFacebookAdDetail, getFacebookDashboard } from '../services/facebook.service.js';
 import { DATE_RANGE_KEYS } from '../types/facebook.js';
@@ -56,6 +57,22 @@ const adQuerySchema = z.object({ range: rangeSchema });
 
 /** GET /api/platforms/facebook/ads/:adName/statistics — one ad's KPIs from the report collection */
 facebookRouter.get('/ads/:adName/statistics', getAdStatistics);
+
+/** GET /api/platforms/facebook/ads/:adName/creative — links saved on the Ad groups page (override creatives.json) */
+facebookRouter.get('/ads/:adName/creative', async (req, res) => {
+  const { adName } = adParamsSchema.parse(req.params);
+  const allowedAds = await facebookAdScope(req.user!);
+  if (allowedAds && !allowedAds.includes(adName)) throw new HttpError(404, `Unknown ad: ${adName}`);
+  res.json(await getAdLinks(adName));
+});
+
+/** GET /api/platforms/facebook/ads/:adName/taxonomy — taxonomy saved on the Ad groups page (overrides data.json); null when none */
+facebookRouter.get('/ads/:adName/taxonomy', async (req, res) => {
+  const { adName } = adParamsSchema.parse(req.params);
+  const allowedAds = await facebookAdScope(req.user!);
+  if (allowedAds && !allowedAds.includes(adName)) throw new HttpError(404, `Unknown ad: ${adName}`);
+  res.json({ taxonomy: await getAdTaxonomy(adName) });
+});
 
 /** GET /api/platforms/facebook/ads/:adName?range=this_month */
 facebookRouter.get('/ads/:adName', async (req, res) => {

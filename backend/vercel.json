@@ -3,5 +3,15 @@
   "framework": null,
   "buildCommand": "npm run build",
   "outputDirectory": "public",
-  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api/index"
+    }
+  ],
+  "functions": {
+    "api/index.ts": {
+      "maxDuration": 60
+    }
+  }
 }

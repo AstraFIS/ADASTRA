@@ -153,7 +153,7 @@ export function textMatch(value: string): unknown {
 }
 
 /** The stored representations a text value may have: itself, plus the number when it looks like one. */
-function textValues(value: string): (string | number)[] {
+export function textValues(value: string): (string | number)[] {
   const asNumber = Number(value);
   return value.trim() !== '' && Number.isFinite(asNumber) ? [value, asNumber] : [value];
 }

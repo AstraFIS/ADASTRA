@@ -9,8 +9,9 @@ import FilterSelect from '@/components/FilterSelect';
 import LineChart from '@/components/LineChart';
 import StatCard, { type CaptionTone } from '@/components/StatCard';
 import { api, ApiError } from '@/lib/api';
-import { getCreativeTaxonomy } from '@/lib/creativeTaxonomy';
-import { getAdCreative } from '@/lib/creatives';
+import { getCreativeTaxonomy, type TaxonomyData } from '@/lib/creativeTaxonomy';
+import { fetchCreativeOverride, fetchTaxonomyOverride } from '@/lib/adAccess';
+import { getAdCreative, mergeCreative, type CreativeOverride } from '@/lib/creatives';
 import {
   formatCurrency,
   formatDate,
@@ -71,6 +72,31 @@ export default function FacebookAdDetailPage() {
   const [trend, setTrend] = useState<TrendState>({ kind: 'loading', previous: null });
   const [charts, setCharts] = useState<ChartsState>({ kind: 'loading', previous: null });
   const [reloadKey, setReloadKey] = useState(0);
+  // links an admin saved on the Ad groups page; they win over creatives.json
+  const [linkOverride, setLinkOverride] = useState<CreativeOverride | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setLinkOverride(null);
+    fetchCreativeOverride(adName)
+      .then((o) => !cancelled && setLinkOverride(o))
+      .catch(() => undefined); // no override available: creatives.json is used as before
+    return () => {
+      cancelled = true;
+    };
+  }, [adName]);
+
+  // taxonomy an admin saved on the Ad groups page; it wins over data.json
+  const [savedTaxonomy, setSavedTaxonomy] = useState<TaxonomyData | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setSavedTaxonomy(null);
+    fetchTaxonomyOverride(adName)
+      .then((r) => !cancelled && setSavedTaxonomy(r.taxonomy))
+      .catch(() => undefined); // none available: data.json is used as before
+    return () => {
+      cancelled = true;
+    };
+  }, [adName]);
 
   useEffect(() => {
     let cancelled = false;
@@ -194,8 +220,8 @@ export default function FacebookAdDetailPage() {
   const hollowDays = dailyRows.map((d, i) => (d.total_spend_usd > 0 && d.conversions === 0 ? i : -1)).filter((i) => i >= 0);
   const hasCacData = dailyRows.some((d) => d.total_spend_usd > 0);
 
-  // creative taxonomy comes from frontend/data.json, matched on the ad name
-  const taxonomy = getCreativeTaxonomy(headerName);
+  // creative taxonomy: saved on the Ad groups page, else frontend/data.json (matched on the ad name)
+  const taxonomy = getCreativeTaxonomy(headerName, savedTaxonomy);
 
   // 4-card breakdown row, all from the report collection
   const chartsData = charts.kind === 'ok' ? charts.data : charts.kind === 'loading' ? charts.previous : null;
@@ -360,7 +386,7 @@ export default function FacebookAdDetailPage() {
         <div className={`transition-opacity ${statsBusy ? 'opacity-70' : ''}`} aria-busy={statsBusy}>
           <CreativeRecommendationCard
             adName={headerName}
-            creative={getAdCreative(headerName)}
+            creative={mergeCreative(getAdCreative(headerName), linkOverride)}
             recommendation={statsData.recommendation}
             roas={statsData.statistics.roas}
           />

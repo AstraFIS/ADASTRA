@@ -34,6 +34,9 @@ export const env = {
   mongoDbName: read('MONGODB_DB_NAME') ?? SETTINGS.MONGODB_DB_NAME,
   jwtSecret: read('JWT_SECRET') ?? SETTINGS.JWT_SECRET,
   jwtExpiresIn: read('JWT_EXPIRES_IN') ?? SETTINGS.JWT_EXPIRES_IN,
+  // optional: enables "Classify with AI" on the Ad groups page. Set it as an environment variable, never in Git.
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY?.trim() || undefined,
+  anthropicModel: process.env.ANTHROPIC_MODEL?.trim() || 'claude-sonnet-5-5',
 } as const;
 
 export const isProd = env.nodeEnv === 'production';

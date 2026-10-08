@@ -4,9 +4,11 @@ interface Props {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  /** Wider dialog for forms with many fields. */
+  wide?: boolean;
 }
 
-export default function Modal({ title, onClose, children }: Props) {
+export default function Modal({ title, onClose, children, wide = false }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -22,7 +24,7 @@ export default function Modal({ title, onClose, children }: Props) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className="relative w-full max-w-md rounded-xl border border-line bg-surface p-6 shadow-2xl"
+        className={`relative max-h-[90vh] w-full overflow-y-auto rounded-xl border border-line bg-surface p-6 shadow-2xl ${wide ? 'max-w-4xl' : 'max-w-md'}`}
       >
         <div className="flex items-center justify-between gap-4">
           <h2 id="modal-title" className="text-lg font-bold text-ink">

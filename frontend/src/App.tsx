@@ -3,6 +3,7 @@ import RequireAuth from '@/auth/RequireAuth';
 import RequirePlatform from '@/auth/RequirePlatform';
 import RequireRole from '@/auth/RequireRole';
 import AdminLayout from '@/layouts/AdminLayout';
+import AdAccessPage from '@/pages/AdAccessPage';
 import BingDashboardPage from '@/pages/BingDashboardPage';
 import FacebookAdDetailPage from '@/pages/FacebookAdDetailPage';
 import FacebookDashboardPage from '@/pages/FacebookDashboardPage';
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="platforms/:slug" element={<PlatformPage />} />
           <Route element={<RequireRole roles={['admin']} />}>
             <Route path="users" element={<UsersPage />} />
+            <Route path="ad-access" element={<AdAccessPage />} />
           </Route>
         </Route>
       </Route>

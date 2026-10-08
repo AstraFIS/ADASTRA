@@ -41,3 +41,29 @@ export function getAdCreative(adName: string | number): AdCreative {
     landing_page_url: webUrl(record.landing),
   };
 }
+
+/** Links saved from the Ad groups page. null = no override (use creatives.json); "" = cleared on purpose. */
+export interface CreativeOverride {
+  image: string | null;
+  video: string | null;
+  landing: string | null;
+}
+
+/** creatives.json values for an ad as plain strings ("" when missing), for the Ad groups editor. */
+export function getBaselineLinks(adName: string | number): { image: string; video: string; landing: string } {
+  const c = getAdCreative(adName);
+  return { image: c.image_url ?? '', video: c.video_url ?? '', landing: c.landing_page_url ?? '' };
+}
+
+const pick = (override: string | null | undefined, base: string | null): string | null =>
+  override === null || override === undefined ? base : webUrl(override);
+
+/** creatives.json merged with the saved overrides; an override wins, "" clears the field. */
+export function mergeCreative(base: AdCreative, override: CreativeOverride | null): AdCreative {
+  if (!override) return base;
+  return {
+    image_url: pick(override.image, base.image_url),
+    video_url: pick(override.video, base.video_url),
+    landing_page_url: pick(override.landing, base.landing_page_url),
+  };
+}
