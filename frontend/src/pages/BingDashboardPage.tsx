@@ -97,34 +97,13 @@ export default function BingDashboardPage() {
   if (!data) return <BingSkeleton />;
 
   const busy = state.kind === 'loading';
-  const { statistics: kpi, meta, filters } = data;
-  const options = data.options;
-  const dateRanges = Array.isArray(options?.date_ranges)
-    ? options.date_ranges
-    : [
-        { key: 'all_time', label: 'All Time' },
-        { key: 'this_month', label: 'This Month' },
-        { key: 'last_month', label: 'Last Month' },
-        { key: 'last_7_days', label: 'Last 7 Days' },
-        { key: 'last_30_days', label: 'Last 30 Days' },
-      ];
-  const campaigns = Array.isArray(options?.campaigns) ? options.campaigns : [];
-  const offers = Array.isArray(options?.offers) ? options.offers : [];
-  const daily = Array.isArray(data.daily) ? data.daily : [];
-  const byDate = Array.isArray(data.funnel?.by_date) ? data.funnel.by_date : [];
-  const byOffer = Array.isArray(data.funnel?.by_offer) ? data.funnel.by_offer : [];
-  const byAdGroup = Array.isArray(data.funnel?.by_ad_group) ? data.funnel.by_ad_group : [];
-  const geo = {
-    by_region: Array.isArray(data.geo?.by_region) ? data.geo.by_region : [],
-    by_device: Array.isArray(data.geo?.by_device) ? data.geo.by_device : [],
-  };
-  const clicks = Array.isArray(data.clicks) ? data.clicks : [];
+  const { statistics: kpi, daily, funnel, meta, filters, options } = data;
   const empty = meta.ad_rows === 0 && meta.conversion_rows === 0;
 
   const scope = [filters.campaign ?? 'all campaigns', filters.offer ?? 'all offers'].join(' · ');
   const keep = (list: string[], current: string | null) => (current && !list.includes(current) ? [current, ...list] : list);
 
-  const rowsAll = view === 'date' ? byDate : view === 'offer' ? byOffer : byAdGroup;
+  const rowsAll = view === 'date' ? funnel.by_date : view === 'offer' ? funnel.by_offer : funnel.by_ad_group;
   const rows = view === 'ad_group' && !showAllGroups ? rowsAll.slice(0, AD_GROUP_LIMIT) : rowsAll;
 
   const totalRevenue = daily.reduce((s, d) => s + (d.revenue_usd ?? 0), 0);
@@ -146,7 +125,7 @@ export default function BingDashboardPage() {
             label="Date Range"
             hideLabel
             value={data.range.key}
-            options={dateRanges.map((r) => ({ value: r.key, label: r.label }))}
+            options={options.date_ranges.map((r) => ({ value: r.key, label: r.label }))}
             onChange={(v) => setFilter('range', v)}
             className="w-full sm:w-auto sm:min-w-[260px]"
           />
@@ -155,7 +134,7 @@ export default function BingDashboardPage() {
             label="Filter by Campaign"
             hideLabel
             value={filters.campaign ?? ALL}
-            options={[{ value: ALL, label: 'All Campaigns' }, ...keep(campaigns, filters.campaign).map((c) => ({ value: c, label: c }))]}
+            options={[{ value: ALL, label: 'All Campaigns' }, ...keep(options.campaigns, filters.campaign).map((c) => ({ value: c, label: c }))]}
             onChange={(v) => setFilter('campaign', v)}
             className="w-full sm:w-auto sm:min-w-[220px]"
           />
@@ -164,7 +143,7 @@ export default function BingDashboardPage() {
             label="Filter by Offer"
             hideLabel
             value={filters.offer ?? ALL}
-            options={[{ value: ALL, label: 'All Offers' }, ...keep(offers, filters.offer).map((o) => ({ value: o, label: o }))]}
+            options={[{ value: ALL, label: 'All Offers' }, ...keep(options.offers, filters.offer).map((o) => ({ value: o, label: o }))]}
             onChange={(v) => setFilter('offer', v)}
             className="w-full sm:w-auto sm:min-w-[340px] sm:flex-1"
           />
@@ -305,8 +284,8 @@ export default function BingDashboardPage() {
 
           <ErrorBoundary label="The region, device and click id views">
             <BingGeoSection
-              bySegment={geo}
-              clicks={clicks}
+              bySegment={data.geo}
+              clicks={data.clicks}
               caption={`${data.range.label} · ${filters.offer ? filters.offer.split(' - ')[0] : 'all offers'}`}
               busy={busy}
             />

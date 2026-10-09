@@ -84,29 +84,18 @@ export default function HomePage() {
   const busy = state.kind === 'loading';
 
   const { client, portfolio, totals, platforms, period, months } = data;
-  const monthOptions = Array.isArray(months) ? months : [];
-  const currentMonth = period?.current_month ?? new Date().toISOString().slice(0, 7);
-  const selectedMonth =
-    period?.month ?? (/^\d{4}-(0[1-9]|1[0-2])$/.test(month) ? month : currentMonth);
-  const periodLabel =
-    period?.label ??
-    monthOptions.find((item) => item.value === selectedMonth)?.label ??
-    new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
-      new Date(`${selectedMonth}-01T00:00:00Z`),
-    );
-  const isCurrentPeriod = period?.is_current ?? selectedMonth === currentMonth;
   const live = platforms.filter((p) => p.connected && p.metrics);
   const pending = platforms.filter((p) => !p.connected).map((p) => p.name);
   const liveNames = live.map((p) => (p.id === 'microsoft' ? 'Bing' : p.name));
 
   const subtitle = [
-    live.length > 0 && `Live totals from ${joinNames(liveNames)} for ${periodLabel}.`,
+    live.length > 0 && `Live totals from ${joinNames(liveNames)} for ${period.label}.`,
     pending.length > 0 && `${joinNames(pending)} ${pending.length === 1 ? 'is' : 'are'} not connected yet.`,
   ]
     .filter(Boolean)
     .join(' ');
 
-  const caption = `${periodLabel} · ${joinNames(liveNames) || 'no platforms'}`;
+  const caption = `${period.label} · ${joinNames(liveNames) || 'no platforms'}`;
   const roas = totals.spend > 0 ? totals.netProfit / totals.spend : null;
   const updated = state.kind === 'ok' ? state.at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
 
@@ -126,16 +115,16 @@ export default function HomePage() {
             id="overview-month"
             label="Month"
             hideLabel
-            value={selectedMonth}
-            options={monthOptions.map((m) => ({
+            value={period.month}
+            options={months.map((m) => ({
               value: m.value,
-              label: m.value === currentMonth ? `${m.label} (this month)` : m.label,
+              label: m.value === period.current_month ? `${m.label} (this month)` : m.label,
             }))}
-            onChange={(v) => selectMonth(v, currentMonth)}
+            onChange={(v) => selectMonth(v, period.current_month)}
             className="w-full sm:w-auto sm:min-w-[240px]"
           />
           <p className="text-xs text-ink-3">
-            {isCurrentPeriod ? 'Follows the current month automatically' : 'Past month'}
+            {period.is_current ? 'Follows the current month automatically' : 'Past month'}
             {updated && ` · updated ${updated}`}
           </p>
         </div>
