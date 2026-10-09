@@ -4,7 +4,9 @@ import { FACEBOOK_ACCESS_GROUPS } from '../models/adAccess.model.js';
 import { TAXONOMY_SOURCES } from '../models/adTaxonomy.model.js';
 import {
   listAdAssignments,
+  listUnnamedRows,
   saveAdAssignments,
+  saveRowGroups,
   saveAdLinks,
   saveAdTaxonomies,
 } from '../services/adAccessAdmin.service.js';
@@ -33,6 +35,19 @@ const saveSchema = z
   })
   .refine((v) => v.assignments.length + v.links.length + v.taxonomies.length > 0, { message: 'Nothing to save' });
 
+const rowGroupsSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        source: z.enum(['facebook', 'partner']),
+        ids: z.array(z.string().regex(/^[a-f0-9]{24}$/i, 'Invalid row id')).min(1).max(5000),
+        group: z.enum(FACEBOOK_ACCESS_GROUPS).nullable(),
+      }),
+    )
+    .min(1)
+    .max(500),
+});
+
 const classifySchema = z.object({
   ads: z
     .array(
@@ -60,6 +75,18 @@ export async function saveAdAccess(req: Request, res: Response): Promise<void> {
     saveAdTaxonomies(taxonomies),
   ]);
   res.json({ groupsSaved, linksSaved, taxonomiesSaved, ads: await listAdAssignments() });
+}
+
+/** GET /api/ad-access/rows — rows without an ad name (and rows with their own group), bucketed by day (admin only) */
+export async function getUnnamedRows(_req: Request, res: Response): Promise<void> {
+  res.json({ groups: FACEBOOK_ACCESS_GROUPS, rows: await listUnnamedRows() });
+}
+
+/** PUT /api/ad-access/rows — set or clear the group stored on those rows (admin only) */
+export async function saveUnnamedRows(req: Request, res: Response): Promise<void> {
+  const { items } = rowGroupsSchema.parse(req.body);
+  const changed = await saveRowGroups(items);
+  res.json({ changed, rows: await listUnnamedRows() });
 }
 
 /** GET /api/ad-access/ai-status — whether "Classify with AI" is available (admin only) */

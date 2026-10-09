@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthContext';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { canSeePlatform } from '@/lib/access';
@@ -15,6 +15,7 @@ const navItems: { to: string; label: string; end: boolean; adminOnly: boolean; p
 export default function AdminLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   function handleSignOut() {
     logout();
@@ -71,7 +72,8 @@ export default function AdminLayout() {
       </header>
 
       <main className="flex-1 px-4 py-6 md:px-10 md:py-8">
-          <ErrorBoundary label="This page">
+          {/* reset on every navigation, so one failing page never blocks the others */}
+          <ErrorBoundary label="This page" resetKey={location.pathname}>
             <Outlet />
           </ErrorBoundary>
         </main>

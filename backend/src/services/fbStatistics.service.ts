@@ -1,6 +1,8 @@
 import type { PipelineStage } from 'mongoose';
-import { FacebookAdReport } from '../models/facebookAdReport.model.js';
+import { FacebookAdReport2 } from '../models/facebookAdReport.model.js';
+import { FacebookProvider } from '../models/facebookProvider.model.js';
 import type { DateRangeKey } from '../types/facebook.js';
+import { dayExpr } from '../utils/bingDate.js';
 import { DATE_RANGE_OPTIONS, isoDay, resolveRange } from '../utils/dateRange.js';
 
 export interface FbStatisticsQuery {
@@ -10,8 +12,13 @@ export interface FbStatisticsQuery {
   to?: string | undefined;
   ad?: string | undefined;
   offer?: string | undefined;
-  /** Ad names the caller may see (from facebookAdScope); null / undefined means every ad. */
+  /** Ad names the caller may see (from facebookScope); null / undefined means every ad. */
   allowedAds?: string[] | null | undefined;
+  /**
+   * Groups the caller may see (from facebookScope). Rows with their own `access_group`
+   * are matched by it; rows without one by `allowedAds`. Only used when allowedAds is set.
+   */
+  allowedGroups?: string[] | null | undefined;
 }
 
 export interface FbStatistics {
@@ -27,10 +34,13 @@ export interface FbStatistics {
 /** "Ad platform provider fees" card: one provider's spend and fee over the selection. */
 export interface ProviderFeeStat {
   provider_name: string;
-  fee_pct: number | null; // provider_fee_usd ÷ spend_usd × 100 (the rate actually applied), null without spend
+  fee_pct: number | null; // the provider table's fee %, else the rate actually applied; null without either
   amount_spent: number; // Σ spend_usd (before fee)
   provider_fee: number; // Σ provider_fee_usd
   total_with_fee: number; // Σ total_spend_usd
+  share_pct: number; // amount_spent ÷ all providers' amount_spent × 100
+  is_default: boolean; // marked default in the provider table (informational)
+  no_provider?: boolean; // the line for spend that has no provider (no fee)
   rows: number;
 }
 
@@ -98,17 +108,93 @@ export const REPORT_DATE = {
 /** The row's provider: `provider_name`, or the sheet's `Provider` column when imported as-is. */
 export const PROVIDER_NAME = { $ifNull: ['$provider_name', '$Provider', null] };
 
+/** Partner event stage → the facebook_ad_reports funnel column it counts toward. */
+const STAGE_COLUMN: Record<string, string> = {
+  presell_visit: 'presell_visits',
+  first_page_view: 'first_page_views',
+  questionnaire_start: 'questionnaire_starts',
+  questionnaire_completed: 'questionnaire_completed',
+  add_to_cart: 'add_to_carts',
+};
+const countIf = (stage: string) => ({ $cond: [{ $eq: ['$event_stage', stage] }, '$event_count', 0] });
+
 /**
- * Aggregate over facebook_ad_reports with report_date normalised to a Date and
- * provider_name filled from the sheet's `Provider` column first, so every date
- * filter, per-day group and provider breakdown works whichever way the row was
- * imported. Use this instead of FacebookAdReport.aggregate.
+ * facebook_conversions (partner events) reshaped as report rows: no spend or delivery,
+ * just the funnel counts and revenue on that day and ad. Unioned into every report
+ * aggregation, so totals, charts and tables add Facebook spend and partner results
+ * together — the live blend, joined on day + ad name.
+ */
+const PARTNER_ROWS: PipelineStage[] = [
+  {
+    $project: {
+      _source: { $literal: 'partner' },
+      report_date: dayExpr('event_date'),
+      ad_name: 1,
+      offer_name: 1,
+      sub_id: 1,
+      access_group: 1,
+      age: { $literal: 'unknown' },
+      gender: { $literal: 'unknown' },
+      region: 1,
+      device: 1,
+      provider_fee_pct: { $literal: 0 },
+      spend_usd: { $literal: 0 },
+      impressions: { $literal: 0 },
+      clicks_all: { $literal: 0 },
+      link_clicks: { $literal: 0 },
+      landing_page_views: { $literal: 0 },
+      ...Object.fromEntries(Object.entries(STAGE_COLUMN).map(([stage, column]) => [column, countIf(stage)])),
+      purchase_events: countIf('purchase'),
+      conversions: countIf('purchase'), // verified purchases drive CAC
+      revenue_usd: { $ifNull: ['$revenue_usd', 0] },
+    },
+  },
+];
+
+/** How rows without an ad name are shown and filtered. */
+export const NO_AD_NAME = '(no ad name)';
+const MISSING_AD_NAMES = ['', '<NA>', 'nan', 'NaN', 'None', 'null', 'undefined'];
+
+/** First element of an array field, or null. */
+const first = (field: string) => ({ $arrayElemAt: [field, 0] });
+
+/** Provider fee % from facebook_providers; rows without a provider keep their spend with no fee. */
+const PROVIDER_FEE_STAGES: PipelineStage[] = [
+  { $lookup: { from: 'facebook_providers', localField: 'provider_name', foreignField: 'provider_name', as: '_provider' } },
+  { $addFields: { _hasProvider: { $gt: [{ $strLenCP: { $ifNull: [{ $toString: '$provider_name' }, ''] } }, 0] } } },
+  {
+    $addFields: {
+      // rows without a provider still count as spend, with no provider fee
+      provider_name: { $cond: ['$_hasProvider', '$provider_name', null] },
+      provider_fee_pct: { $cond: ['$_hasProvider', { $ifNull: [first('$_provider.fee_pct'), '$provider_fee_pct'] }, 0] },
+    },
+  },
+  { $project: { _provider: 0, _hasProvider: 0 } },
+];
+
+/**
+ * Report rows as every endpoint sees them:
+ *  1. facebook_ad_reports_2 (the Facebook Ads export) with report_date normalised to a Date
+ *     (stored as a Date or as "DD/MM/YYYY" text) and the provider fee % taken from
+ *     facebook_providers — rows without a provider count as spend with no fee;
+ *  2. plus facebook_conversions (partner events: funnel + revenue, see PARTNER_ROWS),
+ *     joined to the Facebook rows on day + ad name by the grouping of each endpoint.
+ * The older facebook_ad_reports collection is not read (it stays in the database untouched).
+ */
+export const BLENDED_REPORT_ROWS: PipelineStage[] = [
+  { $addFields: { report_date: REPORT_DATE, provider_name: PROVIDER_NAME } },
+  ...PROVIDER_FEE_STAGES,
+  { $unionWith: { coll: 'facebook_conversions', pipeline: PARTNER_ROWS as never } },
+  // one spelling for "no ad name" (empty, missing, or "<NA>" / "nan" left by a spreadsheet)
+  { $addFields: { ad_name: { $cond: [{ $in: [{ $ifNull: ['$ad_name', ''] }, MISSING_AD_NAMES] }, NO_AD_NAME, '$ad_name'] } } },
+];
+
+/**
+ * Aggregate over the blended report rows (facebook_ad_reports_2 + partner events, provider
+ * fees from the provider table). Use this instead of a model's own aggregate().
  */
 export function reportAggregate<T>(pipeline: PipelineStage[]) {
-  return FacebookAdReport.aggregate<T>([
-    { $addFields: { report_date: REPORT_DATE, provider_name: PROVIDER_NAME } },
-    ...pipeline,
-  ]);
+  return FacebookAdReport2.aggregate<T>([...BLENDED_REPORT_ROWS, ...pipeline]);
 }
 
 /**
@@ -159,16 +245,17 @@ export function textValues(value: string): (string | number)[] {
 }
 
 /** Mongo match for the ad / offer / access part of a query. */
-export function reportBaseMatch(query: Pick<FbStatisticsQuery, 'ad' | 'offer' | 'allowedAds'>): ReportFilter {
+export function reportBaseMatch(
+  query: Pick<FbStatisticsQuery, 'ad' | 'offer' | 'allowedAds' | 'allowedGroups'>,
+): ReportFilter {
   const baseMatch: ReportFilter = {};
   if (query.ad) baseMatch.ad_name = textMatch(query.ad);
   if (query.allowedAds) {
-    // an ad outside the caller's access matches nothing rather than falling back to "all allowed ads"
-    baseMatch.ad_name = query.ad
-      ? query.allowedAds.includes(query.ad)
-        ? textMatch(query.ad)
-        : { $in: [] }
-      : { $in: query.allowedAds.flatMap(textValues) };
+    // a row's own access_group (set by hand) wins; otherwise its ad name must be in the caller's groups
+    baseMatch.$or = [
+      { access_group: { $in: query.allowedGroups ?? [] } },
+      { access_group: { $in: [null, ''] }, ad_name: { $in: query.allowedAds.flatMap(textValues) } },
+    ];
   }
   if (query.offer) baseMatch.offer_name = textMatch(query.offer);
   return baseMatch;
@@ -281,15 +368,16 @@ export async function getFbStatistics(query: FbStatisticsQuery): Promise<FbStati
 }
 
 /**
- * Per-provider spend / fee totals for a selection. Providers are listed from
- * the whole collection so a card still appears (with zeros) when a provider
- * had no spend in the selected period.
+ * Per-provider spend / fee totals for a selection, with each provider's share of spend.
+ * Every provider in the provider table (and any other provider seen in the rows) is
+ * listed, with zeros when it had no spend in the selected period.
  */
+const NO_PROVIDER = 'No provider';
+
 async function providerFees(match: ReportFilter): Promise<ProviderFeeStat[]> {
-  const [known, inRange] = await Promise.all([
-    reportAggregate<{ _id: string | null }>([
-      { $group: { _id: { $toString: '$provider_name' } } },
-    ]),
+  const [table, known, inRange] = await Promise.all([
+    FacebookProvider.find({}, { provider_name: 1, fee_pct: 1, is_default: 1, _id: 0 }).lean(),
+    reportAggregate<{ _id: string | null }>([{ $group: { _id: { $toString: '$provider_name' } } }]),
     reportAggregate<{
       _id: string | null;
       spend_usd: number;
@@ -309,23 +397,48 @@ async function providerFees(match: ReportFilter): Promise<ProviderFeeStat[]> {
       },
     ]),
   ]);
-  const isProvider = (v: string | null): v is string => typeof v === 'string' && v !== '' && v !== 'null';
+  const isProvider = (v: string | null | undefined): v is string => typeof v === 'string' && v !== '' && v !== 'null';
   const byName = new Map(inRange.filter((p) => isProvider(p._id)).map((p) => [p._id as string, p]));
-  return known
-    .map((p) => p._id)
-    .filter(isProvider)
-    .sort((a, b) => a.localeCompare(b))
+  const tableByName = new Map(table.map((t) => [t.provider_name, t]));
+  const names = [...new Set([...table.map((t) => t.provider_name), ...known.map((p) => p._id).filter(isProvider)])];
+  // share of ALL spend in the selection, including spend that has no provider
+  const totalSpend = inRange.reduce((sum, p) => sum + p.spend_usd, 0);
+
+  const unassigned = inRange.find((p) => !isProvider(p._id));
+  const noProvider: ProviderFeeStat[] =
+    unassigned && unassigned.spend_usd > 0
+      ? [
+          {
+            provider_name: NO_PROVIDER,
+            fee_pct: 0,
+            amount_spent: round2(unassigned.spend_usd),
+            provider_fee: 0,
+            total_with_fee: round2(unassigned.spend_usd),
+            share_pct: totalSpend > 0 ? round2((unassigned.spend_usd / totalSpend) * 100) : 0,
+            is_default: false,
+            no_provider: true,
+            rows: unassigned.rows,
+          },
+        ]
+      : [];
+
+  return names
     .map((name) => {
       const p = byName.get(name);
+      const t = tableByName.get(name);
       const amount_spent = round2(p?.spend_usd ?? 0);
       const provider_fee = round2(p?.provider_fee_usd ?? 0);
       return {
         provider_name: name,
-        fee_pct: amount_spent > 0 ? round2((provider_fee / amount_spent) * 100) : null,
+        fee_pct: t ? round2(t.fee_pct) : amount_spent > 0 ? round2((provider_fee / amount_spent) * 100) : null,
         amount_spent,
         provider_fee,
         total_with_fee: round2(p?.total_spend_usd ?? 0),
+        share_pct: totalSpend > 0 ? round2(((p?.spend_usd ?? 0) / totalSpend) * 100) : 0,
+        is_default: t?.is_default === true,
         rows: p?.rows ?? 0,
       };
-    });
+    })
+    .sort((a, b) => b.amount_spent - a.amount_spent || a.provider_name.localeCompare(b.provider_name))
+    .concat(noProvider);
 }

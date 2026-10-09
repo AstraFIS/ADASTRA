@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { z } from 'zod';
-import { facebookAdScope } from '../services/access.service.js';
+import { facebookScope } from '../services/access.service.js';
 import { getFbAdStatistics } from '../services/fbAdStatistics.service.js';
 import { HttpError } from '../utils/httpError.js';
 import { reportQuerySchema } from './fbStatistics.controller.js';
@@ -22,7 +22,7 @@ export async function getAdStatistics(req: Request, res: Response): Promise<void
     range: q.range,
     from: q.from,
     to: q.to,
-    allowedAds: await facebookAdScope(req.user!),
+    ...(await facebookScope(req.user!)),
   });
   if (!result) throw new HttpError(404, `Unknown ad: ${adName}`);
   res.json(result);

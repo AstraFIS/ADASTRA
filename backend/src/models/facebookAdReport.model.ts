@@ -41,6 +41,8 @@ export interface IFacebookAdReport {
   campaign_name: string;
   ad_set_name: string;
   provider_name: string | null; // null when no provider is attached
+  /** Meta group set by hand on this row (Ad groups → Rows without an ad name); overrides ad_access. */
+  access_group?: string | null;
   age: string; // "18-24" … "65+", or "unknown" (normalised on save)
   gender: string; // "male" | "female" | "unknown" (normalised on save)
 
@@ -189,6 +191,7 @@ const facebookAdReportSchema = new Schema<IFacebookAdReport, FacebookAdReportMod
     campaign_name: label,
     ad_set_name: label,
     provider_name: { type: String, trim: true, maxlength: 200, default: null },
+    access_group: { type: String, trim: true, maxlength: 50, default: undefined },
     age: { type: String, required: true, maxlength: 20, default: 'unknown', set: normaliseBucket },
     gender: { type: String, required: true, maxlength: 20, default: 'unknown', set: normaliseBucket },
     image_url: { type: String, trim: true, maxlength: 2048, default: null, set: emptyToNull },
@@ -270,6 +273,18 @@ facebookAdReportSchema.pre('validate', function fillDerived(this: FacebookAdRepo
 export const FacebookAdReport = model<IFacebookAdReport, FacebookAdReportModel>(
   'FacebookAdReport',
   facebookAdReportSchema,
+);
+
+/**
+ * The newer Facebook Ads export, same shape as facebook_ad_reports, kept in its own
+ * collection so the older data stays untouched. This is the collection the dashboard reads
+ * (with facebook_conversions and facebook_providers) — see BLENDED_REPORT_ROWS in
+ * fbStatistics.service.ts. facebook_ad_reports is kept as a backup and not read.
+ */
+export const FacebookAdReport2 = model<IFacebookAdReport, FacebookAdReportModel>(
+  'FacebookAdReport2',
+  facebookAdReportSchema.clone(),
+  'facebook_ad_reports_2',
 );
 
 const isoDay = (d: Date) => d.toISOString().slice(0, 10);

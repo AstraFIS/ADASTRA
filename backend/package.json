@@ -12,7 +12,8 @@
     "seed:admin": "tsx src/scripts/seed-admin.ts",
     "seed:facebook": "tsx src/scripts/seed-facebook-reports.ts",
     "normalize:facebook": "tsx src/scripts/normalize-facebook-reports.ts",
-    "import:bing": "tsx src/scripts/import-bing.ts"
+    "import:bing": "tsx src/scripts/import-bing.ts",
+    "import:facebook": "tsx src/scripts/import-facebook.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -10,7 +10,7 @@ import FilterSelect from '@/components/FilterSelect';
 import FunnelTable from '@/components/FunnelTable';
 import GeoDeviceSection from '@/components/GeoDeviceSection';
 import LineChart from '@/components/LineChart';
-import ProviderFeeCard from '@/components/ProviderFeeCard';
+import ProviderTable from '@/components/ProviderTable';
 import StatCard from '@/components/StatCard';
 import { api } from '@/lib/api';
 import {
@@ -265,15 +265,6 @@ export default function FacebookDashboardPage() {
   const statsData = stats.kind === 'ok' ? stats.data : stats.kind === 'loading' ? stats.previous : null;
   const statsBusy = stats.kind === 'loading';
   const kpi = statsData?.statistics ?? null;
-  // provider cards: always from the statistics API (every provider in the collection, zeros when it had no
-  // spend in the period) — never the seed dashboard's demo list, which would flash fake numbers on load
-  const providerCards = (statsData?.providers ?? []).map((p) => ({
-    name: p.provider_name,
-    feeRate: p.fee_pct === null ? null : p.fee_pct / 100,
-    amountSpent: p.amount_spent,
-    providerFee: p.provider_fee,
-    totalWithFee: p.total_with_fee,
-  }));
   const roas = kpi && kpi.total_amount_spend > 0 ? kpi.net_profit / kpi.total_amount_spend : null;
   const NA = '—';
 
@@ -462,30 +453,14 @@ export default function FacebookDashboardPage() {
         </p>
       )}
 
-      <section aria-labelledby="provider-fees-heading" className="space-y-5">
-        <h2
-          id="provider-fees-heading"
-          className="text-center text-sm font-bold uppercase tracking-[0.12em] text-ink-2"
-        >
-          Ad Platform Provider Fees
-        </h2>
-        <div
-          className={`mx-auto grid max-w-[1240px] gap-6 transition-opacity md:grid-cols-2 ${providerCards.length > 2 ? 'xl:grid-cols-3' : ''} ${statsBusy ? 'opacity-70' : ''}`}
-        >
-          {providerCards.map((p) => (
-            <ProviderFeeCard key={p.name} provider={p} />
-          ))}
-        </div>
-        {statsData && providerCards.length === 0 && (
-          <p className="text-center text-sm text-ink-3">No provider fees recorded.</p>
-        )}
-      </section>
+      <div className="grid items-stretch gap-6 lg:grid-cols-[minmax(320px,1fr)_minmax(0,1.9fr)] xl:grid-cols-[minmax(340px,1fr)_minmax(0,2.2fr)]">
+      <ProviderTable providers={statsData?.providers ?? []} busy={statsBusy} caption={periodLabel} />
 
       <ErrorBoundary label="The daily trend chart">
       <section
         aria-labelledby="trend-heading"
         aria-busy={trendBusy}
-        className={`rounded-xl border border-line bg-surface p-5 transition-opacity ${trendBusy ? 'opacity-70' : ''}`}
+        className={`flex min-w-0 flex-col rounded-xl border border-line bg-surface p-5 transition-opacity ${trendBusy ? 'opacity-70' : ''}`}
       >
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
           <div className="min-w-0">
@@ -570,6 +545,7 @@ export default function FacebookDashboardPage() {
         )}
       </section>
       </ErrorBoundary>
+      </div>
 
       <ErrorBoundary label="The by-ad and audience charts">
       <section

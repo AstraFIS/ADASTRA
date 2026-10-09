@@ -36,10 +36,36 @@ export interface ClassifyResult {
   error: string | null;
 }
 
+/** A day's rows without an ad name (or rows given their own group), from one source. */
+export interface UnnamedRowBucket {
+  key: string;
+  source: 'facebook' | 'partner';
+  date: string | null;
+  adName: string;
+  offer: string | null;
+  subIds: string[];
+  group: AdGroup | null;
+  ids: string[];
+  rows: number;
+  spend: number;
+  revenue: number;
+  events: number;
+  purchases: number;
+}
+
+export interface RowGroupInput {
+  source: UnnamedRowBucket['source'];
+  ids: string[];
+  group: AdGroup | null;
+}
+
 export const adAccessApi = {
   list: () => api.get<{ groups: AdGroup[]; ads: AdAssignment[] }>('/ad-access'),
   save: (body: { assignments: AdAssignmentInput[]; links: AdLinksInput[]; taxonomies: AdTaxonomyInput[] }) =>
     api.put<{ groupsSaved: number; linksSaved: number; taxonomiesSaved: number; ads: AdAssignment[] }>('/ad-access', body),
+  rows: () => api.get<{ groups: AdGroup[]; rows: UnnamedRowBucket[] }>('/ad-access/rows'),
+  saveRows: (items: RowGroupInput[]) =>
+    api.put<{ changed: number; rows: UnnamedRowBucket[] }>('/ad-access/rows', { items }),
   aiStatus: () => api.get<{ enabled: boolean }>('/ad-access/ai-status'),
   classify: (ads: { adName: string; imageUrl: string; landingUrl?: string | null }[]) =>
     api.post<{ results: ClassifyResult[] }>('/ad-access/classify', { ads }),

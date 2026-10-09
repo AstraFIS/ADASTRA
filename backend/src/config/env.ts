@@ -2,7 +2,7 @@ import { SETTINGS } from './settings.js';
 
 /**
  * Runtime configuration. Defaults come from settings.ts (checked in); an
- * environment variable of the sdame name overrides a value when present.
+ * environment variable of the same name overrides a value when present.
  */
 const read = (name: keyof typeof SETTINGS): string | undefined => {
   const value = process.env[name];

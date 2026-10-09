@@ -18,6 +18,12 @@ export interface ProviderFeeStat {
   amount_spent: number;
   provider_fee: number;
   total_with_fee: number;
+  /** Share of all providers' spend in the selection, % (e.g. 58.1). */
+  share_pct?: number;
+  /** Marked default in the provider table (informational). */
+  is_default?: boolean;
+  /** The line for spend that has no provider (no fee). */
+  no_provider?: boolean;
   rows: number;
 }
 

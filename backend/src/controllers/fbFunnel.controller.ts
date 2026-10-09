@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { facebookAdScope } from '../services/access.service.js';
+import { facebookScope } from '../services/access.service.js';
 import { getFbFunnel } from '../services/fbFunnel.service.js';
 import { reportQuerySchema } from './fbStatistics.controller.js';
 
@@ -12,5 +12,5 @@ import { reportQuerySchema } from './fbStatistics.controller.js';
  */
 export async function getFunnel(req: Request, res: Response): Promise<void> {
   const q = reportQuerySchema.parse(req.query);
-  res.json(await getFbFunnel({ ...q, allowedAds: await facebookAdScope(req.user!, q.group) }));
+  res.json(await getFbFunnel({ ...q, ...(await facebookScope(req.user!, q.group)) }));
 }

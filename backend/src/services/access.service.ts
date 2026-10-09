@@ -27,6 +27,24 @@ export async function facebookAdScope(
   return user.access.facebook.length ? adsInGroups(user.access.facebook) : [];
 }
 
+/** What the caller may see: ad names (via ad_access) plus the groups themselves (for rows with their own group). */
+export interface FacebookScope {
+  allowedAds: string[] | null;
+  allowedGroups: FacebookAccessGroup[] | null;
+}
+
+/** facebookAdScope plus the groups behind it; spread into any Facebook statistics query. */
+export async function facebookScope(
+  user: { role: UserRole; access: UserAccess },
+  group?: FacebookAccessGroup,
+): Promise<FacebookScope> {
+  const allowedAds = await facebookAdScope(user, group);
+  if (allowedAds === null) return { allowedAds: null, allowedGroups: null };
+  const isAdmin = user.role === 'admin';
+  const groups = group ? (isAdmin || user.access.facebook.includes(group) ? [group] : []) : user.access.facebook;
+  return { allowedAds, allowedGroups: [...groups] };
+}
+
 async function adsInGroups(groups: FacebookAccessGroup[]): Promise<string[]> {
   const rows = await AdAccess.find({ user_access_type: { $in: groups } }, { ad_name: 1, _id: 0 }).lean();
   const names = rows.map((r) => String(r.ad_name ?? '').trim()).filter(Boolean);

@@ -4,6 +4,8 @@ interface Props {
   /** Short name of what is wrapped, e.g. "Revenue chart". */
   label: string;
   children: ReactNode;
+  /** When this value changes (e.g. the route), a caught error is cleared and the children render again. */
+  resetKey?: unknown;
 }
 
 interface State {
@@ -19,6 +21,10 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   static getDerivedStateFromError(error: Error): State {
     return { error };
+  }
+
+  componentDidUpdate(prev: Props): void {
+    if (this.state.error && prev.resetKey !== this.props.resetKey) this.setState({ error: null });
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {

@@ -15,7 +15,7 @@ import type { UserAccess, UserRole } from '../models/user.model.js';
 import type { OverviewMonth, PlatformMetrics, PlatformSummary, PortfolioOverview } from '../types/platforms.js';
 import { dayExpr } from '../utils/bingDate.js';
 import { isoDay } from '../utils/dateRange.js';
-import { facebookAdScope, hasPlatformAccess } from './access.service.js';
+import { facebookScope, hasPlatformAccess } from './access.service.js';
 import { getFbStatistics, reportAggregate } from './fbStatistics.service.js';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -49,12 +49,12 @@ const dayRange = (p: Period) => ({ $gte: new Date(`${p.from}T00:00:00Z`), $lte: 
 // Facebook
 // ---------------------------------------------------------------------------
 async function facebookMetrics(user: { role: UserRole; access: UserAccess }, p: Period): Promise<PlatformMetrics> {
-  const allowedAds = await facebookAdScope(user);
-  if (allowedAds && allowedAds.length === 0) {
+  const scope = await facebookScope(user);
+  if (scope.allowedGroups && scope.allowedGroups.length === 0) {
     return metrics({ spend: 0, revenue: 0, activeAds: 0, dataThrough: null });
   }
   const [stats, [last]] = await Promise.all([
-    getFbStatistics({ range: 'this_month', from: p.from, to: p.to, allowedAds }),
+    getFbStatistics({ range: 'this_month', from: p.from, to: p.to, ...scope }),
     reportAggregate<{ d: Date }>([
       { $match: { report_date: { $type: 'date', $gte: new Date(`${p.from}T00:00:00Z`), $lte: new Date(`${p.to}T23:59:59.999Z`) } } },
       { $group: { _id: null, d: { $max: '$report_date' } } },

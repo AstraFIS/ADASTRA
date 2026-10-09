@@ -1,0 +1,37 @@
+[
+ {
+  "provider_name": "Ad_Terminal",
+  "fee_pct": 7.53,
+  "is_default": false
+ },
+ {
+  "provider_name": "GrossGif",
+  "fee_pct": 7.0,
+  "is_default": false
+ },
+ {
+  "provider_name": "FB_Healer",
+  "fee_pct": 8.0,
+  "is_default": false
+ },
+ {
+  "provider_name": "2B_Agency",
+  "fee_pct": 7.53,
+  "is_default": false
+ },
+ {
+  "provider_name": "Ad_Term_White",
+  "fee_pct": 4.17,
+  "is_default": false
+ },
+ {
+  "provider_name": "BlueGlow",
+  "fee_pct": 6.38,
+  "is_default": false
+ },
+ {
+  "provider_name": "Jack_WH",
+  "fee_pct": 4.71,
+  "is_default": false
+ }
+]

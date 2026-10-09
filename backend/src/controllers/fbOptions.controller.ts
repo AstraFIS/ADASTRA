@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { FACEBOOK_ACCESS_GROUPS } from '../models/adAccess.model.js';
-import { facebookAdScope } from '../services/access.service.js';
+import { facebookScope } from '../services/access.service.js';
 import { getFbOptions } from '../services/fbOptions.service.js';
 
 const emptyToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
@@ -15,5 +15,5 @@ const querySchema = z.object({
  */
 export async function getOptions(req: Request, res: Response): Promise<void> {
   const { group } = querySchema.parse(req.query);
-  res.json(await getFbOptions(await facebookAdScope(req.user!, group)));
+  res.json(await getFbOptions(await facebookScope(req.user!, group)));
 }

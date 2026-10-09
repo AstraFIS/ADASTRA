@@ -6,12 +6,13 @@ import PlatformTabs from '@/components/PlatformTabs';
 import RevenueSpendChart from '@/components/RevenueSpendChart';
 import StatCard from '@/components/StatCard';
 import { api } from '@/lib/api';
+import { normalizeOverview } from '@/lib/apiCompat';
 import { formatCurrency, formatPercent, joinNames } from '@/lib/format';
 import type { PortfolioOverview } from '@/types/platforms';
 
 type State =
   | { kind: 'loading'; previous: PortfolioOverview | null }
-  | { kind: 'ok'; data: PortfolioOverview; at: Date }
+  | { kind: 'ok'; data: PortfolioOverview; at: Date; outdated: boolean }
   | { kind: 'error'; message: string };
 
 /** Live numbers: refetch this often while the page is open, and whenever the tab comes back into view. */
@@ -28,10 +29,12 @@ export default function HomePage() {
     (quiet = false) => {
       if (!quiet) setState({ kind: 'loading', previous: lastOk.current });
       api
-        .get<PortfolioOverview>(`/platforms/overview${month ? `?month=${encodeURIComponent(month)}` : ''}`)
-        .then((data) => {
+        .get<unknown>(`/platforms/overview${month ? `?month=${encodeURIComponent(month)}` : ''}`)
+        .then((raw) => {
+          // tolerate an older / newer backend: missing fields get safe defaults instead of crashing the page
+          const { data, outdated } = normalizeOverview(raw);
           lastOk.current = data;
-          setState({ kind: 'ok', data, at: new Date() });
+          setState({ kind: 'ok', data, at: new Date(), outdated });
         })
         .catch((err: unknown) => {
           // a failed background refresh keeps the numbers already on screen
@@ -84,29 +87,18 @@ export default function HomePage() {
   const busy = state.kind === 'loading';
 
   const { client, portfolio, totals, platforms, period, months } = data;
-  const monthOptions = Array.isArray(months) ? months : [];
-  const currentMonth = period?.current_month ?? new Date().toISOString().slice(0, 7);
-  const selectedMonth =
-    period?.month ?? (/^\d{4}-(0[1-9]|1[0-2])$/.test(month) ? month : currentMonth);
-  const periodLabel =
-    period?.label ??
-    monthOptions.find((item) => item.value === selectedMonth)?.label ??
-    new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
-      new Date(`${selectedMonth}-01T00:00:00Z`),
-    );
-  const isCurrentPeriod = period?.is_current ?? selectedMonth === currentMonth;
   const live = platforms.filter((p) => p.connected && p.metrics);
   const pending = platforms.filter((p) => !p.connected).map((p) => p.name);
   const liveNames = live.map((p) => (p.id === 'microsoft' ? 'Bing' : p.name));
 
   const subtitle = [
-    live.length > 0 && `Live totals from ${joinNames(liveNames)} for ${periodLabel}.`,
+    live.length > 0 && `Live totals from ${joinNames(liveNames)} for ${period.label}.`,
     pending.length > 0 && `${joinNames(pending)} ${pending.length === 1 ? 'is' : 'are'} not connected yet.`,
   ]
     .filter(Boolean)
     .join(' ');
 
-  const caption = `${periodLabel} · ${joinNames(liveNames) || 'no platforms'}`;
+  const caption = `${period.label} · ${joinNames(liveNames) || 'no platforms'}`;
   const roas = totals.spend > 0 ? totals.netProfit / totals.spend : null;
   const updated = state.kind === 'ok' ? state.at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
 
@@ -126,20 +118,30 @@ export default function HomePage() {
             id="overview-month"
             label="Month"
             hideLabel
-            value={selectedMonth}
-            options={monthOptions.map((m) => ({
+            value={period.month}
+            options={months.map((m) => ({
               value: m.value,
-              label: m.value === currentMonth ? `${m.label} (this month)` : m.label,
+              label: m.value === period.current_month ? `${m.label} (this month)` : m.label,
             }))}
-            onChange={(v) => selectMonth(v, currentMonth)}
+            onChange={(v) => selectMonth(v, period.current_month)}
             className="w-full sm:w-auto sm:min-w-[240px]"
           />
           <p className="text-xs text-ink-3">
-            {isCurrentPeriod ? 'Follows the current month automatically' : 'Past month'}
+            {period.is_current ? 'Follows the current month automatically' : 'Past month'}
             {updated && ` · updated ${updated}`}
           </p>
         </div>
       </header>
+
+      {state.kind === 'ok' && state.outdated && (
+        <div role="status" className="rounded-xl border border-spend/40 bg-surface p-4 text-sm text-ink-2">
+          <p className="font-semibold text-spend">The backend is running an older version</p>
+          <p className="mt-1">
+            The month filter and live totals need the latest backend. Redeploy the <b>backend</b> project on Vercel and
+            check that its build finished as <b>Ready</b>.
+          </p>
+        </div>
+      )}
 
       <PlatformTabs platforms={platforms} />
 

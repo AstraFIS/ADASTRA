@@ -87,9 +87,10 @@ try {
         `(replaces ${existing} existing)`,
     );
     if (APPLY) {
+      // drop indexes the schema no longer defines before inserting, so a leftover unique index cannot reject rows
+      await model.syncIndexes();
       await model.deleteMany(filter);
       await model.insertMany(docs, { ordered: false });
-      await model.syncIndexes();
       console.log(`    → imported`);
     }
   }

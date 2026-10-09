@@ -20,7 +20,7 @@ interface Props {
 export default function GeoDeviceSection({ data, busy = false, error = null, caption, id = 'geo-heading' }: Props) {
   const [metricKey, setMetricKey] = useState<SegmentMetricKey>('first_page_views');
   const metric = SEGMENT_METRICS.find((m) => m.key === metricKey) ?? SEGMENT_METRICS[0]!;
-  const empty = data !== null && data.meta.report_rows === 0;
+  const empty = data !== null && (data?.meta?.report_rows ?? 0) === 0;
 
   return (
     <section
@@ -68,7 +68,7 @@ export default function GeoDeviceSection({ data, busy = false, error = null, cap
           <SegmentCard
             title="Users by Country / Region"
             caption={caption}
-            segments={data?.by_region ?? []}
+            segments={Array.isArray(data?.by_region) ? data.by_region : []}
             metric={metric}
             color="var(--color-revenue)"
             empty={empty}
@@ -76,7 +76,7 @@ export default function GeoDeviceSection({ data, busy = false, error = null, cap
           <SegmentCard
             title="Users by Device"
             caption={caption}
-            segments={data?.by_device ?? []}
+            segments={Array.isArray(data?.by_device) ? data.by_device : []}
             metric={metric}
             color="var(--color-spend)"
             empty={empty}

@@ -45,6 +45,7 @@ export default function SegmentCard<T extends SegmentLike>({
   height = 220,
   hideZero = false,
 }: Props<T>) {
+  segments = Array.isArray(segments) ? segments : [];
   const value = (s: T) => Number((s as unknown as Record<string, unknown>)[metric.key]) || 0;
   // biggest first, "Unknown" always last
   const ranked = [...segments].filter((s) => !hideZero || value(s) !== 0).sort((a, b) => Number(isUnknown(a)) - Number(isUnknown(b)) || value(b) - value(a));

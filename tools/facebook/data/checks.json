@@ -1,0 +1,22 @@
+{
+ "facebook_rows_in": 5393,
+ "facebook_ad_reports": 5103,
+ "spend_in": 12502.05,
+ "spend_out": 12502.05,
+ "link_clicks_out": 9781,
+ "impressions_out": 229302,
+ "facebook_conversions": 937,
+ "events": 8811,
+ "revenue": 4950.0,
+ "revenue_matched_to_fb_day_and_ad": 4500.0,
+ "providers": 7,
+ "spend_without_provider (counted, no fee)": 2987.07,
+ "facebook_dates": [
+  "05/08/2026",
+  "06/10/2026"
+ ],
+ "partner_dates": [
+  "14/08/2026",
+  "04/10/2026"
+ ]
+}

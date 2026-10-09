@@ -1,7 +1,9 @@
 import { AdAccess, type FacebookAccessGroup } from '../models/adAccess.model.js';
 import { AdCreative } from '../models/adCreative.model.js';
 import { AdTaxonomy, type TaxonomyData, type TaxonomySource } from '../models/adTaxonomy.model.js';
-import { reportAggregate, textValues } from './fbStatistics.service.js';
+import { FacebookAdReport2 } from '../models/facebookAdReport.model.js';
+import { FacebookConversion } from '../models/facebookConversion.model.js';
+import { NO_AD_NAME, num, reportAggregate, textValues } from './fbStatistics.service.js';
 
 /** Links saved from the admin page. null = no override; "" = cleared on purpose. */
 export interface AdLinks {
@@ -79,7 +81,8 @@ export async function listAdAssignments(): Promise<AdAssignment[]> {
   }
 
   const reportedNames = new Set(
-    reported.map((r) => (r._id ?? '').trim()).filter((v) => v !== '' && v !== 'null'),
+    // rows without an ad name are grouped row by row (listUnnamedRows), not as one "ad"
+    reported.map((r) => (r._id ?? '').trim()).filter((v) => v !== '' && v !== 'null' && v !== NO_AD_NAME),
   );
   const all = new Set([...reportedNames, ...groupByAd.keys(), ...linksByAd.keys(), ...taxonomyByAd.keys()]);
 
@@ -189,4 +192,112 @@ export async function saveAdTaxonomies(items: AdTaxonomyInput[]): Promise<number
 export async function getAdTaxonomy(adName: string): Promise<SavedTaxonomy | null> {
   const row = await AdTaxonomy.findOne({ ad_name: adName }).lean();
   return row ? toSavedTaxonomy(row) : null;
+}
+
+// ---------------------------------------------------------------------------
+// Rows without an ad name: their group is set on the rows themselves
+// (access_group), since there is no ad name to look up in ad_access.
+// ---------------------------------------------------------------------------
+
+export type RowSource = 'facebook' | 'partner';
+
+/** One day × source × offer bucket of unnamed rows (or rows given a group by hand). */
+export interface UnnamedRowBucket {
+  key: string;
+  source: RowSource;
+  date: string | null; // YYYY-MM-DD
+  adName: string;
+  offer: string | null;
+  subIds: string[];
+  group: string | null;
+  ids: string[];
+  rows: number;
+  spend: number;
+  revenue: number;
+  events: number;
+  purchases: number;
+}
+
+const EVENT_COLUMNS = [
+  'presell_visits',
+  'first_page_views',
+  'questionnaire_starts',
+  'questionnaire_completed',
+  'add_to_carts',
+  'purchase_events',
+];
+
+/** Rows without an ad name, plus any row that already has its own group, newest first. */
+export async function listUnnamedRows(): Promise<UnnamedRowBucket[]> {
+  const rows = await reportAggregate<{
+    _id: { source: RowSource; day: Date | null; ad: string; offer: string | null; group: string | null };
+    ids: unknown[];
+    subIds: (string | null)[];
+    rows: number;
+    spend: number;
+    revenue: number;
+    events: number;
+    purchases: number;
+  }>([
+    { $match: { $or: [{ ad_name: NO_AD_NAME }, { access_group: { $nin: [null, ''] } }] } },
+    {
+      $group: {
+        _id: {
+          source: { $ifNull: ['$_source', 'facebook'] },
+          day: '$report_date',
+          ad: { $toString: '$ad_name' },
+          offer: { $ifNull: ['$offer_name', null] },
+          group: { $ifNull: ['$access_group', null] },
+        },
+        ids: { $push: '$_id' },
+        subIds: { $addToSet: { $ifNull: ['$sub_id', null] } },
+        rows: { $sum: 1 },
+        spend: { $sum: num('spend_usd') },
+        revenue: { $sum: num('revenue_usd') },
+        events: { $sum: { $add: EVENT_COLUMNS.map((c) => num(c)) } },
+        purchases: { $sum: num('purchase_events') },
+      },
+    },
+    { $sort: { '_id.day': -1, '_id.source': 1 } },
+    { $limit: 1000 },
+  ]);
+  return rows.map((r) => {
+    const date = r._id.day instanceof Date ? r._id.day.toISOString().slice(0, 10) : null;
+    const group = r._id.group ? String(r._id.group) : null;
+    return {
+      key: [r._id.source, date, r._id.ad, r._id.offer, group].join('|'),
+      source: r._id.source,
+      date,
+      adName: r._id.ad,
+      offer: r._id.offer,
+      subIds: r.subIds.filter((s): s is string => typeof s === 'string' && s.trim() !== ''),
+      group,
+      ids: r.ids.map(String),
+      rows: r.rows,
+      spend: Math.round(r.spend * 100) / 100,
+      revenue: Math.round(r.revenue * 100) / 100,
+      events: Math.round(r.events),
+      purchases: Math.round(r.purchases),
+    };
+  });
+}
+
+export interface RowGroupInput {
+  source: RowSource;
+  ids: string[];
+  /** null clears the row's own group (it then follows ad_access by ad name again). */
+  group: FacebookAccessGroup | null;
+}
+
+/** Sets (or clears) access_group on the given report / partner rows. Returns the rows changed. */
+export async function saveRowGroups(items: RowGroupInput[]): Promise<number> {
+  let changed = 0;
+  for (const item of items) {
+    if (item.ids.length === 0) continue;
+    const model = (item.source === 'partner' ? FacebookConversion : FacebookAdReport2) as unknown as typeof FacebookConversion;
+    const update = item.group ? { $set: { access_group: item.group } } : { $unset: { access_group: 1 } };
+    const res = await model.updateMany({ _id: { $in: item.ids } }, update);
+    changed += res.modifiedCount;
+  }
+  return changed;
 }
