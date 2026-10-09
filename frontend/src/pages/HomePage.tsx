@@ -84,12 +84,13 @@ export default function HomePage() {
   const busy = state.kind === 'loading';
 
   const { client, portfolio, totals, platforms, period, months } = data;
+  const monthOptions = Array.isArray(months) ? months : [];
   const currentMonth = period?.current_month ?? new Date().toISOString().slice(0, 7);
   const selectedMonth =
     period?.month ?? (/^\d{4}-(0[1-9]|1[0-2])$/.test(month) ? month : currentMonth);
   const periodLabel =
     period?.label ??
-    months.find((item) => item.value === selectedMonth)?.label ??
+    monthOptions.find((item) => item.value === selectedMonth)?.label ??
     new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
       new Date(`${selectedMonth}-01T00:00:00Z`),
     );
@@ -126,7 +127,7 @@ export default function HomePage() {
             label="Month"
             hideLabel
             value={selectedMonth}
-            options={months.map((m) => ({
+            options={monthOptions.map((m) => ({
               value: m.value,
               label: m.value === currentMonth ? `${m.label} (this month)` : m.label,
             }))}
