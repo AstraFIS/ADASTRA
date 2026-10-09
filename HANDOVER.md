@@ -12,8 +12,8 @@ overview) so far shows the partner conversion export only — see "How data flow
 
 | Part | Stack | Where |
 |---|---|---|
-| `backend/` | Express 5 + TypeScript 7, Mongoose 9, zod, JWT auth | Vercel serverless (`api/index.ts` wraps the Express app) — https://adastra-backend-black.vercel.app |
-| `frontend/` | React 19 + Vite 8 + Tailwind 4, react-router 7 | Vercel static SPA — https://adastra-frontend.vercel.app |
+| `backend/` | Express 5 + TypeScript 7, Mongoose 9, zod, JWT auth | Vercel serverless (`api/index.ts` wraps the Express app) — https://adastra-ten.vercel.app |
+| `frontend/` | React 19 + Vite 8 + Tailwind 4, react-router 7 | Vercel static SPA — https://adastra-gi2n.vercel.app |
 | Database | MongoDB Atlas, database `adastra` | connection string in `backend/src/config/settings.ts` |
 
 Repo: `github.com/Vuqar111/ADASTRA` (npm workspaces: root `package.json` runs both).

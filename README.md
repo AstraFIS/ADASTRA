@@ -97,7 +97,7 @@ A second Vercel project, from the same GitHub repository:
 - **Build Command** `npm run build` (type-check + `vite build`), **Output Directory** `dist`
 - **Environment variables**: none required. Production builds call
   `PRODUCTION_API_URL` in `frontend/src/config.ts`
-  (`https://adastra-backend-black.vercel.app/api`); set `VITE_API_URL` only to point at a different backend.
+  (`https://adastra-ten.vercel.app/api`); set `VITE_API_URL` only to point at a different backend.
 
 Both projects redeploy automatically on every push to `main`. Before pushing, run
 `npm run typecheck && npm run build` at the repository root — Vercel runs the same
