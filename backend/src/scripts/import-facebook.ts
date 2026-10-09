@@ -2,8 +2,7 @@
  * Loads the three Facebook collections from the JSON files written by
  * tools/facebook/build_facebook.py:
  *
- *   facebook_ad_reports_2.json → facebook_ad_reports_2 (Facebook Ads export: spend, delivery;
- *                                the older facebook_ad_reports collection is never touched)
+ *   facebook_ad_reports.json   → facebook_ad_reports   (Facebook Ads export: spend, delivery)
  *   facebook_conversions.json  → facebook_conversions  (partner events: funnel + revenue)
  *   facebook_providers.json    → facebook_providers    (provider fee %, one default)
  *
@@ -12,8 +11,8 @@
  * so re-importing an updated export never duplicates rows; other days are kept.
  * Providers are upserted by name. A missing file is skipped.
  *
- * The dashboard reads facebook_ad_reports_2 + facebook_conversions + facebook_providers
- * (see BLENDED_REPORT_ROWS); the older facebook_ad_reports collection is never read or written.
+ * The dashboard reads facebook_ad_reports + facebook_conversions + facebook_providers
+ * (see BLENDED_REPORT_ROWS).
  *
  *   npm run import:facebook -w backend -- <folder>            # dry run
  *   npm run import:facebook -w backend -- <folder> --apply
@@ -24,7 +23,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Model } from 'mongoose';
 import { connectDb, disconnectDb } from '../config/db.js';
-import { FacebookAdReport2 } from '../models/facebookAdReport.model.js';
+import { FacebookAdReport } from '../models/facebookAdReport.model.js';
 import { FacebookConversion } from '../models/facebookConversion.model.js';
 import { FacebookProvider } from '../models/facebookProvider.model.js';
 import { dayExpr, parseDayMonthYear } from '../utils/bingDate.js';
@@ -114,7 +113,7 @@ try {
 
   // ---- report rows and partner events: replace by date span ----
   const jobs = [
-    { file: 'facebook_ad_reports_2.json', model: FacebookAdReport2 as unknown as AnyModel, field: 'report_date' },
+    { file: 'facebook_ad_reports.json', model: FacebookAdReport as unknown as AnyModel, field: 'report_date' },
     { file: 'facebook_conversions.json', model: FacebookConversion as unknown as AnyModel, field: 'event_date' },
   ];
   for (const job of jobs) {

@@ -275,17 +275,6 @@ export const FacebookAdReport = model<IFacebookAdReport, FacebookAdReportModel>(
   facebookAdReportSchema,
 );
 
-/**
- * The newer Facebook Ads export, same shape as facebook_ad_reports, kept in its own
- * collection so the older data stays untouched. This is the collection the dashboard reads
- * (with facebook_conversions and facebook_providers) — see BLENDED_REPORT_ROWS in
- * fbStatistics.service.ts. facebook_ad_reports is kept as a backup and not read.
- */
-export const FacebookAdReport2 = model<IFacebookAdReport, FacebookAdReportModel>(
-  'FacebookAdReport2',
-  facebookAdReportSchema.clone(),
-  'facebook_ad_reports_2',
-);
 
 const isoDay = (d: Date) => d.toISOString().slice(0, 10);
 

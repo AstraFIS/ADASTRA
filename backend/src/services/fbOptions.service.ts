@@ -1,5 +1,5 @@
 import type { FacebookScope } from './access.service.js';
-import { FacebookAdReport2 } from '../models/facebookAdReport.model.js';
+import { FacebookAdReport } from '../models/facebookAdReport.model.js';
 import type { DateRangeOption } from '../types/facebook.js';
 import { DATE_RANGE_OPTIONS, isoDay } from '../utils/dateRange.js';
 import { latestReportDate, reportAggregate, reportBaseMatch, type ReportFilter } from './fbStatistics.service.js';
@@ -40,7 +40,7 @@ export async function getFbOptions(scope: FacebookScope): Promise<FbOptionsResul
     distinctText('offer_name', match),
     distinctText('provider_name', match),
     latestReportDate({}),
-    allowedAds ? countRows(match) : FacebookAdReport2.estimatedDocumentCount(),
+    allowedAds ? countRows(match) : FacebookAdReport.estimatedDocumentCount(),
   ]);
   return {
     dateRanges: DATE_RANGE_OPTIONS,

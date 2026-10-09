@@ -1,6 +1,6 @@
 """Facebook raw exports -> the three MongoDB collections the Facebook page reads.
 
-  facebook_ad_reports_2.json Facebook Ads export (the older facebook_ad_reports collection is left untouched): one row per day x campaign x ad set x ad x gender x age
+  facebook_ad_reports.json Facebook Ads export: one row per day x campaign x ad set x ad x gender x age
                              (spend, delivery; funnel counts are 0 here - they come from the partner)
   facebook_conversions.json  Partner export: one row per day x ad x event (counts + revenue, device, geo)
   facebook_providers.json    Provider fee table: provider + fee %
@@ -171,7 +171,7 @@ def main() -> None:
             'add_to_carts': 0, 'purchase_events': 0, 'conversions': 0, 'revenue_usd': 0,
         })
 
-    for name, docs in [('facebook_ad_reports_2', reports), ('facebook_conversions', conversions), ('facebook_providers', providers)]:
+    for name, docs in [('facebook_ad_reports', reports), ('facebook_conversions', conversions), ('facebook_providers', providers)]:
         (out / f'{name}.json').write_text(json.dumps(docs, ensure_ascii=False, indent=1))
 
     # ---------------- checks ----------------

@@ -1,5 +1,5 @@
 import type { PipelineStage } from 'mongoose';
-import { FacebookAdReport2 } from '../models/facebookAdReport.model.js';
+import { FacebookAdReport } from '../models/facebookAdReport.model.js';
 import { FacebookProvider } from '../models/facebookProvider.model.js';
 import type { DateRangeKey } from '../types/facebook.js';
 import { dayExpr } from '../utils/bingDate.js';
@@ -174,12 +174,11 @@ const PROVIDER_FEE_STAGES: PipelineStage[] = [
 
 /**
  * Report rows as every endpoint sees them:
- *  1. facebook_ad_reports_2 (the Facebook Ads export) with report_date normalised to a Date
+ *  1. facebook_ad_reports (the Facebook Ads export) with report_date normalised to a Date
  *     (stored as a Date or as "DD/MM/YYYY" text) and the provider fee % taken from
  *     facebook_providers — rows without a provider count as spend with no fee;
  *  2. plus facebook_conversions (partner events: funnel + revenue, see PARTNER_ROWS),
  *     joined to the Facebook rows on day + ad name by the grouping of each endpoint.
- * The older facebook_ad_reports collection is not read (it stays in the database untouched).
  */
 export const BLENDED_REPORT_ROWS: PipelineStage[] = [
   { $addFields: { report_date: REPORT_DATE, provider_name: PROVIDER_NAME } },
@@ -190,11 +189,11 @@ export const BLENDED_REPORT_ROWS: PipelineStage[] = [
 ];
 
 /**
- * Aggregate over the blended report rows (facebook_ad_reports_2 + partner events, provider
+ * Aggregate over the blended report rows (facebook_ad_reports + partner events, provider
  * fees from the provider table). Use this instead of a model's own aggregate().
  */
 export function reportAggregate<T>(pipeline: PipelineStage[]) {
-  return FacebookAdReport2.aggregate<T>([...BLENDED_REPORT_ROWS, ...pipeline]);
+  return FacebookAdReport.aggregate<T>([...BLENDED_REPORT_ROWS, ...pipeline]);
 }
 
 /**

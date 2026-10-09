@@ -4,17 +4,15 @@ The Facebook page reads these collections and blends them live on every request:
 
 | Collection | Source | One document = |
 |---|---|---|
-| `facebook_ad_reports_2` | Facebook Ads export (new) | day × campaign × ad set × ad × gender × age: spend, impressions, clicks, landing page views, provider |
-| `facebook_ad_reports` | older data — kept in MongoDB as a backup, **not read** by the dashboard | as stored |
+| `facebook_ad_reports` | Facebook Ads export | day × campaign × ad set × ad × gender × age: spend, impressions, clicks, landing page views, provider |
 | `facebook_conversions` | Partner export | day × ad × event: count, revenue, device, geo |
 | `facebook_providers` | Provider fee sheet | provider + fee % |
 
 `reportAggregate()` in `backend/src/services/fbStatistics.service.ts` takes the
-`facebook_ad_reports_2` rows, sets each row's fee % from `facebook_providers` (rows without a
+`facebook_ad_reports` rows, sets each row's fee % from `facebook_providers` (rows without a
 provider count as spend with no fee), and adds the partner events from `facebook_conversions` as
 extra rows (funnel + revenue, no spend). Every Facebook endpoint aggregates those rows, so spend
 comes from Facebook and the funnel and revenue from the partner, joined on **day + ad name**.
-The older `facebook_ad_reports` collection is not used.
 
 ## Updating the data
 
