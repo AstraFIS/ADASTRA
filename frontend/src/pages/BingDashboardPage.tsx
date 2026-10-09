@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import AudienceCard from '@/components/AudienceCard';
-import BingFunnelTable from '@/components/BingFunnelTable';
+import BingGeoSection from '@/components/BingGeoSection';
+import BingFunnelTable, { type BingTableView } from '@/components/BingFunnelTable';
 import ChartLegend from '@/components/ChartLegend';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import FilterSelect from '@/components/FilterSelect';
 import LineChart from '@/components/LineChart';
 import StatCard from '@/components/StatCard';
 import { api } from '@/lib/api';
-import { formatCurrency, formatDate, formatDayMonth, formatInteger, formatPercent } from '@/lib/format';
+import { formatCompactCurrency, formatCurrency, formatDate, formatDayMonth, formatInteger, formatPercent } from '@/lib/format';
 import type { BingDashboard } from '@/types/bing';
 
 type State =
@@ -16,34 +16,37 @@ type State =
   | { kind: 'ok'; data: BingDashboard }
   | { kind: 'error'; message: string };
 
-type TableView = 'date' | 'offer';
+type FilterKey = 'range' | 'offer' | 'campaign';
 
 const ALL = '';
 const DEFAULT_RANGE = 'all_time';
+const AD_GROUP_LIMIT = 25;
 
 const REVENUE_COLOR = 'var(--color-revenue)';
 const PROFIT_COLOR = 'var(--color-violet)';
 const LOSS_COLOR = 'var(--color-loss)';
-const AGE_COLOR = 'var(--color-azure)';
-const GENDER_COLOR = 'var(--color-spend)';
 
-const TABLE_VIEWS: { key: TableView; label: string }[] = [
+const TABLE_VIEWS: { key: BingTableView; label: string }[] = [
+  { key: 'offer', label: 'By Offer' },
+  { key: 'ad_group', label: 'By Ad Group' },
   { key: 'date', label: 'By Date' },
-  { key: 'offer', label: 'By Offer (summed)' },
 ];
 
 // an exact zero reads as "$0" / "0%" on the tiles rather than "$0.00" / "0.00%"
 const money = (value: number) => (value === 0 ? '$0' : formatCurrency(value));
-const percent = (value: number, digits: number) => (value === 0 ? '0%' : formatPercent(value / 100, digits));
+const percent = (value: number | null, digits: number) =>
+  value === null ? '—' : value === 0 ? '0%' : formatPercent(value / 100, digits);
 
 export default function BingDashboardPage() {
   const [params, setParams] = useSearchParams();
   const range = params.get('range') ?? DEFAULT_RANGE;
   const offer = params.get('offer') ?? ALL;
+  const campaign = params.get('campaign') ?? ALL;
 
   const [state, setState] = useState<State>({ kind: 'loading', previous: null });
   const [reloadKey, setReloadKey] = useState(0);
-  const [view, setView] = useState<TableView>('date');
+  const [view, setView] = useState<BingTableView>('offer');
+  const [showAllGroups, setShowAllGroups] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,6 +54,7 @@ export default function BingDashboardPage() {
 
     const qs = new URLSearchParams({ range });
     if (offer) qs.set('offer', offer);
+    if (campaign) qs.set('campaign', campaign);
 
     api
       .get<BingDashboard>(`/platforms/microsoft/dashboard?${qs.toString()}`)
@@ -58,16 +62,14 @@ export default function BingDashboardPage() {
         if (!cancelled) setState({ kind: 'ok', data });
       })
       .catch((err: unknown) => {
-        if (!cancelled) {
-          setState({ kind: 'error', message: err instanceof Error ? err.message : 'Unknown error' });
-        }
+        if (!cancelled) setState({ kind: 'error', message: err instanceof Error ? err.message : 'Unknown error' });
       });
     return () => {
       cancelled = true;
     };
-  }, [range, offer, reloadKey]);
+  }, [range, offer, campaign, reloadKey]);
 
-  function setFilter(key: 'range' | 'offer', value: string) {
+  function setFilter(key: FilterKey, value: string) {
     const next = new URLSearchParams(params);
     if (value === ALL || (key === 'range' && value === DEFAULT_RANGE)) next.delete(key);
     else next.set(key, value);
@@ -96,21 +98,21 @@ export default function BingDashboardPage() {
 
   const busy = state.kind === 'loading';
   const { statistics: kpi, daily, funnel, meta, filters, options } = data;
+  const empty = meta.ad_rows === 0 && meta.conversion_rows === 0;
 
-  const periodCaption = 'across all ads · selected period';
-  const roasCaption = `${percent(kpi.roas_pct ?? 0, 1)} ROAS · ${periodCaption}`;
-  const trendCaption = `${data.range.label} · ${filters.offer ?? 'all offers'}`;
+  const scope = [filters.campaign ?? 'all campaigns', filters.offer ?? 'all offers'].join(' · ');
+  const keep = (list: string[], current: string | null) => (current && !list.includes(current) ? [current, ...list] : list);
 
-  // keep the current selection selectable even if it's not listed
-  const offerOptions =
-    filters.offer && !options.offers.includes(filters.offer) ? [filters.offer, ...options.offers] : options.offers;
+  const rowsAll = view === 'date' ? funnel.by_date : view === 'offer' ? funnel.by_offer : funnel.by_ad_group;
+  const rows = view === 'ad_group' && !showAllGroups ? rowsAll.slice(0, AD_GROUP_LIMIT) : rowsAll;
 
-  const rows = view === 'date' ? funnel.by_date : funnel.by_offer;
-  const spendPending = rows.some((r) => r.spend_usd === null);
-  const partnerSource = `your partner conversion export${meta.partner_period ? ` (${meta.partner_period})` : ''}`;
+  const totalRevenue = daily.reduce((s, d) => s + (d.revenue_usd ?? 0), 0);
+  const totalGross = daily.reduce((s, d) => s + (d.gross_profit_usd ?? 0), 0);
+  const profitableDays = daily.filter((d) => (d.gross_profit_usd ?? 0) > 0).length;
+  const pendingDays = daily.filter((d) => d.revenue_usd === null || d.spend_usd === null);
 
   return (
-    <div className={`space-y-8 transition-opacity ${busy ? 'opacity-60' : ''}`} aria-busy={busy}>
+    <div className={`space-y-6 transition-opacity ${busy ? 'opacity-60' : ''}`} aria-busy={busy}>
       <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-5">
         <div>
           <p className="text-sm font-medium uppercase tracking-[0.12em] text-ink-3">Bing Ads</p>
@@ -125,197 +127,220 @@ export default function BingDashboardPage() {
             value={data.range.key}
             options={options.date_ranges.map((r) => ({ value: r.key, label: r.label }))}
             onChange={(v) => setFilter('range', v)}
-            className="w-full sm:w-auto sm:min-w-[300px]"
+            className="w-full sm:w-auto sm:min-w-[260px]"
+          />
+          <FilterSelect
+            id="campaign"
+            label="Filter by Campaign"
+            hideLabel
+            value={filters.campaign ?? ALL}
+            options={[{ value: ALL, label: 'All Campaigns' }, ...keep(options.campaigns, filters.campaign).map((c) => ({ value: c, label: c }))]}
+            onChange={(v) => setFilter('campaign', v)}
+            className="w-full sm:w-auto sm:min-w-[220px]"
           />
           <FilterSelect
             id="offer"
             label="Filter by Offer"
             hideLabel
             value={filters.offer ?? ALL}
-            options={[{ value: ALL, label: 'All Offers' }, ...offerOptions.map((o) => ({ value: o, label: o }))]}
+            options={[{ value: ALL, label: 'All Offers' }, ...keep(options.offers, filters.offer).map((o) => ({ value: o, label: o }))]}
             onChange={(v) => setFilter('offer', v)}
-            className="w-full sm:w-auto sm:min-w-[460px] sm:flex-1"
+            className="w-full sm:w-auto sm:min-w-[340px] sm:flex-1"
           />
         </section>
       </header>
 
-      <section
-        aria-label="Key metrics"
-        className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4 3xl:grid-cols-7"
-      >
-        <StatCard
-          size="md"
-          tone="accent"
-          label="Total Revenue"
-          value={money(kpi.total_revenue)}
-          caption={periodCaption}
-        />
-        <StatCard
-          size="md"
-          tone="accent"
-          label="Total Amount Spent"
-          value={money(kpi.total_amount_spend)}
-          caption={periodCaption}
-        />
-        <StatCard
-          size="md"
-          tone="accent"
-          label="Net Profit / ROAS"
-          value={money(kpi.net_profit)}
-          caption={roasCaption}
-        />
-        <StatCard
-          size="md"
-          tone="accent"
-          label="Landing Page Views"
-          value={formatInteger(kpi.landing_page_views)}
-          caption="across all ads"
-        />
-        <StatCard
-          size="md"
-          tone="accent"
-          label="Link Clicks"
-          value={formatInteger(kpi.link_clicks)}
-          caption="across all ads"
-        />
-        <StatCard
-          size="md"
-          tone="accent"
-          label="CPC (All)"
-          value={money(kpi.cpc ?? 0)}
-          caption="blended, spend ÷ link clicks"
-        />
-        <StatCard
-          size="md"
-          tone="accent"
-          label="CTR (All)"
-          value={percent(kpi.ctr ?? 0, 2)}
-          caption="weighted by link clicks"
-        />
-      </section>
+      {empty ? (
+        <div className="rounded-xl border border-line bg-surface p-8 text-sm text-ink-2">
+          No Bing data in the database yet. Load the two collections (<code>bing_ad_reports</code> and{' '}
+          <code>bing_conversions</code>) with <code>npm run import:bing -w backend -- &lt;folder&gt; --apply</code>.
+        </div>
+      ) : (
+        <>
+          <section aria-label="Key metrics" className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
+            <StatCard size="sm" tone="revenue" label="Revenue" value={money(kpi.total_revenue)} caption={`${kpi.purchases} purchases`} />
+            <StatCard
+              size="sm"
+              tone="spend"
+              label="Amount Spent"
+              value={money(kpi.total_amount_spend)}
+              caption={kpi.spend_estimated ? 'est. share of landing page' : 'Bing Ads'}
+            />
+            <StatCard
+              size="sm"
+              tone={kpi.net_profit < 0 ? 'loss' : 'revenue'}
+              label="Net Profit"
+              value={money(kpi.net_profit)}
+              caption={`ROAS ${percent(kpi.roas_pct, 1)}`}
+              captionTone={kpi.roas_pct === null ? 'default' : kpi.roas_pct < 0 ? 'bad' : 'good'}
+            />
+            <StatCard size="sm" label="CAC" value={kpi.cac === null ? '—' : formatCurrency(kpi.cac)} caption="spend ÷ purchases" />
+            <StatCard size="sm" label="LP Views" value={formatInteger(kpi.landing_page_views)} caption="partner landing page views" />
+            <StatCard size="sm" label="Clicks" value={formatInteger(kpi.link_clicks)} caption={`CTR ${percent(kpi.ctr, 2)}`} />
+            <StatCard size="sm" label="CPC" value={kpi.cpc === null ? '—' : formatCurrency(kpi.cpc)} caption="spend ÷ clicks" />
+          </section>
 
-      {meta.ad_rows === 0 && (
-        <p className="-mt-4 text-sm text-ink-3">
-          No Bing Ads spend / impression data for this selection yet — the tiles show zero until that export is
-          added. Partner-tracked clicks and funnel stages are in the table below.
-        </p>
-      )}
+          <p className="-mt-2 text-xs text-ink-3">
+            Bing Ads data: {meta.ads_period ?? 'none'} · Partner data: {meta.partner_period ?? 'none'}
+            {meta.unattributed_events > 0 &&
+              ` · ${formatInteger(meta.unattributed_events)} partner events in this selection carry no campaign / ad group, so they count toward revenue but not toward any ad group's spend`}
+            {kpi.spend_estimated && ' · spend for a multi-offer landing page is split across offers by landing-page-view share'}
+          </p>
 
-      <ErrorBoundary label="The trend and audience charts">
-        <section aria-label="Breakdowns" className="grid gap-6 xl:grid-cols-3">
-          <div className="flex flex-col rounded-xl border border-line bg-surface p-7 xl:col-span-2">
-            <div className="flex flex-wrap items-baseline justify-between gap-3">
-              <h2 className="text-lg font-bold text-ink">Revenue vs. Gross Profit — Daily Trend</h2>
-              <p className="text-sm text-ink-2">{trendCaption}</p>
-            </div>
-
-            {daily.length === 0 ? (
-              <div className="flex flex-1 items-center justify-center py-20 text-sm text-ink-3">
-                No partner conversion rows for this selection.
-              </div>
-            ) : (
-              <>
-                <LineChart
-                  className="mt-4"
-                  height={400}
-                  ariaLabel="Daily revenue and gross profit"
-                  labels={daily.map((d) => formatDayMonth(d.date))}
-                  tooltipLabels={daily.map((d) => formatDate(d.date, 'medium'))}
-                  series={[
-                    {
-                      key: 'revenue',
-                      label: 'Revenue',
-                      color: REVENUE_COLOR,
-                      values: daily.map((d) => d.revenue_usd),
-                      labelSide: 'above',
-                    },
-                    {
-                      key: 'grossProfit',
-                      label: 'Gross Profit',
-                      color: PROFIT_COLOR,
-                      values: daily.map((d) => d.gross_profit_usd),
-                      labelSide: 'below',
-                      labelColor: (v) => (v < 0 ? LOSS_COLOR : PROFIT_COLOR),
-                      emptyText: 'Pending',
-                    },
+          <ErrorBoundary label="The daily trend chart">
+            <section aria-labelledby="trend-heading" className="rounded-xl border border-line bg-surface p-5">
+              <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+                <div className="min-w-0">
+                  <h2 id="trend-heading" className="text-base font-bold text-ink">
+                    Revenue vs. Gross Profit — Daily Trend
+                  </h2>
+                  <p className="mt-0.5 text-xs text-ink-3">
+                    {data.range.label} · {scope} · gross profit = revenue − spend
+                  </p>
+                </div>
+                {daily.length > 0 && (
+                  <dl className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs">
+                    <div className="flex items-baseline gap-2">
+                      <dt className="text-ink-3">Revenue</dt>
+                      <dd className="text-sm font-bold tabular-nums text-revenue">{formatCurrency(totalRevenue)}</dd>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <dt className="text-ink-3" title="Only days both exports cover">
+                        Gross profit{pendingDays.length > 0 && ' (complete days)'}
+                      </dt>
+                      <dd className={`text-sm font-bold tabular-nums ${totalGross < 0 ? 'text-loss' : 'text-violet'}`}>
+                        {formatCurrency(totalGross)}
+                      </dd>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <dt className="text-ink-3">Profitable days</dt>
+                      <dd className="text-sm font-bold tabular-nums text-ink">
+                        {profitableDays} / {daily.length - pendingDays.length}
+                      </dd>
+                    </div>
+                  </dl>
+                )}
+                <ChartLegend
+                  items={[
+                    { label: 'Revenue', color: REVENUE_COLOR },
+                    { label: 'Gross Profit', color: PROFIT_COLOR },
                   ]}
-                  tooltipExtras={[{ label: 'Clicks', values: daily.map((d) => d.clicks), format: formatInteger }]}
-                  formatValue={(v) => formatCurrency(v, { whole: true })}
-                  intervals={4}
-                  headroom={1.15}
-                  fallbackMax={100}
                 />
-                <div className="mt-auto pt-3">
-                  <ChartLegend
-                    items={[
-                      { label: 'Revenue', color: REVENUE_COLOR },
+              </div>
+
+              {daily.length === 0 ? (
+                <div className="flex items-center justify-center py-14 text-sm text-ink-3">No rows for this selection.</div>
+              ) : (
+                <>
+                  <LineChart
+                    className="mt-3"
+                    height={260}
+                    ariaLabel="Daily revenue and gross profit"
+                    labels={daily.map((d) => formatDayMonth(d.date))}
+                    tooltipLabels={daily.map((d) => formatDate(d.date, 'medium'))}
+                    series={[
                       {
-                        label: daily.some((d) => d.gross_profit_usd === null)
-                          ? 'Gross Profit (Revenue − Spend) — pending Bing Ads spend'
-                          : 'Gross Profit (Revenue − Spend)',
+                        key: 'revenue',
+                        label: 'Revenue',
+                        color: REVENUE_COLOR,
+                        values: daily.map((d) => d.revenue_usd),
+                        labelSide: 'above',
+                        area: true,
+                        emptyText: 'Pending',
+                      },
+                      {
+                        key: 'grossProfit',
+                        label: 'Gross Profit',
                         color: PROFIT_COLOR,
+                        values: daily.map((d) => d.gross_profit_usd),
+                        labelSide: 'below',
+                        labelColor: (v) => (v < 0 ? LOSS_COLOR : PROFIT_COLOR),
+                        emptyText: 'Pending',
                       },
                     ]}
+                    tooltipExtras={[
+                      { label: 'Spend', values: daily.map((d) => d.spend_usd ?? 0) },
+                      { label: 'Clicks', values: daily.map((d) => d.clicks), format: formatInteger },
+                      { label: 'LP views', values: daily.map((d) => d.landing_page_views), format: formatInteger },
+                      { label: 'Purchases', values: daily.map((d) => d.purchases), format: formatInteger },
+                    ]}
+                    formatValue={(v) => formatCurrency(v, { whole: true })}
+                    formatTick={formatCompactCurrency}
+                    intervals={3}
+                    headroom={1.15}
+                    fallbackMax={100}
+                    labelMinSpacing={52}
                   />
+                  {pendingDays.length > 0 && (
+                    <p className="mt-2 text-xs text-ink-3">
+                      Pending: {pendingDays.map((d) => formatDate(d.date, 'short')).join(', ')} — one of the two exports does not
+                      cover {pendingDays.length === 1 ? 'that day' : 'those days'} yet.
+                    </p>
+                  )}
+                </>
+              )}
+            </section>
+          </ErrorBoundary>
+
+          <ErrorBoundary label="The region, device and click id views">
+            <BingGeoSection
+              bySegment={data.geo}
+              clicks={data.clicks}
+              caption={`${data.range.label} · ${filters.offer ? filters.offer.split(' - ')[0] : 'all offers'}`}
+              busy={busy}
+            />
+          </ErrorBoundary>
+
+          <ErrorBoundary label="The funnel table">
+            <section aria-labelledby="funnel-heading" className="rounded-xl border border-line bg-surface p-5">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h2 id="funnel-heading" className="text-base font-bold text-ink">
+                    Funnel Performance
+                  </h2>
+                  <p className="mt-0.5 text-xs text-ink-3">
+                    Spend, clicks, CTR, CPC from Bing Ads · LP views → purchase and revenue from the partner · hover a header for its source
+                  </p>
                 </div>
-              </>
-            )}
-          </div>
+                <div role="group" aria-label="Table rows" className="inline-flex rounded-lg bg-surface-2 p-1">
+                  {TABLE_VIEWS.map((v) => (
+                    <button
+                      key={v.key}
+                      type="button"
+                      aria-pressed={view === v.key}
+                      onClick={() => setView(v.key)}
+                      className={`rounded-md px-4 py-1.5 text-sm transition-colors ${
+                        view === v.key ? 'bg-azure font-bold text-canvas' : 'font-medium text-ink-2 hover:text-ink'
+                      }`}
+                    >
+                      {v.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-1">
-            <AudienceCard
-              title="Audience by Age"
-              buckets={data.audience_by_age.map((b) => ({ label: b.label, value: b.link_clicks }))}
-              color={AGE_COLOR}
-              empty={data.audience_by_age.length === 0}
-              emptyText="No age breakdown yet — it comes with the Bing Ads export."
-              height={190}
-            />
-            <AudienceCard
-              title="Audience by Gender"
-              buckets={data.audience_by_gender.map((b) => ({ label: b.label, value: b.link_clicks }))}
-              color={GENDER_COLOR}
-              empty={data.audience_by_gender.length === 0}
-              emptyText="No gender breakdown yet — it comes with the Bing Ads export."
-              height={190}
-            />
-          </div>
-        </section>
-      </ErrorBoundary>
+              <BingFunnelTable rows={rows} view={view} />
 
-      <ErrorBoundary label="The funnel table">
-        <section aria-labelledby="funnel-heading" className="rounded-xl border border-line bg-surface p-7">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <h2 id="funnel-heading" className="text-lg font-bold text-ink">
-              Funnel Performance by Offer
-            </h2>
-            <div role="group" aria-label="Table rows" className="inline-flex rounded-lg bg-surface-2 p-1">
-              {TABLE_VIEWS.map((v) => (
+              {view === 'ad_group' && rowsAll.length > AD_GROUP_LIMIT && (
                 <button
-                  key={v.key}
                   type="button"
-                  aria-pressed={view === v.key}
-                  onClick={() => setView(v.key)}
-                  className={`rounded-md px-4 py-1.5 text-sm transition-colors ${
-                    view === v.key ? 'bg-azure font-bold text-canvas' : 'font-medium text-ink-2 hover:text-ink'
-                  }`}
+                  onClick={() => setShowAllGroups((v) => !v)}
+                  className="mt-3 rounded-full bg-surface-2 px-4 py-1.5 text-xs font-bold text-azure hover:bg-line"
                 >
-                  {v.label}
+                  {showAllGroups ? `Show top ${AD_GROUP_LIMIT}` : `Show all ${rowsAll.length} ad groups →`}
                 </button>
-              ))}
-            </div>
-          </div>
-
-          <BingFunnelTable rows={rows} showDate={view === 'date'} />
-
-          <p className="mt-4 text-xs leading-relaxed text-ink-2">
-            {view === 'date' ? 'One row per date' : 'One row per offer, summed over the selected period'}, from{' '}
-            {partnerSource}. Clicks, Base, Start Quiz, Quiz Completed, Add To Cart, and Purchase are real.
-            {spendPending &&
-              ` Amount Spent, CTR, CPC, CAC, and ROAS need your Bing Ads spend/impression data — add that export and these will fill in${view === 'date' ? ' per day' : ''}.`}
-          </p>
-        </section>
-      </ErrorBoundary>
+              )}
+              <p className="mt-3 text-xs leading-relaxed text-ink-3">
+                {view === 'ad_group'
+                  ? 'One row per campaign · ad group, sorted by revenue then spend — spend here is exact.'
+                  : view === 'offer'
+                    ? 'One row per offer. Ads that land on a single offer count fully; ads on the multi-offer landing page are split across the offers visitors clicked (est.); clicks that never reached an offer stay on “Landing page — no offer click”.'
+                    : 'One row per day × offer. “Pending” = that export does not cover the day yet.'}
+              </p>
+            </section>
+          </ErrorBoundary>
+        </>
+      )}
     </div>
   );
 }
@@ -323,31 +348,29 @@ export default function BingDashboardPage() {
 function BingSkeleton() {
   const block = 'animate-pulse rounded-xl border border-line bg-surface';
   return (
-    <div className="space-y-8" aria-busy="true" aria-label="Loading Bing Ads dashboard">
+    <div className="space-y-6" aria-busy="true" aria-label="Loading Bing Ads dashboard">
       <div className="flex flex-wrap items-end justify-between gap-5">
         <div className="space-y-3">
           <div className="h-4 w-24 rounded bg-surface-2" />
           <div className="h-9 w-80 max-w-full rounded bg-surface-2" />
         </div>
         <div className="flex flex-wrap gap-3">
-          {[0, 1].map((i) => (
-            <div key={i} className="h-11 w-72 rounded-lg bg-surface-2" />
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-11 w-60 rounded-lg bg-surface-2" />
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4 3xl:grid-cols-7">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
         {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className={`${block} h-32`} />
+          <div key={i} className={`${block} h-[88px]`} />
         ))}
       </div>
-      <div className="grid gap-6 xl:grid-cols-3">
-        <div className={`${block} h-[560px] xl:col-span-2`} />
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-1">
-          <div className={`${block} h-[268px]`} />
-          <div className={`${block} h-[268px]`} />
-        </div>
+      <div className={`${block} h-[340px]`} />
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className={`${block} h-[360px]`} />
+        <div className={`${block} h-[360px]`} />
       </div>
-      <div className={`${block} h-[420px]`} />
+      <div className={`${block} h-[480px]`} />
     </div>
   );
 }

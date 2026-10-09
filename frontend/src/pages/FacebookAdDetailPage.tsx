@@ -1,11 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import BarChart from '@/components/BarChart';
-import ChartLegend from '@/components/ChartLegend';
-import CreativeRecommendationCard from '@/components/CreativeRecommendationCard';
 import CreativeTaxonomyCard from '@/components/CreativeTaxonomyCard';
 import DailyPerformanceTable from '@/components/DailyPerformanceTable';
 import FilterSelect from '@/components/FilterSelect';
+import GeoDeviceSection from '@/components/GeoDeviceSection';
 import LineChart from '@/components/LineChart';
 import StatCard, { type CaptionTone } from '@/components/StatCard';
 import { api, ApiError } from '@/lib/api';
@@ -25,6 +24,7 @@ import type { AdDetail, AudienceBucket, MetricComparison } from '@/types/faceboo
 import type { FbAdStatisticsResult } from '@/types/fbAdStatistics';
 import type { FbChartsResult } from '@/types/fbCharts';
 import type { FbDailyTrendResult } from '@/types/fbDailyTrend';
+import type { FbGeoDeviceResult } from '@/types/fbGeoDevice';
 
 type State =
   | { kind: 'loading'; previous: AdDetail | null }
@@ -46,15 +46,19 @@ type ChartsState =
   | { kind: 'ok'; data: FbChartsResult }
   | { kind: 'error'; message: string };
 
+type GeoState =
+  | { kind: 'loading'; previous: FbGeoDeviceResult | null }
+  | { kind: 'ok'; data: FbGeoDeviceResult }
+  | { kind: 'error'; message: string };
+
 const REVENUE_COLOR = 'var(--color-revenue)';
 const SPEND_COLOR = 'var(--color-spend)';
-const PROFIT_COLOR = 'var(--color-violet)';
 const LOSS_COLOR = 'var(--color-loss)';
 
-const FUNNEL_STAGES: { key: 'first_page_views' | 'questionnaire_starts' | 'leads_partial' | 'add_to_carts' | 'purchase_events'; label: string }[] = [
+const FUNNEL_STAGES: { key: 'first_page_views' | 'questionnaire_starts' | 'questionnaire_completed' | 'add_to_carts' | 'purchase_events'; label: string }[] = [
   { key: 'first_page_views', label: 'First Page View' },
   { key: 'questionnaire_starts', label: 'Q.S.' },
-  { key: 'leads_partial', label: 'Lead/Partial' },
+  { key: 'questionnaire_completed', label: 'Q.C.' },
   { key: 'add_to_carts', label: 'Add To Cart' },
   { key: 'purchase_events', label: 'Purchase' },
 ];
@@ -71,6 +75,7 @@ export default function FacebookAdDetailPage() {
   const [stats, setStats] = useState<StatsState>({ kind: 'loading', previous: null });
   const [trend, setTrend] = useState<TrendState>({ kind: 'loading', previous: null });
   const [charts, setCharts] = useState<ChartsState>({ kind: 'loading', previous: null });
+  const [geo, setGeo] = useState<GeoState>({ kind: 'loading', previous: null });
   const [reloadKey, setReloadKey] = useState(0);
   // links an admin saved on the Ad groups page; they win over creatives.json
   const [linkOverride, setLinkOverride] = useState<CreativeOverride | null>(null);
@@ -150,6 +155,19 @@ export default function FacebookAdDetailPage() {
       })
       .catch((err: unknown) => {
         if (!cancelled) setCharts({ kind: 'error', message: err instanceof Error ? err.message : 'Unknown error' });
+      });
+
+    // country / region and device breakdown for this ad
+    setGeo((s) => ({ kind: 'loading', previous: s.kind === 'ok' ? s.data : s.kind === 'loading' ? s.previous : null }));
+    api
+      .get<FbGeoDeviceResult>(
+        `/platforms/facebook/geo-device?ad=${encodeURIComponent(adName)}&range=${encodeURIComponent(range)}`,
+      )
+      .then((data) => {
+        if (!cancelled) setGeo({ kind: 'ok', data });
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setGeo({ kind: 'error', message: err instanceof Error ? err.message : 'Unknown error' });
       });
     return () => {
       cancelled = true;
@@ -232,25 +250,38 @@ export default function FacebookAdDetailPage() {
   const weakest = stageShares.reduce<{ label: string; share: number } | null>((min, st) => (!min || st.share < min.share ? st : min), null);
   const ageBuckets = (chartsData?.audience_by_age ?? []).filter((b) => b.link_clicks > 0).map((b) => ({ label: b.label, value: b.link_clicks }));
   const genderBuckets = (chartsData?.audience_by_gender ?? []).filter((b) => b.link_clicks > 0).map((b) => ({ label: b.label, value: b.link_clicks }));
+  const geoData = geo.kind === 'ok' ? geo.data : geo.kind === 'loading' ? geo.previous : null;
+  const grossProfit = k?.gross_profit ?? null;
+  const profitTone = grossProfit === null ? 'neutral' : grossProfit < 0 ? 'loss' : 'revenue';
   const audienceEmpty = chartsData !== null && chartsData.meta.report_rows === 0;
 
 
   return (
-    <div className={`space-y-8 transition-opacity ${busy ? 'opacity-60' : ''}`} aria-busy={busy}>
-      <header className="flex flex-wrap items-start justify-between gap-6">
-        <div className="flex flex-wrap items-start gap-5">
+    <div className={`space-y-5 transition-opacity ${busy ? 'opacity-60' : ''}`} aria-busy={busy}>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-wrap items-start gap-4">
           <BackButton to={backHref} />
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.12em] text-ink-3">
-              Ad detail · Charts only
+            <p className="text-xs font-medium uppercase tracking-[0.12em] text-ink-3">
+              Ad detail
             </p>
-            <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-ink">
+            <h1 className="mt-0.5 text-2xl font-extrabold tracking-tight text-ink">
               {headerName}
               {!headerActive && (
                 <span className="ml-3 align-middle text-sm font-medium text-ink-3">inactive</span>
               )}
             </h1>
-            <p className="mt-1 text-base text-ink-2">Offer: {headerOffer}</p>
+            <p className="mt-0.5 text-sm text-ink-2">Offer: {headerOffer}</p>
+            <p className="mt-0.5 text-xs text-ink-3">
+              Showing {period.toLowerCase()}
+              {statsData && statsData.ad.days > 0 && (
+                <>
+                  {' '}
+                  · {statsData.ad.days} day{statsData.ad.days === 1 ? '' : 's'} with data
+                  {statsData.ad.last_date && <> · last report {formatDate(statsData.ad.last_date, 'medium')}</>}
+                </>
+              )}
+            </p>
           </div>
         </div>
         <FilterSelect
@@ -259,46 +290,80 @@ export default function FacebookAdDetailPage() {
           value={range}
           options={rangeOptions.map((r) => ({ value: r.key, label: r.label }))}
           onChange={setRange}
-          className="w-full sm:w-auto sm:min-w-[320px]"
+          className="w-full sm:w-auto sm:min-w-[260px]"
         />
       </header>
 
-      <section
-        aria-label="Key metrics"
-        aria-busy={statsBusy}
-        className={`grid grid-cols-2 gap-5 transition-opacity md:grid-cols-3 xl:grid-cols-4 3xl:grid-cols-7 ${statsBusy ? 'opacity-70' : ''}`}
-      >
-        <StatCard size="md" tone="spend" label="Amount Spent" value={k ? formatCurrency(k.amount_spent) : NA} caption={period} />
-        <StatCard size="md" label="Link Clicks" value={k ? formatInteger(k.link_clicks) : NA} caption={period} />
-        <StatCard
-          size="md"
-          label="CTR (All)"
-          value={k?.ctr == null ? NA : formatPercent(k.ctr / 100, 2)}
-          caption={cmp?.ctr?.label ?? 'no account average yet'}
-          captionTone={captionToneFor(cmp?.ctr ?? null)}
-        />
-        <StatCard
-          size="md"
-          label="CPC (All)"
-          value={k?.cpc == null ? NA : formatCurrency(k.cpc)}
-          caption={cmp?.cpc?.label ?? 'no account average yet'}
-          captionTone={captionToneFor(cmp?.cpc ?? null)}
-        />
-        <StatCard
-          size="md"
-          label="CAC"
-          value={k?.cac == null ? NA : formatCurrency(k.cac)}
-          caption={cmp?.cac?.label ?? (k && k.cac === null ? 'no purchases yet' : 'no account average yet')}
-          captionTone={captionToneFor(cmp?.cac ?? null)}
-        />
-        <StatCard
-          size="md"
-          tone={k?.roas == null ? 'neutral' : k.roas < 0 ? 'loss' : 'revenue'}
-          label="ROAS"
-          value={k?.roas == null ? NA : formatPercent(k.roas / 100, 2)}
-          caption="net return vs. spend"
-        />
-        <StatCard size="md" tone="revenue" label="Revenue" value={k ? formatCurrency(k.revenue) : NA} caption={period} />
+      {k && (
+        <div
+          className={`rounded-xl border bg-surface-2 px-4 py-3 ${
+            grossProfit !== null && grossProfit < 0 ? 'border-loss/40' : 'border-revenue/30'
+          }`}
+        >
+          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-3">At a glance</p>
+          <p className="mt-1 text-sm leading-relaxed text-ink">
+            In {period.toLowerCase()} this ad spent <b>{formatCurrency(k.amount_spent)}</b> and earned{' '}
+            <b>{formatCurrency(k.revenue)}</b> in revenue, a gross profit of{' '}
+            <b className={grossProfit !== null && grossProfit < 0 ? 'text-loss' : 'text-revenue'}>
+              {formatCurrency(grossProfit ?? 0)}
+            </b>
+            {k.roas !== null && <> (ROAS {formatPercent(k.roas / 100, 2)})</>}.
+            {weakest && k.link_clicks > 0 && (
+              <>
+                {' '}
+                Weakest funnel stage: <b>{weakest.label}</b>.
+              </>
+            )}
+          </p>
+        </div>
+      )}
+
+      <section aria-label="Key numbers" aria-busy={statsBusy} className={`space-y-2 transition-opacity ${statsBusy ? 'opacity-70' : ''}`}>
+        <SectionHeading title="Key numbers" hint="Money in and out, traffic and cost efficiency." />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 2xl:grid-cols-8">
+        <div className="contents">
+          <StatCard size="sm" tone="spend" label="Amount Spent" value={k ? formatCurrency(k.amount_spent) : NA} caption="ad spend + provider fees" />
+          <StatCard size="sm" tone="revenue" label="Revenue" value={k ? formatCurrency(k.revenue) : NA} caption="money earned" />
+          <StatCard
+            size="sm"
+            tone={profitTone}
+            label="Gross Profit (GP)"
+            value={grossProfit === null ? NA : formatCurrency(grossProfit)}
+            caption="revenue − spend (before fees)"
+          />
+          <StatCard
+            size="sm"
+            tone={k?.roas == null ? 'neutral' : k.roas < 0 ? 'loss' : 'revenue'}
+            label="ROAS"
+            value={k?.roas == null ? NA : formatPercent(k.roas / 100, 2)}
+            caption="profit after fees ÷ spend"
+          />
+        </div>
+        <div className="contents">
+          <StatCard size="sm" label="Link Clicks" value={k ? formatInteger(k.link_clicks) : NA} caption="people who clicked the ad" />
+          <StatCard
+            size="sm"
+            label="CTR (All)"
+            value={k?.ctr == null ? NA : formatPercent(k.ctr / 100, 2)}
+            caption={cmp?.ctr?.label ?? 'no account average yet'}
+            captionTone={captionToneFor(cmp?.ctr ?? null)}
+          />
+          <StatCard
+            size="sm"
+            label="CPC (All)"
+            value={k?.cpc == null ? NA : formatCurrency(k.cpc)}
+            caption={cmp?.cpc?.label ?? 'no account average yet'}
+            captionTone={captionToneFor(cmp?.cpc ?? null)}
+          />
+          <StatCard
+            size="sm"
+            label="CAC"
+            value={k?.cac == null ? NA : formatCurrency(k.cac)}
+            caption={cmp?.cac?.label ?? (k && k.cac === null ? 'no purchases yet' : 'no account average yet')}
+            captionTone={captionToneFor(cmp?.cac ?? null)}
+          />
+        </div>
+        </div>
       </section>
 
       {stats.kind === 'error' && (
@@ -310,121 +375,123 @@ export default function FacebookAdDetailPage() {
         <p className="-mt-4 text-sm text-ink-3">This ad has no report rows in the selected period.</p>
       )}
 
-      <section
-        aria-label="Ad breakdowns"
-        aria-busy={statsBusy || chartsBusy}
-        className={`grid gap-6 transition-opacity md:grid-cols-2 3xl:grid-cols-4 ${statsBusy || chartsBusy ? 'opacity-70' : ''}`}
-      >
-        <ChartCard
-          title="Funnel Drop-off"
-          subtitle={FUNNEL_STAGES.map((st) => st.label).join(' → ')}
-        >
-          {!k || k.link_clicks === 0 ? (
-            <EmptyChart>{k ? 'No link clicks in this period.' : 'Loading…'}</EmptyChart>
-          ) : (
-            <>
-              <BarChart
-                className="mt-3"
-                height={230}
-                ariaLabel="Funnel stages as a share of link clicks"
-                categories={stageShares.map((st) => st.label)}
-                series={[
-                  { key: 'share', label: '% of link clicks', color: REVENUE_COLOR, values: stageShares.map((st) => st.share) },
-                ]}
-                formatValue={(v) => formatFixed(v, 2)}
-                formatTick={(v) => String(Math.round(v))}
-                formatTooltipValue={(v) => `${formatFixed(v, 2)}% of clicks`}
-                intervals={3}
-                headroom={1.2}
-                barMaxWidth={72}
-              />
-              <p className="mt-5 text-sm leading-relaxed text-ink-2">
-                Weakest signal: <span className="font-bold text-ink">{weakest?.label ?? '—'}</span> (
-                {formatFixed(weakest?.share ?? 0, 2)}%). These are each an independent share of link
-                clicks from network tracking rather than a strict step-by-step funnel, so use them
-                to spot which stage lags — not as a literal drop-off chain.
-              </p>
-            </>
-          )}
-        </ChartCard>
+      <div className="grid gap-x-4 gap-y-5 xl:grid-cols-4">
+      <section aria-label="Performance" aria-busy={statsBusy} className={`flex flex-col gap-2 xl:col-span-2 transition-opacity ${statsBusy ? 'opacity-70' : ''}`}>
+        <SectionHeading title="Performance" hint="Where visitors drop off, and how the money adds up." />
+        <div className="grid flex-1 gap-4 lg:grid-cols-2">
+          <ChartCard title="Funnel Drop-off">
+            {!k || k.link_clicks === 0 ? (
+              <EmptyChart>{k ? 'No link clicks in this period.' : 'Loading…'}</EmptyChart>
+            ) : (
+              <>
+                <BarChart
+                  className="mt-2"
+                  height={200}
+                  ariaLabel="Funnel stages as a share of link clicks"
+                  categories={stageShares.map((st) => st.label)}
+                  series={[
+                    { key: 'share', label: '% of link clicks', color: REVENUE_COLOR, values: stageShares.map((st) => st.share) },
+                  ]}
+                  formatValue={(v) => `${formatFixed(v, 1)}%`}
+                  formatTick={(v) => `${Math.round(v)}%`}
+                  formatTooltipValue={(v) => `${formatFixed(v, 2)}% of link clicks`}
+                  intervals={3}
+                  headroom={1.2}
+                  barMaxWidth={72}
+                />
+              </>
+            )}
+          </ChartCard>
 
-        <ChartCard title="Revenue vs. Amount Spent" caption={headerName}>
-          {!k ? (
-            <EmptyChart>Loading…</EmptyChart>
-          ) : (
-          <BarChart
-            className="mt-3"
-            height={230}
-            ariaLabel={`Revenue versus amount spent for ${headerName}`}
-            categories={['Revenue', 'Amount Spent']}
-            series={[{ key: 'usd', label: 'USD', color: REVENUE_COLOR, values: [k.revenue, k.amount_spent] }]}
-            formatValue={(v) => formatNumber(v, 1)}
-            formatTick={(v) => String(Math.round(v))}
-            formatTooltipValue={(v) => formatCurrency(v)}
-            intervals={3}
-            headroom={1.2}
-            barMaxWidth={180}
-            fallbackMax={100}
-          />
-          )}
-        </ChartCard>
-
-        <AudienceMiniCard title="Audience by Age" caption={headerName} buckets={ageBuckets} color={REVENUE_COLOR} empty={audienceEmpty} loading={!chartsData} error={charts.kind === 'error' ? charts.message : null} />
-        <AudienceMiniCard
-          title="Audience by Gender"
-          caption={headerName}
-          buckets={genderBuckets}
-          color={SPEND_COLOR}
-          empty={audienceEmpty}
-          loading={!chartsData}
-          error={charts.kind === 'error' ? charts.message : null}
-        />
+          <ChartCard title="Revenue, Spend & Gross Profit">
+            {!k ? (
+              <EmptyChart>Loading…</EmptyChart>
+            ) : (
+              <>
+                <BarChart
+                  className="mt-2"
+                  height={200}
+                  ariaLabel={`Revenue, amount spent and gross profit for ${headerName}`}
+                  categories={['Revenue', 'Amount Spent', 'Gross Profit']}
+                  // bars cannot go below zero; a loss is shown as an empty bar and spelled out below
+                  series={[{ key: 'usd', label: 'USD', color: REVENUE_COLOR, values: [k.revenue, k.amount_spent, Math.max(0, k.gross_profit)] }]}
+                  formatValue={(v) => formatNumber(v, 1)}
+                  formatTick={(v) => String(Math.round(v))}
+                  formatTooltipValue={(v) => formatCurrency(v)}
+                  intervals={3}
+                  headroom={1.2}
+                  barMaxWidth={140}
+                  fallbackMax={100}
+                />
+              </>
+            )}
+          </ChartCard>
+        </div>
       </section>
 
-
-      {statsData ? (
-        <div className={`transition-opacity ${statsBusy ? 'opacity-70' : ''}`} aria-busy={statsBusy}>
-          <CreativeRecommendationCard
-            adName={headerName}
-            creative={mergeCreative(getAdCreative(headerName), linkOverride)}
-            recommendation={statsData.recommendation}
-            roas={statsData.statistics.roas}
+      <section
+        aria-label="Audience"
+        aria-busy={chartsBusy}
+        className={`flex flex-col gap-2 xl:col-span-2 transition-opacity ${chartsBusy ? 'opacity-70' : ''}`}
+      >
+        <SectionHeading title="Audience" hint="Who clicked this ad, by age and gender (link clicks)." />
+        <div className="grid flex-1 gap-4 lg:grid-cols-2">
+          <AudienceMiniCard title="Audience by Age" buckets={ageBuckets} color={REVENUE_COLOR} empty={audienceEmpty} loading={!chartsData} error={charts.kind === 'error' ? charts.message : null} />
+          <AudienceMiniCard
+            title="Audience by Gender"
+            buckets={genderBuckets}
+            color={SPEND_COLOR}
+            empty={audienceEmpty}
+            loading={!chartsData}
+            error={charts.kind === 'error' ? charts.message : null}
           />
         </div>
-      ) : (
-        <p className="rounded-xl border border-line bg-surface p-6 text-sm text-ink-3">
-          The creative and recommendation are not available for this ad yet.
-        </p>
-      )}
+      </section>
+      </div>
 
-      <CreativeTaxonomyCard taxonomy={taxonomy} threshold={taxonomy?.threshold} />
+      <GeoDeviceSection
+        id="ad-geo-heading"
+        data={geoData}
+        busy={geo.kind === 'loading'}
+        error={geo.kind === 'error' ? geo.message : null}
+        caption={`${headerName} · ${period.toLowerCase()}`}
+      />
+
+      <CreativeTaxonomyCard
+        taxonomy={taxonomy}
+        threshold={taxonomy?.threshold}
+        adName={headerName}
+        creative={mergeCreative(getAdCreative(headerName), linkOverride)}
+      />
+
+      <SectionHeading title="Day by day" hint="Cost per purchase and the full daily numbers for this ad." />
 
       <section
         aria-labelledby="cac-heading"
         aria-busy={trendBusy}
-        className={`rounded-xl border border-line bg-surface p-7 transition-opacity ${trendBusy ? 'opacity-70' : ''}`}
+        className={`rounded-xl border border-line bg-surface p-4 transition-opacity ${trendBusy ? 'opacity-70' : ''}`}
       >
         <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h2 id="cac-heading" className="text-lg font-bold text-ink">
+          <h2 id="cac-heading" className="text-base font-bold text-ink">
             Cost of Acquisition — Daily Trend
           </h2>
-          <p className="text-sm text-ink-2">
+          <p className="text-xs text-ink-2">
             {period} · {headerName}
           </p>
         </div>
         {trend.kind === 'error' ? (
-          <div className="flex items-center justify-center py-16 text-sm text-loss">
+          <div className="flex items-center justify-center py-10 text-sm text-loss">
             Trend data unavailable: {trend.message}
           </div>
         ) : !hasCacData ? (
-          <div className="flex items-center justify-center py-16 text-sm text-ink-3">
+          <div className="flex items-center justify-center py-10 text-sm text-ink-3">
             {trendData ? 'No spend recorded for this ad in the selected period.' : 'Loading…'}
           </div>
         ) : (
           <>
             <LineChart
-              className="mt-4"
-              height={280}
+              className="mt-2"
+              height={220}
               ariaLabel={`Daily cost of acquisition for ${headerName}`}
               labels={dailyRows.map((d) => formatDayMonth(d.date))}
               tooltipLabels={dailyRows.map((d) => formatDate(d.date, 'medium'))}
@@ -471,68 +538,15 @@ export default function FacebookAdDetailPage() {
           ) : undefined
         }
       />
+    </div>
+  );
+}
 
-      <section
-        aria-labelledby="ad-trend-heading"
-        aria-busy={trendBusy}
-        className={`rounded-xl border border-line bg-surface p-7 transition-opacity ${trendBusy ? 'opacity-70' : ''}`}
-      >
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h2 id="ad-trend-heading" className="text-lg font-bold text-ink">
-            Revenue vs. Gross Profit — Daily Trend
-          </h2>
-          <p className="text-sm text-ink-2">
-            {period} · {headerName}
-          </p>
-        </div>
-        {trend.kind === 'error' ? (
-          <div className="flex items-center justify-center py-16 text-sm text-loss">
-            Trend data unavailable: {trend.message}
-          </div>
-        ) : dailyRows.length === 0 ? (
-          <div className="flex items-center justify-center py-16 text-sm text-ink-3">
-            {trendData ? 'No report rows for this ad in the selected period.' : 'Loading…'}
-          </div>
-        ) : (
-          <>
-            <LineChart
-              className="mt-4"
-              height={300}
-              ariaLabel={`Daily revenue and gross profit for ${headerName}`}
-              labels={dailyRows.map((d) => formatDayMonth(d.date))}
-              tooltipLabels={dailyRows.map((d) => formatDate(d.date, 'medium'))}
-              series={[
-                { key: 'revenue', label: 'Revenue', color: REVENUE_COLOR, values: dailyRows.map((d) => d.revenue_usd), labelSide: 'above' },
-                {
-                  key: 'grossProfit',
-                  label: 'Gross Profit',
-                  color: PROFIT_COLOR,
-                  values: dailyRows.map((d) => d.gross_profit_usd),
-                  labelSide: 'below',
-                  labelColor: (v) => (v < 0 ? LOSS_COLOR : PROFIT_COLOR),
-                },
-              ]}
-              tooltipExtras={[
-                { label: 'Spend (before fees)', values: dailyRows.map((d) => d.spend_usd) },
-                { label: 'Spend (with fees)', values: dailyRows.map((d) => d.total_spend_usd) },
-                { label: 'Net profit', values: dailyRows.map((d) => d.net_profit_usd) },
-              ]}
-              formatValue={(v) => formatCurrency(v, { whole: true })}
-              intervals={3}
-              headroom={1.15}
-              fallbackMax={100}
-            />
-            <div className="mt-3">
-              <ChartLegend
-                items={[
-                  { label: 'Revenue', color: REVENUE_COLOR },
-                  { label: 'Gross Profit (Revenue − Spend)', color: PROFIT_COLOR },
-                ]}
-              />
-            </div>
-          </>
-        )}
-      </section>
+function SectionHeading({ title, hint }: { title: string; hint: string }) {
+  return (
+    <div>
+      <h2 className="text-base font-bold text-ink">{title}</h2>
+      <p className="text-xs text-ink-2">{hint}</p>
     </div>
   );
 }
@@ -549,24 +563,23 @@ function ChartCard({
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-col rounded-xl border border-line bg-surface p-6">
+    <div className="flex h-full flex-col rounded-xl border border-line bg-surface p-4">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-lg font-bold text-ink">{title}</h2>
-        {caption && <p className="shrink-0 text-sm text-ink-2">{caption}</p>}
+        <h3 className="text-sm font-bold text-ink">{title}</h3>
+        {caption && <p className="shrink-0 text-xs text-ink-2">{caption}</p>}
       </div>
-      {subtitle && <p className="mt-1 text-sm text-ink-2">{subtitle}</p>}
+      {subtitle && <p className="mt-0.5 text-xs text-ink-2">{subtitle}</p>}
       {children}
     </div>
   );
 }
 
 function EmptyChart({ children }: { children: ReactNode }) {
-  return <div className="flex h-[230px] items-center justify-center text-sm text-ink-3">{children}</div>;
+  return <div className="flex h-[180px] items-center justify-center text-sm text-ink-3">{children}</div>;
 }
 
 function AudienceMiniCard({
   title,
-  caption,
   buckets,
   color,
   empty = false,
@@ -574,7 +587,6 @@ function AudienceMiniCard({
   error = null,
 }: {
   title: string;
-  caption: string;
   buckets: AudienceBucket[];
   color: string;
   empty?: boolean;
@@ -582,7 +594,7 @@ function AudienceMiniCard({
   error?: string | null;
 }) {
   return (
-    <ChartCard title={title} caption={caption}>
+    <ChartCard title={title}>
       {error ? (
         <EmptyChart>
           <span className="text-loss">Audience data unavailable: {error}</span>
@@ -593,8 +605,8 @@ function AudienceMiniCard({
         <EmptyChart>No audience data in this period.</EmptyChart>
       ) : (
         <BarChart
-          className="mt-3"
-          height={230}
+          className="mt-2"
+          height={200}
           ariaLabel={`${title} (link clicks)`}
           categories={buckets.map((b) => b.label)}
           series={[{ key: 'clicks', label: 'Link clicks', color, values: buckets.map((b) => b.value) }]}
@@ -613,7 +625,7 @@ function BackButton({ to }: { to: string }) {
   return (
     <Link
       to={to}
-      className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-5 py-3 text-base font-semibold text-ink hover:bg-line"
+      className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-sm font-semibold text-ink hover:bg-line"
     >
       ← Back to dashboard
     </Link>
@@ -635,8 +647,8 @@ function AdDetailSkeleton() {
         </div>
         <div className="h-11 w-80 rounded-lg bg-surface-2" />
       </div>
-      <div className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4 3xl:grid-cols-7">
-        {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+      <div className="grid grid-cols-2 gap-5 xl:grid-cols-4">
+        {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
           <div key={i} className={`${block} h-32`} />
         ))}
       </div>

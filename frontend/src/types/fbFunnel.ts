@@ -20,7 +20,7 @@ export interface FunnelRow {
 
   first_page_views: number;
   questionnaire_starts: number;
-  leads_partial: number;
+  questionnaire_completed: number;
   add_to_carts: number;
   purchase_events: number;
   conversions: number;

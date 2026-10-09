@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { formatCurrency, formatInteger } from '@/lib/format';
+import { formatCurrency, formatDate, formatInteger } from '@/lib/format';
 import { PLATFORM_ICONS, type PlatformSummary } from '@/types/platforms';
 
 interface Props {
@@ -41,10 +41,10 @@ export default function PlatformCard({ platform }: Props) {
   }
 
   const m = platform.metrics;
-  const rows: { label: string; value: string }[] = [
+  const rows: { label: string; value: string; tone?: string }[] = [
     { label: 'Total Spend', value: formatCurrency(m.spend) },
     { label: 'Total Revenue', value: formatCurrency(m.revenue) },
-    { label: 'Net Profit', value: formatCurrency(m.netProfit) },
+    { label: 'Net Profit', value: formatCurrency(m.netProfit), tone: m.netProfit < 0 ? 'text-loss' : 'text-revenue' },
     { label: 'Active Ads', value: formatInteger(m.activeAds) },
   ];
 
@@ -55,11 +55,15 @@ export default function PlatformCard({ platform }: Props) {
         {platform.name}
       </h3>
 
-      <dl className="mt-6 flex-1 space-y-2 pb-8 text-base">
+      <p className="mt-1 text-xs text-ink-3">
+        {m.dataThrough ? `Data through ${formatDate(m.dataThrough, 'medium')}` : 'No data for this month yet'}
+      </p>
+
+      <dl className="mt-5 flex-1 space-y-2 pb-8 text-base">
         {rows.map((row) => (
           <div key={row.label} className="flex gap-1.5">
             <dt className="text-ink-2">{row.label}:</dt>
-            <dd className="font-bold tabular-nums text-ink">{row.value}</dd>
+            <dd className={`font-bold tabular-nums ${row.tone ?? 'text-ink'}`}>{row.value}</dd>
           </div>
         ))}
       </dl>

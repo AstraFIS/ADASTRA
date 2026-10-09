@@ -28,6 +28,7 @@ export interface AdStatistics {
   // supporting numbers
   spend_before_fees: number;
   provider_fees: number;
+  gross_profit: number; // revenue − spend before provider fees
   net_profit: number;
   impressions: number;
   clicks_all: number;
@@ -36,7 +37,7 @@ export interface AdStatistics {
   // funnel stages (each an independent share of link clicks, not a chained funnel)
   first_page_views: number;
   questionnaire_starts: number;
-  leads_partial: number;
+  questionnaire_completed: number;
   add_to_carts: number;
   purchase_events: number;
 }
@@ -77,7 +78,7 @@ interface Totals {
   conversions: number;
   first_page_views: number;
   questionnaire_starts: number;
-  leads_partial: number;
+  questionnaire_completed: number;
   add_to_carts: number;
   purchase_events: number;
   rows: number;
@@ -106,7 +107,7 @@ async function totals(match: Record<string, unknown>): Promise<Totals | null> {
         conversions: { $sum: '$conversions' },
         first_page_views: { $sum: '$first_page_views' },
         questionnaire_starts: { $sum: '$questionnaire_starts' },
-        leads_partial: { $sum: '$leads_partial' },
+        questionnaire_completed: { $sum: '$questionnaire_completed' },
         add_to_carts: { $sum: '$add_to_carts' },
         purchase_events: { $sum: '$purchase_events' },
         rows: { $sum: 1 },
@@ -136,6 +137,7 @@ const stats = (t: Totals | null): AdStatistics => {
     revenue,
     spend_before_fees: round2(t?.spend_usd ?? 0),
     provider_fees: round2(t?.provider_fee_usd ?? 0),
+    gross_profit: round2(revenue - round2(t?.spend_usd ?? 0)),
     net_profit,
     impressions: t?.impressions ?? 0,
     clicks_all: t?.clicks_all ?? 0,
@@ -143,7 +145,7 @@ const stats = (t: Totals | null): AdStatistics => {
     landing_page_views: t?.landing_page_views ?? 0,
     first_page_views: t?.first_page_views ?? 0,
     questionnaire_starts: t?.questionnaire_starts ?? 0,
-    leads_partial: t?.leads_partial ?? 0,
+    questionnaire_completed: t?.questionnaire_completed ?? 0,
     add_to_carts: t?.add_to_carts ?? 0,
     purchase_events: t?.purchase_events ?? 0,
   };

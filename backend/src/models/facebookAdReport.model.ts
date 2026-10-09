@@ -66,7 +66,7 @@ export interface IFacebookAdReport {
   presell_visits: number;
   first_page_views: number;
   questionnaire_starts: number;
-  leads_partial: number;
+  questionnaire_completed: number;
   add_to_carts: number;
   purchase_events: number;
   conversions: number; // verified conversions (CV), used for CAC
@@ -100,7 +100,7 @@ export type FacebookAdReportInput = Pick<
   | 'presell_visits'
   | 'first_page_views'
   | 'questionnaire_starts'
-  | 'leads_partial'
+  | 'questionnaire_completed'
   | 'add_to_carts'
   | 'purchase_events'
   | 'conversions'
@@ -209,7 +209,7 @@ const facebookAdReportSchema = new Schema<IFacebookAdReport, FacebookAdReportMod
     presell_visits: count,
     first_page_views: count,
     questionnaire_starts: count,
-    leads_partial: count,
+    questionnaire_completed: count,
     add_to_carts: count,
     purchase_events: count,
     conversions: count,
@@ -300,7 +300,7 @@ export function toPublicFacebookAdReport(doc: FacebookAdReportDocument): PublicF
     presell_visits: doc.presell_visits,
     first_page_views: doc.first_page_views,
     questionnaire_starts: doc.questionnaire_starts,
-    leads_partial: doc.leads_partial,
+    questionnaire_completed: doc.questionnaire_completed,
     add_to_carts: doc.add_to_carts,
     purchase_events: doc.purchase_events,
     conversions: doc.conversions,

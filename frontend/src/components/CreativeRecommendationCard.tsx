@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { CreativeMedia, LandingPageLink } from '@/components/CreativeMedia';
 import { formatPercent } from '@/lib/format';
 import type { ReadStatus } from '@/types/facebook';
 import type { AdCreative } from '@/lib/creatives';
@@ -11,73 +11,6 @@ const STATUS_CLASSES: Record<ReadStatus, string> = {
   low_sample: 'border-line-strong bg-surface-2 text-ink-2',
   no_data: 'border-line-strong bg-surface-2 text-ink-3',
 };
-
-const pill = 'inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-semibold';
-// keeps its own aspect ratio; a tall (9:16) creative is capped so it does not stretch the card
-const media = 'mx-auto block max-h-[520px] w-auto max-w-full rounded-lg bg-canvas';
-
-function CreativeMedia({ adName, creative }: { adName: string; creative: AdCreative }) {
-  // a stored URL can still be dead; fall back to the placeholder instead of a broken image
-  const [failed, setFailed] = useState(false);
-
-  if (creative.video_url && !failed) {
-    return (
-      <video
-        controls
-        preload="metadata"
-        poster={creative.image_url ?? undefined}
-        src={creative.video_url}
-        onError={() => setFailed(true)}
-        aria-label={`Video creative for ${adName}`}
-        className={media}
-      />
-    );
-  }
-  if (creative.image_url && !failed) {
-    return (
-      <img
-        src={creative.image_url}
-        alt={`Creative for ${adName}`}
-        onError={() => setFailed(true)}
-        className={media}
-      />
-    );
-  }
-  return (
-    <div className="hatch flex aspect-square w-full items-center justify-center rounded-lg border border-line">
-      <span className="rounded bg-surface/90 px-3 py-1 text-sm text-ink-3">
-        {failed ? 'The creative could not be loaded' : 'No creative stored for this ad yet'}
-      </span>
-    </div>
-  );
-}
-
-function LandingPageLink({ url }: { url: string | null }) {
-  if (!url) {
-    return (
-      <span
-        aria-disabled="true"
-        title="No landing page URL is stored for this ad yet"
-        className={`${pill} cursor-not-allowed border-line bg-surface-2 text-ink-3`}
-      >
-        <span aria-hidden="true">🔗</span>
-        Open landing page
-      </span>
-    );
-  }
-  return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={`${pill} border-revenue/40 bg-revenue/10 text-revenue transition-colors hover:bg-revenue/20`}
-    >
-      <span aria-hidden="true">🔗</span>
-      Open landing page
-      <span aria-hidden="true">↗</span>
-    </a>
-  );
-}
 
 interface Props {
   adName: string;

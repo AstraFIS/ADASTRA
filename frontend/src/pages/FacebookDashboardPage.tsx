@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthContext';
+import AdRevenueSpendBars from '@/components/AdRevenueSpendBars';
 import AudienceCard from '@/components/AudienceCard';
-import BarChart from '@/components/BarChart';
 import ChartLegend from '@/components/ChartLegend';
 import CustomDateRange from '@/components/CustomDateRange';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import FilterSelect from '@/components/FilterSelect';
 import FunnelTable from '@/components/FunnelTable';
+import GeoDeviceSection from '@/components/GeoDeviceSection';
 import LineChart from '@/components/LineChart';
 import ProviderFeeCard from '@/components/ProviderFeeCard';
 import StatCard from '@/components/StatCard';
@@ -25,6 +26,7 @@ import type { FacebookDashboard } from '@/types/facebook';
 import type { FbChartsResult } from '@/types/fbCharts';
 import type { FbDailyTrendResult } from '@/types/fbDailyTrend';
 import type { FbFunnelResult } from '@/types/fbFunnel';
+import type { FbGeoDeviceResult } from '@/types/fbGeoDevice';
 import type { FbOptionsResult, FbStatisticsResult } from '@/types/fbStatistics';
 
 type State =
@@ -50,6 +52,11 @@ type TrendState =
 type FunnelState =
   | { kind: 'loading'; previous: FbFunnelResult | null }
   | { kind: 'ok'; data: FbFunnelResult }
+  | { kind: 'error'; message: string };
+
+type GeoDeviceState =
+  | { kind: 'loading'; previous: FbGeoDeviceResult | null }
+  | { kind: 'ok'; data: FbGeoDeviceResult }
   | { kind: 'error'; message: string };
 
 const ALL = '';
@@ -85,6 +92,7 @@ export default function FacebookDashboardPage() {
   const [charts, setCharts] = useState<ChartsState>({ kind: 'loading', previous: null });
   const [trend, setTrend] = useState<TrendState>({ kind: 'loading', previous: null });
   const [funnel, setFunnel] = useState<FunnelState>({ kind: 'loading', previous: null });
+  const [geo, setGeo] = useState<GeoDeviceState>({ kind: 'loading', previous: null });
   const [options, setOptions] = useState<FbOptionsResult | null>(null);
 
   // dropdown choices come from the report collection; reloaded only when the access group changes
@@ -178,6 +186,19 @@ export default function FacebookDashboardPage() {
           setFunnel({ kind: 'error', message: err instanceof Error ? err.message : 'Unknown error' });
         }
       });
+
+    // country / region and device breakdowns come from the geo-device API (report collection), same filters
+    setGeo((s) => ({ kind: 'loading', previous: s.kind === 'ok' ? s.data : s.kind === 'loading' ? s.previous : null }));
+    api
+      .get<FbGeoDeviceResult>(`/platforms/facebook/geo-device?${qs.toString()}`)
+      .then((data) => {
+        if (!cancelled) setGeo({ kind: 'ok', data });
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setGeo({ kind: 'error', message: err instanceof Error ? err.message : 'Unknown error' });
+        }
+      });
     return () => {
       cancelled = true;
     };
@@ -266,7 +287,6 @@ export default function FacebookDashboardPage() {
         ? `from ${formatDate(from, 'medium')}`
         : `up to ${formatDate(to, 'medium')}`;
   const periodLabel = custom ? customLabel : (namedLabel?.toLowerCase() ?? 'selected period');
-  const periodCaption = `across all ads · ${periodLabel}`;
   const audienceCaption = `${filters.ad ?? 'All ads'} · ${periodLabel}`;
   const trendCaption = `${custom ? customLabel : (namedLabel ?? 'Selected period')} · ${filters.ad ?? 'all ads'}`;
 
@@ -278,9 +298,20 @@ export default function FacebookDashboardPage() {
   const genderBuckets = (chartsData?.audience_by_gender ?? []).map((b) => ({ label: b.label, value: b.link_clicks }));
   const chartsEmpty = chartsData !== null && chartsData.meta.report_rows === 0;
 
+  const geoData = geo.kind === 'ok' ? geo.data : geo.kind === 'loading' ? geo.previous : null;
+  const geoBusy = geo.kind === 'loading';
+
   const trendData = trend.kind === 'ok' ? trend.data : trend.kind === 'loading' ? trend.previous : null;
   const trendBusy = trend.kind === 'loading';
   const daily = trendData?.daily ?? [];
+  const trendTotals = daily.reduce(
+    (t, d) => ({
+      revenue: t.revenue + d.revenue_usd,
+      gross: t.gross + d.gross_profit_usd,
+      upDays: t.upDays + (d.gross_profit_usd > 0 ? 1 : 0),
+    }),
+    { revenue: 0, gross: 0, upDays: 0 },
+  );
 
   const funnelData = funnel.kind === 'ok' ? funnel.data : funnel.kind === 'loading' ? funnel.previous : null;
   const funnelBusy = funnel.kind === 'loading';
@@ -291,7 +322,6 @@ export default function FacebookDashboardPage() {
   const offerOptions = options ? options.offers : filters.options.offers;
   const withCurrent = (list: string[], current: string | null) =>
     current && !list.includes(current) ? [current, ...list] : list;
-  const roasCaption = `${roas === null ? 'n/a' : formatPercent(roas, 1)} ROAS · ${periodCaption}`;
 
   return (
     <div className={`space-y-8 transition-opacity ${busy ? 'opacity-60' : ''}`} aria-busy={busy}>
@@ -368,56 +398,55 @@ export default function FacebookDashboardPage() {
       <section
         aria-label="Key metrics"
         aria-busy={statsBusy}
-        className={`grid grid-cols-2 gap-5 transition-opacity md:grid-cols-3 xl:grid-cols-4 3xl:grid-cols-7 ${statsBusy ? 'opacity-70' : ''}`}
+        className={`grid grid-cols-2 gap-3 transition-opacity sm:grid-cols-4 xl:grid-cols-7 ${statsBusy ? 'opacity-70' : ''}`}
       >
         <StatCard
-          size="md"
+          size="sm"
           tone="revenue"
-          label="Total Revenue"
+          label="Revenue"
           value={kpi ? formatCurrency(kpi.total_revenue) : NA}
-          caption={periodCaption}
+          caption={periodLabel}
         />
         <StatCard
-          size="md"
+          size="sm"
           tone="spend"
-          label="Total Amount Spent"
+          label="Amount Spent"
           value={kpi ? formatCurrency(kpi.total_amount_spend) : NA}
           caption={
-            statsData
-              ? `${periodCaption} · incl. ${formatCurrency(statsData.meta.provider_fees)} provider fees`
-              : periodCaption
+            statsData ? `incl. ${formatCurrency(statsData.meta.provider_fees)} fees` : periodLabel
           }
         />
         <StatCard
-          size="md"
-          tone={kpi && kpi.net_profit < 0 ? 'spend' : 'revenue'}
-          label="Net Profit / ROAS"
+          size="sm"
+          tone={kpi && kpi.net_profit < 0 ? 'loss' : 'revenue'}
+          label="Net Profit"
           value={kpi ? formatCurrency(kpi.net_profit) : NA}
-          caption={roasCaption}
+          caption={`ROAS ${roas === null ? 'n/a' : formatPercent(roas, 1)}`}
+          captionTone={roas === null ? 'default' : roas < 0 ? 'bad' : 'good'}
         />
         <StatCard
-          size="md"
-          label="Landing Page Views"
+          size="sm"
+          label="LP Views"
           value={kpi ? formatInteger(kpi.landing_page_views) : NA}
-          caption="across all ads"
+          caption="landing page views"
         />
         <StatCard
-          size="md"
+          size="sm"
           label="Link Clicks"
           value={kpi ? formatInteger(kpi.link_clicks) : NA}
-          caption="across all ads"
+          caption="all ads"
         />
         <StatCard
-          size="md"
-          label="CPC (All)"
+          size="sm"
+          label="CPC"
           value={kpi?.cpc == null ? NA : formatCurrency(kpi.cpc)}
-          caption="blended, spend ÷ link clicks"
+          caption="spend ÷ link clicks"
         />
         <StatCard
-          size="md"
-          label="CTR (All)"
+          size="sm"
+          label="CTR"
           value={kpi?.ctr == null ? NA : formatPercent(kpi.ctr / 100, 2)}
-          caption="weighted by link clicks"
+          caption="weighted by clicks"
         />
       </section>
 
@@ -452,72 +481,165 @@ export default function FacebookDashboardPage() {
         )}
       </section>
 
+      <ErrorBoundary label="The daily trend chart">
+      <section
+        aria-labelledby="trend-heading"
+        aria-busy={trendBusy}
+        className={`rounded-xl border border-line bg-surface p-5 transition-opacity ${trendBusy ? 'opacity-70' : ''}`}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+          <div className="min-w-0">
+            <h2 id="trend-heading" className="text-base font-bold text-ink">
+              Revenue vs. Gross Profit — Daily Trend
+            </h2>
+            <p className="mt-0.5 text-xs text-ink-3">{trendCaption} · gross profit = revenue − spend</p>
+          </div>
+          {daily.length > 0 && trend.kind !== 'error' && (
+            <dl className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs">
+              <div className="flex items-baseline gap-2">
+                <dt className="text-ink-3">Revenue</dt>
+                <dd className="text-sm font-bold tabular-nums text-revenue">{formatCurrency(trendTotals.revenue)}</dd>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <dt className="text-ink-3">Gross profit</dt>
+                <dd className={`text-sm font-bold tabular-nums ${trendTotals.gross < 0 ? 'text-loss' : 'text-violet'}`}>
+                  {formatCurrency(trendTotals.gross)}
+                </dd>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <dt className="text-ink-3">Profitable days</dt>
+                <dd className="text-sm font-bold tabular-nums text-ink">
+                  {trendTotals.upDays} / {daily.length}
+                </dd>
+              </div>
+            </dl>
+          )}
+          <ChartLegend
+            items={[
+              { label: 'Revenue', color: REVENUE_COLOR },
+              { label: 'Gross Profit', color: PROFIT_COLOR },
+            ]}
+          />
+        </div>
+
+        {trend.kind === 'error' ? (
+          <div className="flex items-center justify-center py-14 text-sm text-loss">
+            Trend data unavailable: {trend.message}
+          </div>
+        ) : daily.length === 0 ? (
+          <div className="flex items-center justify-center py-14 text-sm text-ink-3">
+            {trendData ? 'No report rows in the database for this selection yet.' : 'Loading…'}
+          </div>
+        ) : (
+          <LineChart
+            className="mt-3"
+            height={260}
+            ariaLabel="Daily revenue and gross profit"
+            labels={daily.map((d) => formatDayMonth(d.date))}
+            tooltipLabels={daily.map((d) => formatDate(d.date, 'medium'))}
+            series={[
+              {
+                key: 'revenue',
+                label: 'Revenue',
+                color: REVENUE_COLOR,
+                values: daily.map((d) => d.revenue_usd),
+                labelSide: 'above',
+                area: true,
+              },
+              {
+                key: 'grossProfit',
+                label: 'Gross Profit',
+                color: PROFIT_COLOR,
+                values: daily.map((d) => d.gross_profit_usd),
+                labelSide: 'below',
+                labelColor: (v) => (v < 0 ? LOSS_COLOR : PROFIT_COLOR),
+              },
+            ]}
+            tooltipExtras={[
+              { label: 'Spend (before fees)', values: daily.map((d) => d.spend_usd) },
+              { label: 'Spend (with fees)', values: daily.map((d) => d.total_spend_usd) },
+              { label: 'Net profit', values: daily.map((d) => d.net_profit_usd) },
+            ]}
+            formatValue={(v) => formatCurrency(v, { whole: true })}
+            formatTick={formatCompactCurrency}
+            intervals={3}
+            headroom={1.15}
+            fallbackMax={100}
+            labelMinSpacing={52}
+          />
+        )}
+      </section>
+      </ErrorBoundary>
+
       <ErrorBoundary label="The by-ad and audience charts">
       <section
         aria-label="Breakdowns"
-        aria-busy={chartsBusy}
-        className={`grid gap-6 transition-opacity 2xl:grid-cols-3 ${chartsBusy ? 'opacity-70' : ''}`}
+        className="grid gap-6 md:grid-cols-2 xl:grid-cols-[1.35fr_1.1fr_0.8fr]"
       >
-        <div className="flex flex-col rounded-xl border border-line bg-surface p-7 2xl:col-span-2">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <h2 className="text-lg font-bold text-ink">Revenue vs. Amount Spent by Ad Name</h2>
-            <div className="flex flex-wrap items-center gap-5">
+        <div
+          aria-busy={chartsBusy}
+          className={`flex flex-col rounded-xl md:col-span-2 xl:col-span-1 border border-line bg-surface p-5 transition-opacity ${chartsBusy ? 'opacity-70' : ''}`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold text-ink">Revenue vs. Amount Spent by Ad Name</h2>
+              <p className="mt-0.5 text-xs text-ink-3">
+                {showAllAds || adsChart.length <= TOP_ADS
+                  ? `All ${adsChart.length} ads`
+                  : `Top ${TOP_ADS} of ${adsChart.length} ads`}{' '}
+                · net = revenue − spent
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
               <ChartLegend
                 items={[
                   { label: 'Revenue', color: REVENUE_COLOR },
-                  { label: 'Amount Spent', color: SPEND_COLOR },
+                  { label: 'Spent', color: SPEND_COLOR },
                 ]}
               />
               {adsChart.length > TOP_ADS && (
                 <button
                   type="button"
                   onClick={() => setShowAllAds((v) => !v)}
-                  className="rounded-full bg-surface-2 px-4 py-1.5 text-sm font-bold text-revenue transition-colors hover:bg-line"
+                  className="rounded-full bg-surface-2 px-3 py-1 text-xs font-bold text-revenue transition-colors hover:bg-line"
                 >
-                  {showAllAds ? `Show top ${TOP_ADS}` : `Show all ${adsChart.length} ads →`}
+                  {showAllAds ? `Top ${TOP_ADS}` : `All ${adsChart.length} →`}
                 </button>
               )}
             </div>
           </div>
 
           {charts.kind === 'error' ? (
-            <div className="flex flex-1 items-center justify-center py-20 text-sm text-loss">
+            <div className="flex flex-1 items-center justify-center py-16 text-sm text-loss">
               Chart data unavailable: {charts.message}
             </div>
           ) : adsChart.length === 0 ? (
-            <div className="flex flex-1 items-center justify-center py-20 text-sm text-ink-3">
-              {chartsData
-                ? 'No report rows in the database for this selection yet.'
-                : 'Loading…'}
+            <div className="flex flex-1 items-center justify-center py-16 text-sm text-ink-3">
+              {chartsData ? 'No report rows in the database for this selection yet.' : 'Loading…'}
             </div>
           ) : (
-            <BarChart
-              className="mt-6 min-h-[380px] flex-1"
-              ariaLabel="Revenue and amount spent by ad name"
-              categories={visibleAds.map((a) => a.ad_name)}
-              series={[
-                { key: 'revenue', label: 'Revenue', color: REVENUE_COLOR, values: visibleAds.map((a) => a.revenue_usd) },
-                { key: 'spend', label: 'Amount Spent', color: SPEND_COLOR, values: visibleAds.map((a) => a.total_spend_usd) },
-              ]}
-              formatValue={formatCompactCurrency}
-              formatTick={(v) => formatCurrency(v, { whole: true })}
-              formatTooltipValue={(v) => formatCurrency(v)}
-              intervals={4}
-              headroom={1.15}
-              barMaxWidth={60}
+            <AdRevenueSpendBars
+              className={`mt-4 ${showAllAds ? 'max-h-[420px] overflow-y-auto pr-1' : ''}`}
+              ads={visibleAds}
+              revenueColor={REVENUE_COLOR}
+              spendColor={SPEND_COLOR}
             />
           )}
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 2xl:grid-cols-1">
+        <div className={`transition-opacity ${chartsBusy ? 'opacity-70' : ''}`} aria-busy={chartsBusy}>
           <AudienceCard
+            compact
             title="Audience by Age"
             caption={audienceCaption}
             buckets={ageBuckets}
             color={REVENUE_COLOR}
             empty={chartsEmpty}
           />
+        </div>
+        <div className={`transition-opacity ${chartsBusy ? 'opacity-70' : ''}`} aria-busy={chartsBusy}>
           <AudienceCard
+            compact
             title="Audience by Gender"
             caption={audienceCaption}
             buckets={genderBuckets}
@@ -528,73 +650,13 @@ export default function FacebookDashboardPage() {
       </section>
       </ErrorBoundary>
 
-      <ErrorBoundary label="The daily trend chart">
-      <section
-        aria-labelledby="trend-heading"
-        aria-busy={trendBusy}
-        className={`rounded-xl border border-line bg-surface p-7 transition-opacity ${trendBusy ? 'opacity-70' : ''}`}
-      >
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h2 id="trend-heading" className="text-lg font-bold text-ink">
-            Revenue vs. Gross Profit — Daily Trend
-          </h2>
-          <p className="text-sm text-ink-2">{trendCaption}</p>
-        </div>
-
-        {trend.kind === 'error' ? (
-          <div className="flex items-center justify-center py-20 text-sm text-loss">
-            Trend data unavailable: {trend.message}
-          </div>
-        ) : daily.length === 0 ? (
-          <div className="flex items-center justify-center py-20 text-sm text-ink-3">
-            {trendData ? 'No report rows in the database for this selection yet.' : 'Loading…'}
-          </div>
-        ) : (
-          <>
-            <LineChart
-              className="mt-4"
-              height={330}
-              ariaLabel="Daily revenue and gross profit"
-              labels={daily.map((d) => formatDayMonth(d.date))}
-              tooltipLabels={daily.map((d) => formatDate(d.date, 'medium'))}
-              series={[
-                {
-                  key: 'revenue',
-                  label: 'Revenue',
-                  color: REVENUE_COLOR,
-                  values: daily.map((d) => d.revenue_usd),
-                  labelSide: 'above',
-                },
-                {
-                  key: 'grossProfit',
-                  label: 'Gross Profit',
-                  color: PROFIT_COLOR,
-                  values: daily.map((d) => d.gross_profit_usd),
-                  labelSide: 'below',
-                  labelColor: (v) => (v < 0 ? LOSS_COLOR : PROFIT_COLOR),
-                },
-              ]}
-              tooltipExtras={[
-                { label: 'Spend (before fees)', values: daily.map((d) => d.spend_usd) },
-                { label: 'Spend (with fees)', values: daily.map((d) => d.total_spend_usd) },
-                { label: 'Net profit', values: daily.map((d) => d.net_profit_usd) },
-              ]}
-              formatValue={(v) => formatCurrency(v, { whole: true })}
-              intervals={3}
-              headroom={1.15}
-              fallbackMax={100}
-            />
-            <div className="mt-3">
-              <ChartLegend
-                items={[
-                  { label: 'Revenue', color: REVENUE_COLOR },
-                  { label: 'Gross Profit (Revenue − Spend)', color: PROFIT_COLOR },
-                ]}
-              />
-            </div>
-          </>
-        )}
-      </section>
+      <ErrorBoundary label="The country and device breakdowns">
+        <GeoDeviceSection
+          data={geoData}
+          busy={geoBusy}
+          error={geo.kind === 'error' ? geo.message : null}
+          caption={audienceCaption}
+        />
       </ErrorBoundary>
 
       <ErrorBoundary label="The funnel table">
@@ -609,8 +671,8 @@ export default function FacebookDashboardPage() {
         <p className="mt-1 text-sm leading-relaxed text-ink-2">
           Amount Spent / Link Clicks / CTR / CPC / CAC / ROAS / funnel-stage columns all respect the
           date range selected above · funnel percentages are step-over-step: First Page View % =
-          First Page View ÷ Link Clicks · Q.S. % = Q.S. ÷ First Page View · Lead / Partial % = Lead ÷
-          Q.S. · Add To Cart % = Add To Cart ÷ Lead · Purchase % = Purchase ÷ Add To Cart (&quot;—&quot;
+          First Page View ÷ Link Clicks · Q.S. % = Q.S. ÷ First Page View · Q.C. % = Q.C. ÷
+          Q.S. · Add To Cart % = Add To Cart ÷ Q.C. · Purchase % = Purchase ÷ Add To Cart (&quot;—&quot;
           when the previous stage is 0) · ads with under 10 clicks show &quot;low sample&quot; · click a
           column to sort
         </p>
@@ -653,9 +715,9 @@ function FacebookSkeleton() {
           <div key={i} className="h-11 w-72 rounded-lg bg-surface-2" />
         ))}
       </div>
-      <div className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4 3xl:grid-cols-7">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
         {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className={`${block} h-32`} />
+          <div key={i} className={`${block} h-[88px]`} />
         ))}
       </div>
       <div className="mx-auto grid max-w-[820px] gap-6 md:grid-cols-2">
@@ -663,14 +725,12 @@ function FacebookSkeleton() {
           <div key={i} className={`${block} h-52`} />
         ))}
       </div>
-      <div className="grid gap-6 2xl:grid-cols-3">
-        <div className={`${block} h-[560px] 2xl:col-span-2`} />
-        <div className="grid gap-6 md:grid-cols-2 2xl:grid-cols-1">
-          <div className={`${block} h-[268px]`} />
-          <div className={`${block} h-[268px]`} />
-        </div>
+      <div className={`${block} h-[340px]`} />
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-[1.35fr_1.1fr_0.8fr]">
+        <div className={`${block} h-[480px] md:col-span-2 xl:col-span-1`} />
+        <div className={`${block} h-[480px]`} />
+        <div className={`${block} h-[480px]`} />
       </div>
-      <div className={`${block} h-[420px]`} />
       <div className={`${block} h-[640px]`} />
     </div>
   );

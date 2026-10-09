@@ -37,7 +37,7 @@ export interface FunnelRow {
   // funnel stages (step-over-step % is computed by the client)
   first_page_views: number;
   questionnaire_starts: number;
-  leads_partial: number;
+  questionnaire_completed: number;
   add_to_carts: number;
   purchase_events: number;
   conversions: number; // verified conversions (CV) used for CAC / ROAS
@@ -78,7 +78,7 @@ export async function getFbFunnel(query: FbStatisticsQuery): Promise<FbFunnelRes
     link_clicks: number;
     first_page_views: number;
     questionnaire_starts: number;
-    leads_partial: number;
+    questionnaire_completed: number;
     add_to_carts: number;
     purchase_events: number;
     conversions: number;
@@ -101,7 +101,7 @@ export async function getFbFunnel(query: FbStatisticsQuery): Promise<FbFunnelRes
         link_clicks: { $sum: '$link_clicks' },
         first_page_views: { $sum: '$first_page_views' },
         questionnaire_starts: { $sum: '$questionnaire_starts' },
-        leads_partial: { $sum: '$leads_partial' },
+        questionnaire_completed: { $sum: '$questionnaire_completed' },
         add_to_carts: { $sum: '$add_to_carts' },
         purchase_events: { $sum: '$purchase_events' },
         conversions: { $sum: '$conversions' },
@@ -140,7 +140,7 @@ export async function getFbFunnel(query: FbStatisticsQuery): Promise<FbFunnelRes
 
       first_page_views: g.first_page_views,
       questionnaire_starts: g.questionnaire_starts,
-      leads_partial: g.leads_partial,
+      questionnaire_completed: g.questionnaire_completed,
       add_to_carts: g.add_to_carts,
       purchase_events: g.purchase_events,
       conversions: g.conversions,

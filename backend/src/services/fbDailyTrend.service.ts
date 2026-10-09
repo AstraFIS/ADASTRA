@@ -28,7 +28,7 @@ export interface DailyTrendPoint {
   // funnel stages
   first_page_views: number;
   questionnaire_starts: number;
-  leads_partial: number;
+  questionnaire_completed: number;
   add_to_carts: number;
   purchase_events: number;
   conversions: number; // verified conversions (CV) used for CAC / ROAS
@@ -64,7 +64,7 @@ export async function getFbDailyTrend(query: FbStatisticsQuery): Promise<FbDaily
     landing_page_views: number;
     first_page_views: number;
     questionnaire_starts: number;
-    leads_partial: number;
+    questionnaire_completed: number;
     add_to_carts: number;
     purchase_events: number;
     conversions: number;
@@ -84,7 +84,7 @@ export async function getFbDailyTrend(query: FbStatisticsQuery): Promise<FbDaily
         landing_page_views: { $sum: '$landing_page_views' },
         first_page_views: { $sum: '$first_page_views' },
         questionnaire_starts: { $sum: '$questionnaire_starts' },
-        leads_partial: { $sum: '$leads_partial' },
+        questionnaire_completed: { $sum: '$questionnaire_completed' },
         add_to_carts: { $sum: '$add_to_carts' },
         purchase_events: { $sum: '$purchase_events' },
         conversions: { $sum: '$conversions' },
@@ -113,7 +113,7 @@ export async function getFbDailyTrend(query: FbStatisticsQuery): Promise<FbDaily
       landing_page_views: d.landing_page_views,
       first_page_views: d.first_page_views,
       questionnaire_starts: d.questionnaire_starts,
-      leads_partial: d.leads_partial,
+      questionnaire_completed: d.questionnaire_completed,
       add_to_carts: d.add_to_carts,
       purchase_events: d.purchase_events,
       conversions: d.conversions,

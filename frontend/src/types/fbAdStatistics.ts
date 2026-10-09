@@ -12,6 +12,8 @@ export interface AdStatistics {
   revenue: number;
   spend_before_fees: number;
   provider_fees: number;
+  /** Revenue − spend before provider fees. */
+  gross_profit: number;
   net_profit: number;
   impressions: number;
   clicks_all: number;
@@ -19,7 +21,7 @@ export interface AdStatistics {
   landing_page_views: number;
   first_page_views: number;
   questionnaire_starts: number;
-  leads_partial: number;
+  questionnaire_completed: number;
   add_to_carts: number;
   purchase_events: number;
 }

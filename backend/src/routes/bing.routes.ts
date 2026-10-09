@@ -9,11 +9,15 @@ const emptyToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === 
 
 const dashboardQuerySchema = z.object({
   range: z.preprocess(emptyToUndefined, z.enum(DATE_RANGE_KEYS).default('all_time')),
-  offer: z.preprocess(emptyToUndefined, z.string().trim().max(200).optional()),
+  offer: z.preprocess(emptyToUndefined, z.string().trim().max(300).optional()),
+  campaign: z.preprocess(emptyToUndefined, z.string().trim().max(300).optional()),
 });
 
-/** GET /api/platforms/microsoft/dashboard?range=all_time&offer=... — Bing Ads campaign performance */
-bingRouter.get('/dashboard', (req, res) => {
+/**
+ * GET /api/platforms/microsoft/dashboard?range=all_time&offer=…&campaign=…
+ * Bing Ads performance: bing_ad_reports (spend) joined with bing_conversions (partner funnel).
+ */
+bingRouter.get('/dashboard', async (req, res) => {
   const q = dashboardQuerySchema.parse(req.query);
-  res.json(getBingDashboard({ range: q.range, offer: q.offer }));
+  res.json(await getBingDashboard({ range: q.range, offer: q.offer, campaign: q.campaign }));
 });

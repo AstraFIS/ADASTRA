@@ -56,7 +56,7 @@ try {
         presell_visits: lpv[k] ?? 0,
         first_page_views: lpv[k] ?? 0,
         questionnaire_starts: qs[k] ?? 0,
-        leads_partial: lead[k] ?? 0,
+        questionnaire_completed: lead[k] ?? 0,
         add_to_carts: atc[k] ?? 0,
         purchase_events: purchase[k] ?? 0,
         conversions: purchase[k] ?? 0,

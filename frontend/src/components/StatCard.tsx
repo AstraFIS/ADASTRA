@@ -6,7 +6,7 @@ interface Props {
   value: string;
   caption: string;
   tone?: StatTone;
-  size?: 'lg' | 'md';
+  size?: 'lg' | 'md' | 'sm';
   /** Colour the caption as a good/bad comparison (e.g. "33% below account avg"). */
   captionTone?: CaptionTone;
 }
@@ -30,6 +30,7 @@ const captionClasses: Record<CaptionTone, string> = {
 const valueSize = {
   lg: 'text-[clamp(1.25rem,17cqw,2.25rem)]',
   md: 'text-[clamp(1.25rem,17cqw,1.875rem)]',
+  sm: 'text-[clamp(1.05rem,14cqw,1.5rem)]',
 };
 
 export default function StatCard({
@@ -41,19 +42,20 @@ export default function StatCard({
   captionTone = 'default',
 }: Props) {
   const t = toneClasses[tone];
-  const pad = size === 'lg' ? 'px-7 py-6' : 'px-6 py-5';
+  const pad = size === 'lg' ? 'px-7 py-6' : size === 'md' ? 'px-6 py-5' : 'px-4 py-3';
+  const gap = size === 'sm' ? 'mt-1.5' : 'mt-3';
 
   return (
     <div className={`@container min-w-0 rounded-xl border border-line bg-surface ${pad} ${t.border}`}>
-      <p className="truncate text-xs font-medium uppercase tracking-[0.08em] text-ink-2">{label}</p>
+      <p className={`truncate font-medium uppercase tracking-[0.08em] text-ink-2 ${size === 'sm' ? 'text-[11px]' : 'text-xs'}`}>{label}</p>
       <p
-        className={`mt-3 truncate font-bold leading-tight tabular-nums tracking-tight ${valueSize[size]} ${t.text}`}
+        className={`${gap} truncate font-bold leading-tight tabular-nums tracking-tight ${valueSize[size]} ${t.text}`}
         title={value}
       >
         {value}
       </p>
       <p
-        className={`mt-3 text-sm ${captionClasses[captionTone]} ${size === 'md' ? 'truncate' : ''}`}
+        className={`${gap} ${size === 'sm' ? 'text-xs' : 'text-sm'} ${captionClasses[captionTone]} ${size === 'lg' ? '' : 'truncate'}`}
         title={caption}
       >
         {caption}

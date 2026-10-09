@@ -16,6 +16,8 @@ export interface LineSeries {
   hollowColor?: string;
   /** Tooltip text for a hollow index. */
   hollowText?: string;
+  /** Fill a soft gradient between the line and zero. */
+  area?: boolean;
   /** Tooltip text for a null value. */
   emptyText?: string;
 }
@@ -35,6 +37,8 @@ interface Props {
   headroom?: number;
   /** Top of the y-axis when no series has a positive value (keeps the scale readable). */
   fallbackMax?: number;
+  /** Minimum px between points before value labels are thinned out. */
+  labelMinSpacing?: number;
   ariaLabel: string;
   className?: string;
 }
@@ -61,6 +65,7 @@ export default function LineChart({
   intervals = 3,
   headroom = 1.15,
   fallbackMax = 1,
+  labelMinSpacing = MIN_SPACING_FOR_LABELS,
   ariaLabel,
   className = '',
 }: Props) {
@@ -92,8 +97,8 @@ export default function LineChart({
   // when points are too close for every value label, label every k-th point (on the same days the axis
   // shows a date) instead of hiding them all; the hovered point is always labelled
   const labelEvery =
-    spacing > 0 && spacing < MIN_SPACING_FOR_LABELS
-      ? Math.ceil(Math.ceil(MIN_SPACING_FOR_LABELS / spacing) / axisEvery) * axisEvery
+    spacing > 0 && spacing < labelMinSpacing
+      ? Math.ceil(Math.ceil(labelMinSpacing / spacing) / axisEvery) * axisEvery
       : axisEvery;
   const showPointLabel = (i: number) => i % labelEvery === 0 || hover?.index === i;
 
@@ -221,8 +226,33 @@ export default function LineChart({
               open = true;
             });
             const hollow = new Set(s.hollowAt ?? []);
+            // area: one closed shape per unbroken run of points, down to the zero line
+            const runs: number[][] = [];
+            s.values.forEach((v, i) => {
+              if (v === null) return;
+              if (i > 0 && s.values[i - 1] !== null && runs.length) runs[runs.length - 1].push(i);
+              else runs.push([i]);
+            });
+            const gradId = `area-${s.key}`;
             return (
               <g key={s.key}>
+                {s.area && (
+                  <>
+                    <defs>
+                      <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0%" stopColor={s.color} stopOpacity={0.28} />
+                        <stop offset="100%" stopColor={s.color} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    {runs.map((run) => (
+                      <path
+                        key={run[0]}
+                        d={`M${xFor(run[0])},${yFor(0)} ${run.map((i) => `L${xFor(i)},${yFor(s.values[i] as number)}`).join(' ')} L${xFor(run[run.length - 1])},${yFor(0)} Z`}
+                        fill={`url(#${gradId})`}
+                      />
+                    ))}
+                  </>
+                )}
                 <path
                   d={path.trim()}
                   fill="none"

@@ -110,8 +110,8 @@ const COLUMNS: Column[] = [
   },
   funnelColumn('first_page_views', 'First Page View', (r) => r.link_clicks),
   funnelColumn('questionnaire_starts', 'Q.S.', (r) => r.first_page_views),
-  funnelColumn('leads_partial', 'Lead / Partial', (r) => r.questionnaire_starts),
-  funnelColumn('add_to_carts', 'Add To Cart', (r) => r.leads_partial),
+  funnelColumn('questionnaire_completed', 'Q.C.', (r) => r.questionnaire_starts),
+  funnelColumn('add_to_carts', 'Add To Cart', (r) => r.questionnaire_completed),
   funnelColumn('purchase_events', 'Purchase', (r) => r.add_to_carts),
   {
     key: 'revenue_usd',

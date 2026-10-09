@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { getAdStatistics } from '../controllers/fbAdStatistics.controller.js';
 import { getCharts } from '../controllers/fbCharts.controller.js';
+import { getGeoDevice } from '../controllers/fbGeoDevice.controller.js';
 import { getDailyTrend } from '../controllers/fbDailyTrend.controller.js';
 import { getFunnel } from '../controllers/fbFunnel.controller.js';
 import { getOptions } from '../controllers/fbOptions.controller.js';
@@ -29,6 +30,9 @@ facebookRouter.get('/statistics', getStatistics);
 
 /** GET /api/platforms/facebook/charts — by-ad revenue/spend + audience buckets from the report collections */
 facebookRouter.get('/charts', getCharts);
+
+/** GET /api/platforms/facebook/geo-device — totals per Region (country) and per Device */
+facebookRouter.get('/geo-device', getGeoDevice);
 
 /** GET /api/platforms/facebook/daily-trend — per-day revenue / spend / profit from the report collection */
 facebookRouter.get('/daily-trend', getDailyTrend);

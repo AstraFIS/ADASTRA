@@ -25,7 +25,7 @@ export interface AdMetricRow {
   impressions: number;
   // funnel stages after the first page view (page visit)
   qs: number; // "Q.S." = quiz start
-  lead: number; // "Lead / Partial" = quiz end
+  lead: number; // "Q.C." = questionnaire completed (quiz end)
   addToCart: number;
   purchase: number; // verified conversion count (CV), used for CAC / ROAS
 }

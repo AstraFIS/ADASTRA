@@ -5,6 +5,8 @@ export interface PlatformMetrics {
   revenue: number;
   netProfit: number;
   activeAds: number;
+  /** Latest day inside the selected month that has data (YYYY-MM-DD), null when the month is empty. */
+  dataThrough: string | null;
 }
 
 export interface PlatformSummary {
@@ -20,9 +22,18 @@ export interface PortfolioTotals {
   netProfit: number;
 }
 
+export interface OverviewMonth {
+  value: string; // YYYY-MM
+  label: string; // "October 2026"
+}
+
 export interface PortfolioOverview {
   client: string;
   portfolio: string;
+  /** The month the totals cover; the current calendar month unless one was chosen. */
+  period: { month: string; label: string; from: string; to: string; is_current: boolean; current_month: string };
+  /** Months that have data on any platform the caller sees, newest first (always includes this month). */
+  months: OverviewMonth[];
   totals: PortfolioTotals;
   platforms: PlatformSummary[];
 }
