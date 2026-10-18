@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/auth/AuthContext';
+import BingCampaignBuyers from '@/components/BingCampaignBuyers';
 import BingGeoSection from '@/components/BingGeoSection';
 import BingFunnelTable, { type BingTableView } from '@/components/BingFunnelTable';
+import BingKeywordTable from '@/components/BingKeywordTable';
 import ChartLegend from '@/components/ChartLegend';
+import CustomDateRange from '@/components/CustomDateRange';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import FilterSelect from '@/components/FilterSelect';
 import LineChart from '@/components/LineChart';
@@ -17,10 +21,13 @@ type State =
   | { kind: 'ok'; data: BingDashboard; outdated: boolean }
   | { kind: 'error'; message: string };
 
-type FilterKey = 'range' | 'offer' | 'campaign';
+type FilterKey = 'range' | 'offer' | 'campaign' | 'buyer';
 
 const ALL = '';
 const DEFAULT_RANGE = 'all_time';
+const CUSTOM = 'custom';
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const dayParam = (value: string | null) => (value && ISO_DAY.test(value) ? value : '');
 const AD_GROUP_LIMIT = 25;
 
 const REVENUE_COLOR = 'var(--color-revenue)';
@@ -40,9 +47,16 @@ const percent = (value: number | null, digits: number) =>
 
 export default function BingDashboardPage() {
   const [params, setParams] = useSearchParams();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const range = params.get('range') ?? DEFAULT_RANGE;
+  // a custom range lives in the URL as from / to (YYYY-MM-DD) and takes precedence over the named range
+  const from = dayParam(params.get('from'));
+  const to = dayParam(params.get('to'));
+  const custom = from !== '' || to !== '';
   const offer = params.get('offer') ?? ALL;
   const campaign = params.get('campaign') ?? ALL;
+  const buyer = params.get('buyer') ?? ALL;
 
   const [state, setState] = useState<State>({ kind: 'loading', previous: null });
   const [reloadKey, setReloadKey] = useState(0);
@@ -53,9 +67,12 @@ export default function BingDashboardPage() {
     let cancelled = false;
     setState((s) => ({ kind: 'loading', previous: s.kind === 'ok' ? s.data : s.kind === 'loading' ? s.previous : null }));
 
-    const qs = new URLSearchParams({ range });
+    const qs = new URLSearchParams(custom ? {} : { range });
+    if (from) qs.set('from', from);
+    if (to) qs.set('to', to);
     if (offer) qs.set('offer', offer);
     if (campaign) qs.set('campaign', campaign);
+    if (buyer) qs.set('buyer', buyer);
 
     api
       .get<unknown>(`/platforms/microsoft/dashboard?${qs.toString()}`)
@@ -70,12 +87,32 @@ export default function BingDashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [range, offer, campaign, reloadKey]);
+  }, [range, from, to, custom, offer, campaign, buyer, reloadKey]);
+
+  /** Switch between a named range and a custom from / to window (bounds = null → named range). */
+  function setDates(nextRange: string, bounds: [string, string] | null) {
+    const next = new URLSearchParams(params);
+    next.delete('range');
+    next.delete('from');
+    next.delete('to');
+    if (bounds) {
+      next.set('from', bounds[0]);
+      next.set('to', bounds[1]);
+    } else if (nextRange !== DEFAULT_RANGE) {
+      next.set('range', nextRange);
+    }
+    setParams(next, { replace: true });
+  }
 
   function setFilter(key: FilterKey, value: string) {
     const next = new URLSearchParams(params);
     if (value === ALL || (key === 'range' && value === DEFAULT_RANGE)) next.delete(key);
     else next.set(key, value);
+    // the selected campaign / offer may belong to another media buyer
+    if (key === 'buyer') {
+      next.delete('campaign');
+      next.delete('offer');
+    }
     setParams(next, { replace: true });
   }
 
@@ -99,12 +136,27 @@ export default function BingDashboardPage() {
   const data = state.kind === 'ok' ? state.data : state.previous;
   if (!data) return <BingSkeleton />;
 
+  /** The day window currently on screen: the resolved range, else the latest month of data. */
+  function shownWindow(): [string, string] {
+    if (data!.range.from && data!.range.to) return [data!.range.from, data!.range.to];
+    const end =
+      [data!.meta.ads_through, data!.meta.partner_through].filter((d): d is string => !!d).sort().pop() ?? new Date().toISOString().slice(0, 10);
+    const daily = data!.daily;
+    const start = daily[0]?.date ?? `${end.slice(0, 8)}01`;
+    return [start, daily[daily.length - 1]?.date ?? end];
+  }
+
   const busy = state.kind === 'loading';
   const outdated = state.kind === 'ok' && state.outdated;
   const { statistics: kpi, daily, funnel, meta, filters, options } = data;
-  const empty = meta.ad_rows === 0 && meta.conversion_rows === 0;
+  const empty = meta.ad_rows === 0 && meta.conversion_rows === 0 && meta.keyword_rows === 0 && meta.search_term_rows === 0;
+  const hasAdData = meta.ad_rows > 0 || meta.conversion_rows > 0;
+  // the buyer dropdown only appears when there is a choice (admins, or users with several buyers)
+  const buyerChoices = options.buyers;
+  const showBuyerFilter = buyerChoices.length > 1;
+  const buyerLabel = filters.buyer ?? (showBuyerFilter ? 'all buyers' : buyerChoices[0] ?? null);
 
-  const scope = [filters.campaign ?? 'all campaigns', filters.offer ?? 'all offers'].join(' · ');
+  const scope = [buyerLabel, filters.campaign ?? 'all campaigns', filters.offer ?? 'all offers'].filter(Boolean).join(' · ');
   const keep = (list: string[], current: string | null) => (current && !list.includes(current) ? [current, ...list] : list);
 
   const rowsAll = view === 'date' ? funnel.by_date : view === 'offer' ? funnel.by_offer : funnel.by_ad_group;
@@ -121,6 +173,33 @@ export default function BingDashboardPage() {
         <div>
           <p className="text-sm font-medium uppercase tracking-[0.12em] text-ink-3">Bing Ads</p>
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-ink md:text-4xl">Campaign Performance</h1>
+          {showBuyerFilter && (
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <span id="buyer-label" className="text-sm font-medium text-ink-2">
+                Media buyer
+              </span>
+              <div role="radiogroup" aria-labelledby="buyer-label" className="inline-flex flex-wrap rounded-lg bg-surface-2 p-1">
+                {[ALL, ...buyerChoices].map((b) => {
+                  const active = (filters.buyer ?? ALL) === b;
+                  return (
+                    <button
+                      key={b || 'all'}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => setFilter('buyer', b)}
+                      title={b === 'Unassigned' ? 'Campaigns with no _th / _th2 suffix and no buyer assigned' : undefined}
+                      className={`rounded-md px-4 py-1.5 text-sm transition-colors ${
+                        active ? 'bg-azure font-bold text-canvas' : 'font-medium text-ink-2 hover:text-ink'
+                      }`}
+                    >
+                      {b === ALL ? 'All' : b}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         <section aria-label="Filters" className="flex w-full flex-wrap gap-3 xl:w-auto">
@@ -128,9 +207,13 @@ export default function BingDashboardPage() {
             id="date-range"
             label="Date Range"
             hideLabel
-            value={data.range.key}
-            options={options.date_ranges.map((r) => ({ value: r.key, label: r.label }))}
-            onChange={(v) => setFilter('range', v)}
+            value={custom ? CUSTOM : data.range.key}
+            options={[
+              ...options.date_ranges.map((r) => ({ value: r.key, label: r.label })),
+              { value: CUSTOM, label: custom && data.range.key === CUSTOM ? data.range.label : 'Custom Range' },
+            ]}
+            // picking Custom starts from the window on screen, so nothing jumps until a date is edited
+            onChange={(v) => setDates(v, v === CUSTOM ? shownWindow() : null)}
             className="w-full sm:w-auto sm:min-w-[260px]"
           />
           <FilterSelect
@@ -154,6 +237,10 @@ export default function BingDashboardPage() {
         </section>
       </header>
 
+      {custom && (
+        <CustomDateRange key={`${from}|${to}`} from={from} to={to} onApply={(start, end) => setDates(CUSTOM, [start, end])} className="-mt-2" />
+      )}
+
       {outdated && (
         <div role="status" className="rounded-xl border border-spend/40 bg-surface p-4 text-sm text-ink-2">
           <p className="font-semibold text-spend">The backend is running an older version</p>
@@ -164,10 +251,32 @@ export default function BingDashboardPage() {
         </div>
       )}
 
+      {meta.future_dated_through && (
+        <div role="status" className="rounded-xl border border-spend/40 bg-surface p-4 text-sm text-ink-2">
+          <p className="font-semibold text-spend">Some Bing rows are dated in the future (latest: {formatDate(meta.future_dated_through, 'medium')})</p>
+          <p className="mt-1">
+            Date ranges are counted back from today instead. This usually means a date was read month-first during an import
+            (e.g. “12/10/2026” stored as 10 December). Find them in Compass with{' '}
+            <code>{`{ report_date: { $gt: new Date() } }`}</code> (or <code>event_date</code> in bing_conversions) and fix or re-import
+            those rows.
+          </p>
+        </div>
+      )}
+
+      {isAdmin && (
+        <ErrorBoundary label="The campaign buyers section">
+          <BingCampaignBuyers onSaved={() => setReloadKey((k) => k + 1)} />
+        </ErrorBoundary>
+      )}
+
       {empty ? (
         <div className="rounded-xl border border-line bg-surface p-8 text-sm text-ink-2">
-          No Bing data in the database yet. Load the two collections (<code>bing_ad_reports</code> and{' '}
-          <code>bing_conversions</code>) with <code>npm run import:bing -w backend -- &lt;folder&gt; --apply</code>.
+          {filters.buyer || !showBuyerFilter
+            ? `No Bing data for ${buyerLabel ?? 'your media buyers'} yet.`
+            : 'No Bing data in the database yet.'}{' '}
+          Load <code>bing_ad_reports</code>, <code>bing_conversions</code>, <code>bing_keyword_reports</code> and{' '}
+          <code>bing_search_terms</code> with{' '}
+          <code>npm run import:bing -w backend -- &lt;folder&gt; --apply</code>.
         </div>
       ) : (
         <>
@@ -195,7 +304,11 @@ export default function BingDashboardPage() {
           </section>
 
           <p className="-mt-2 text-xs text-ink-3">
-            Bing Ads data: {meta.ads_period ?? 'none'} · Partner data: {meta.partner_period ?? 'none'}
+            {buyerLabel && `${buyerLabel} · `}Bing Ads data: {meta.ads_period ?? 'none'} · Partner data: {meta.partner_period ?? 'none'} · Keyword data:{' '}
+            {meta.keywords_period ?? 'none'} · Search terms: {meta.search_terms_period ?? 'none'}
+            {!hasAdData &&
+              meta.keyword_rows + meta.search_term_rows > 0 &&
+              ' · this selection has keyword / search term data only, so the tiles and charts are empty — see the Search Terms report'}
             {meta.unattributed_events > 0 &&
               ` · ${formatInteger(meta.unattributed_events)} partner events in this selection carry no campaign / ad group, so they count toward revenue but not toward any ad group's spend`}
             {kpi.spend_estimated && ' · spend for a multi-offer landing page is split across offers by landing-page-view share'}
@@ -352,6 +465,10 @@ export default function BingDashboardPage() {
                     : 'One row per day × offer. “Pending” = that export does not cover the day yet.'}
               </p>
             </section>
+          </ErrorBoundary>
+
+          <ErrorBoundary label="The search term table">
+            <BingKeywordTable rows={data.keywords} searchTerms={data.search_terms} period={meta.keywords_period} searchTermsPeriod={meta.search_terms_period} caption={`${data.range.label} · ${scope}`} />
           </ErrorBoundary>
         </>
       )}
