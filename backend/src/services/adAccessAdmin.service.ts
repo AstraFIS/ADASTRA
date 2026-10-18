@@ -1,7 +1,7 @@
 import { AdAccess, type FacebookAccessGroup } from '../models/adAccess.model.js';
 import { AdCreative } from '../models/adCreative.model.js';
 import { AdTaxonomy, type TaxonomyData, type TaxonomySource } from '../models/adTaxonomy.model.js';
-import { FacebookAdReport2 } from '../models/facebookAdReport.model.js';
+import { FacebookAdReport } from '../models/facebookAdReport.model.js';
 import { FacebookConversion } from '../models/facebookConversion.model.js';
 import { NO_AD_NAME, num, reportAggregate, textValues } from './fbStatistics.service.js';
 
@@ -294,7 +294,7 @@ export async function saveRowGroups(items: RowGroupInput[]): Promise<number> {
   let changed = 0;
   for (const item of items) {
     if (item.ids.length === 0) continue;
-    const model = (item.source === 'partner' ? FacebookConversion : FacebookAdReport2) as unknown as typeof FacebookConversion;
+    const model = (item.source === 'partner' ? FacebookConversion : FacebookAdReport) as unknown as typeof FacebookConversion;
     const update = item.group ? { $set: { access_group: item.group } } : { $unset: { access_group: 1 } };
     const res = await model.updateMany({ _id: { $in: item.ids } }, update);
     changed += res.modifiedCount;
