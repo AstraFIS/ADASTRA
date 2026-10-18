@@ -1,4 +1,5 @@
 import express from 'express';
+import compression from 'compression';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -28,6 +29,8 @@ export function createApp() {
       credentials: true,
     }),
   );
+  // gzip responses: the Bing dashboard JSON (search terms) runs past Vercel's 4.5 MB response limit uncompressed
+  app.use(compression());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
   app.use(morgan(isProd ? 'combined' : 'dev'));
