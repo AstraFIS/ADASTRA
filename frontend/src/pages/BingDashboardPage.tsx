@@ -118,16 +118,24 @@ export default function BingDashboardPage() {
 
   if (state.kind === 'error') {
     return (
-      <div className="rounded-xl border border-loss/40 bg-surface p-6">
-        <p className="font-semibold text-loss">Could not load the Bing Ads dashboard</p>
-        <p className="mt-1 text-sm text-ink-2">{state.message}</p>
-        <button
-          type="button"
-          onClick={() => setReloadKey((k) => k + 1)}
-          className="mt-4 rounded-lg border border-line bg-surface-2 px-4 py-2 text-sm font-semibold text-ink hover:bg-line"
-        >
-          Retry
-        </button>
+      <div className="space-y-6">
+        <div className="rounded-xl border border-loss/40 bg-surface p-6">
+          <p className="font-semibold text-loss">Could not load the Bing Ads dashboard</p>
+          <p className="mt-1 text-sm text-ink-2">{state.message}</p>
+          <button
+            type="button"
+            onClick={() => setReloadKey((k) => k + 1)}
+            className="mt-4 rounded-lg border border-line bg-surface-2 px-4 py-2 text-sm font-semibold text-ink hover:bg-line"
+          >
+            Retry
+          </button>
+        </div>
+        {/* loads its own data, so admins can still fix buyers when the dashboard request fails */}
+        {isAdmin && (
+          <ErrorBoundary label="The campaign buyers section">
+            <BingCampaignBuyers onSaved={() => setReloadKey((k) => k + 1)} />
+          </ErrorBoundary>
+        )}
       </div>
     );
   }
