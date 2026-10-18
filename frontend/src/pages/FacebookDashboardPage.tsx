@@ -649,8 +649,7 @@ export default function FacebookDashboardPage() {
           date range selected above · funnel percentages are step-over-step: First Page View % =
           First Page View ÷ Link Clicks · Q.S. % = Q.S. ÷ First Page View · Q.C. % = Q.C. ÷
           Q.S. · Add To Cart % = Add To Cart ÷ Q.C. · Purchase % = Purchase ÷ Add To Cart (&quot;—&quot;
-          when the previous stage is 0) · ads with under 10 clicks show &quot;low sample&quot; · click a
-          column to sort
+          when the previous stage is 0) · click a column to sort
         </p>
         {funnel.kind === 'error' ? (
           <p className="mt-6 text-sm text-loss">Funnel data unavailable: {funnel.message}</p>
