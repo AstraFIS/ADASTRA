@@ -12,8 +12,8 @@ overview) so far shows the partner conversion export only — see "How data flow
 
 | Part | Stack | Where |
 |---|---|---|
-| `backend/` | Express 5 + TypeScript 7, Mongoose 9, zod, JWT auth | Vercel serverless (`api/index.ts` wraps the Express app) — https://adastra-ten.vercel.app |
-| `frontend/` | React 19 + Vite 8 + Tailwind 4, react-router 7 | Vercel static SPA — https://adastra-gi2n.vercel.app |
+| `backend/` | Express 5 + TypeScript 7, Mongoose 9, zod, JWT auth | Vercel serverless (`api/index.ts` wraps the Express app) — https://adastra-backend-black.vercel.app |
+| `frontend/` | React 19 + Vite 8 + Tailwind 4, react-router 7 | Vercel static SPA — https://adastra-frontend.vercel.app |
 | Database | MongoDB Atlas, database `adastra` | connection string in `backend/src/config/settings.ts` |
 
 Repo: `github.com/Vuqar111/ADASTRA` (npm workspaces: root `package.json` runs both).
@@ -33,6 +33,10 @@ Repo: `github.com/Vuqar111/ADASTRA` (npm workspaces: root `package.json` runs bo
   Facebook ads are in Meta1 / Meta2; a user sees only the ads listed under their groups
   (ads missing from `ad_access` are hidden from every non-admin). Admins always see everything. Enforced in the API
   (`requirePlatform`, `facebookAdScope` → `reportBaseMatch`), mirrored in the nav and routes.
+- **Bing media buyers.** `access.bing_buyers` (TH / TH2) limits which Bing campaigns a
+  user sees — campaign suffix `_th` / `_th2`, an admin's pick in the Bing page's "Campaign buyers"
+  section (`bing_campaign_buyers`), or the keyword report's Media Buyer column.
+  See `backend/src/utils/bingBuyer.ts` and `tools/bing/README.md`.
 - **Ranges are anchored on the data, not the clock.** "This Month" means the
   month of the latest `report_date` in the collection (currently 2026-09-25).
 - **Health check:** `GET /api/health` → `{"status":"ok","db":"connected"}`. If
