@@ -1,4 +1,4 @@
-import { FACEBOOK_ACCESS_GROUPS, type FacebookAccessGroup, type UserAccess, type UserRole } from '@/types/auth';
+import { BING_MEDIA_BUYERS, FACEBOOK_ACCESS_GROUPS, type BingMediaBuyer, type FacebookAccessGroup, type UserAccess, type UserRole } from '@/types/auth';
 
 interface EditorProps {
   value: UserAccess;
@@ -19,6 +19,12 @@ export default function AccessListEditor({ value, onChange, role, disabled = fal
     const groups = on ? [...value.facebook, group] : value.facebook.filter((g) => g !== group);
     // keep the canonical order so the form's "changed?" comparison is stable
     onChange({ ...value, facebook: FACEBOOK_ACCESS_GROUPS.filter((g) => groups.includes(g)) });
+  }
+
+  const buyers = value.bing_buyers ?? [];
+  function toggleBuyer(buyer: BingMediaBuyer, on: boolean) {
+    const next = on ? [...buyers, buyer] : buyers.filter((b) => b !== buyer);
+    onChange({ ...value, bing_buyers: BING_MEDIA_BUYERS.filter((b) => next.includes(b)) });
   }
 
   return (
@@ -70,13 +76,27 @@ export default function AccessListEditor({ value, onChange, role, disabled = fal
             />
             Can view
           </label>
+          <span aria-hidden="true" className="text-line">|</span>
+          {BING_MEDIA_BUYERS.map((buyer) => (
+            <label key={buyer} className="inline-flex items-center gap-2 text-sm text-ink">
+              <input
+                type="checkbox"
+                checked={isAdmin || buyers.includes(buyer)}
+                onChange={(e) => toggleBuyer(buyer, e.target.checked)}
+                disabled={locked || !value.microsoft}
+                className={checkboxClass}
+              />
+              {buyer}
+            </label>
+          ))}
         </div>
       </div>
 
       {!isAdmin && (
         <p className="mt-3 text-xs text-ink-3">
           Meta1 / Meta2 are the Facebook ad groups in the ad access list. The user sees only the ads listed under
-          the groups ticked here.
+          the groups ticked here. TH / TH2 are the Bing media buyers (campaign name ending in _th / _th2, or the
+          keyword report's Media Buyer column); the user sees only those buyers' Bing data.
         </p>
       )}
     </fieldset>
@@ -94,7 +114,7 @@ export function AccessSummary({ access, role }: { access: UserAccess; role: User
   const chips: string[] = [];
   if (access.facebook.length) chips.push(`Facebook · ${access.facebook.join(', ')}`);
   if (access.google) chips.push('Google');
-  if (access.microsoft) chips.push('Bing');
+  if (access.microsoft) chips.push(access.bing_buyers?.length ? `Bing · ${access.bing_buyers.join(', ')}` : 'Bing · no buyers');
 
   if (!chips.length) return <span className="text-xs text-ink-3">No access</span>;
 
