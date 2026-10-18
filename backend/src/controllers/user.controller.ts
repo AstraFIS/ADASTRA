@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { isValidObjectId } from 'mongoose';
 import { z } from 'zod';
 import { FACEBOOK_ACCESS_GROUPS } from '../models/adAccess.model.js';
+import { BING_MEDIA_BUYERS } from '../utils/bingBuyer.js';
 import { FULL_ACCESS, USER_ROLES, User, toPublicUser } from '../models/user.model.js';
 import { HttpError } from '../utils/httpError.js';
 
@@ -12,6 +13,11 @@ const accessSchema = z.object({
   facebook: z.array(z.enum(FACEBOOK_ACCESS_GROUPS)).transform((groups) => [...new Set(groups)]),
   google: z.boolean(),
   microsoft: z.boolean(),
+  // optional so an older frontend that does not send it keeps working (→ every buyer)
+  bing_buyers: z
+    .array(z.enum(BING_MEDIA_BUYERS))
+    .default([...BING_MEDIA_BUYERS])
+    .transform((buyers) => BING_MEDIA_BUYERS.filter((b) => buyers.includes(b))),
 });
 
 const createUserSchema = z.object({
