@@ -26,7 +26,7 @@ export function normalizeBingDashboard(raw: unknown): { data: BingDashboard; out
   const meta = obj(r.meta);
 
   // fields that only the current backend sends
-  const outdated = !('geo' in r) || !('clicks' in r) || !Array.isArray(funnel.by_ad_group) || !Array.isArray(options.campaigns);
+  const outdated = !('geo' in r) || !('clicks' in r) || !Array.isArray(funnel.by_ad_group) || !Array.isArray(options.campaigns) || !Array.isArray(r.keywords);
 
   const statistics: BingStatistics = {
     total_revenue: num(s.total_revenue),
@@ -50,11 +50,16 @@ export function normalizeBingDashboard(raw: unknown): { data: BingDashboard; out
       from: strOrNull(range.from),
       to: strOrNull(range.to),
     },
-    filters: { offer: strOrNull(filters.offer), campaign: strOrNull(filters.campaign) },
+    filters: {
+      offer: strOrNull(filters.offer),
+      campaign: strOrNull(filters.campaign),
+      buyer: strOrNull(filters.buyer) as BingDashboard['filters']['buyer'],
+    },
     options: {
       date_ranges: arr(options.date_ranges),
       offers: arr<string>(options.offers),
       campaigns: arr<string>(options.campaigns),
+      buyers: arr(options.buyers),
     },
     statistics,
     daily: arr<Loose>(r.daily).map((d) => ({
@@ -73,6 +78,8 @@ export function normalizeBingDashboard(raw: unknown): { data: BingDashboard; out
       by_offer: arr(funnel.by_offer),
       by_ad_group: arr(funnel.by_ad_group),
     },
+    keywords: arr(r.keywords),
+    search_terms: arr(r.search_terms),
     meta: {
       ad_rows: num(meta.ad_rows),
       conversion_rows: num(meta.conversion_rows, num(meta.partner_rows)),
@@ -81,6 +88,11 @@ export function normalizeBingDashboard(raw: unknown): { data: BingDashboard; out
       ads_through: strOrNull(meta.ads_through),
       partner_through: strOrNull(meta.partner_through ?? meta.data_through),
       unattributed_events: num(meta.unattributed_events),
+      keyword_rows: num(meta.keyword_rows),
+      keywords_period: strOrNull(meta.keywords_period),
+      search_term_rows: num(meta.search_term_rows),
+      future_dated_through: strOrNull(meta.future_dated_through),
+      search_terms_period: strOrNull(meta.search_terms_period),
     },
   };
   return { data, outdated };
