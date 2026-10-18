@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { Schema, model, type HydratedDocument, type Model } from 'mongoose';
 import { FACEBOOK_ACCESS_GROUPS, type FacebookAccessGroup } from './adAccess.model.js';
+import { BING_MEDIA_BUYERS, type BingMediaBuyer } from '../utils/bingBuyer.js';
 
 export const USER_ROLES = ['admin', 'user'] as const;
 export type UserRole = (typeof USER_ROLES)[number];
@@ -9,16 +10,24 @@ const BCRYPT_ROUNDS = 12;
 
 /**
  * What a user may see. Facebook access is per ad group (see the `ad_access`
- * collection); Google and Bing are all-or-nothing. Admins always see everything,
+ * collection); Google is all-or-nothing; Bing is the page switch `microsoft` plus the
+ * media buyers (`bing_buyers`, read from the campaign-name suffix). Admins always see everything,
  * whatever is stored here — use effectiveAccess() when deciding.
  */
 export interface UserAccess {
   facebook: FacebookAccessGroup[];
   google: boolean;
   microsoft: boolean;
+  /** Bing media buyers whose campaigns this user sees (TH, TH2 …). */
+  bing_buyers: BingMediaBuyer[];
 }
 
-export const FULL_ACCESS: UserAccess = { facebook: [...FACEBOOK_ACCESS_GROUPS], google: true, microsoft: true };
+export const FULL_ACCESS: UserAccess = {
+  facebook: [...FACEBOOK_ACCESS_GROUPS],
+  google: true,
+  microsoft: true,
+  bing_buyers: [...BING_MEDIA_BUYERS],
+};
 
 export interface IUser {
   name: string;
@@ -76,6 +85,10 @@ const userSchema = new Schema<IUser, UserModel, IUserMethods>(
       },
       google: { type: Boolean, default: true },
       microsoft: { type: Boolean, default: true },
+      bing_buyers: {
+        type: [{ type: String, enum: BING_MEDIA_BUYERS }],
+        default: () => [...FULL_ACCESS.bing_buyers],
+      },
     },
     lastLoginAt: { type: Date },
   },
@@ -107,6 +120,7 @@ export function toPublicUser(user: UserDocument): PublicUser {
       facebook: [...(user.access?.facebook ?? [])],
       google: user.access?.google ?? false,
       microsoft: user.access?.microsoft ?? false,
+      bing_buyers: [...(user.access?.bing_buyers ?? [])],
     },
     lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : null,
     createdAt: user.createdAt.toISOString(),
@@ -120,5 +134,6 @@ export function effectiveAccess(user: { role: UserRole; access?: UserAccess | nu
     facebook: [...(user.access?.facebook ?? [])],
     google: user.access?.google ?? false,
     microsoft: user.access?.microsoft ?? false,
+    bing_buyers: [...(user.access?.bing_buyers ?? [])],
   };
 }
