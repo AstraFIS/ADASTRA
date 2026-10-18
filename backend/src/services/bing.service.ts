@@ -11,9 +11,21 @@
  *     across the offers its visitors clicked, by landing-page-view share (estimate, flagged);
  *     ad-group days with no offer click keep their spend on a "no offer click" line.
  * Partner events without campaign / ad group (tracking added Oct 5) are kept, with no spend.
+ *
+ * Media buyers (see utils/bingBuyer.ts): every query is limited to the buyers the caller may see —
+ * ad reports / conversions by the campaign-name suffix (_th, _th2), keyword reports by their
+ * media_buyer column. Non-admins never see Unassigned rows.
+ *
+ *   bing_keyword_reports – Bing keyword export: per keyword × match type, with partner funnel
+ *                          joined on campaign · ad group · keyword (shown in its own table)
+ *   bing_search_terms    – Bing search term export: per search term, connected on campaign · ad group · keyword
+ *                          to the keyword report (bid, Conversion Name) and to the partner funnel
  */
 import { BingAdReport } from '../models/bingAdReport.model.js';
 import { BingConversion, type BingEventStage } from '../models/bingConversion.model.js';
+import { BingKeywordReport } from '../models/bingKeywordReport.model.js';
+import { BingCampaignBuyer } from '../models/bingCampaignBuyer.model.js';
+import { BingSearchTerm } from '../models/bingSearchTerm.model.js';
 import type {
   BingClickRow,
   BingSegment,
@@ -21,9 +33,12 @@ import type {
   BingDashboard,
   BingDashboardQuery,
   BingFunnelRow,
+  BingKeywordRow,
+  BingSearchTermRow,
 } from '../types/bing.js';
 import type { DateRangeOption } from '../types/facebook.js';
 import { dayExpr } from '../utils/bingDate.js';
+import { UNASSIGNED_BUYER, bingBuyerScope, buyerMatch, buyerOfCampaign, buyerOptions, normalizeBuyer, rowBuyerMatch, type BingMediaBuyer } from '../utils/bingBuyer.js';
 import { DATE_RANGE_OPTIONS, resolveRange } from '../utils/dateRange.js';
 
 export const NO_OFFER = 'Landing page — no offer click';
@@ -87,16 +102,41 @@ function formatPeriod(fromIso: string, toIso: string): string {
   return `${monthDay(fromIso)} – ${monthDay(toIso)}, ${year(toIso)}`;
 }
 
-async function extent(model: 'ads' | 'conversions'): Promise<{ from: string; to: string } | null> {
+async function extent(model: 'ads' | 'conversions' | 'keywords' | 'search_terms', match: Record<string, unknown> = {}): Promise<{ from: string; to: string } | null> {
+  type Row = { min: Date | null; max: Date | null };
   const pipeline = (field: string) => [
+    { $match: match },
     { $project: { _d: dayExpr(field) } },
     { $group: { _id: null, min: { $min: '$_d' }, max: { $max: '$_d' } } },
   ];
   const [row] =
     model === 'ads'
-      ? await BingAdReport.aggregate<{ min: Date | null; max: Date | null }>(pipeline('report_date'))
-      : await BingConversion.aggregate<{ min: Date | null; max: Date | null }>(pipeline('event_date'));
+      ? await BingAdReport.aggregate<Row>(pipeline('report_date'))
+      : model === 'conversions'
+        ? await BingConversion.aggregate<Row>(pipeline('event_date'))
+        : model === 'keywords'
+          ? await BingKeywordReport.aggregate<Row>(pipeline('report_date'))
+          : await BingSearchTerm.aggregate<Row>(pipeline('report_date'));
   return row?.min && row?.max ? { from: iso(row.min), to: iso(row.max) } : null;
+}
+
+interface SearchTermDoc {
+  _d: Date;
+  search_term: string;
+  added_excluded: string | null;
+  match_type: string | null;
+  close_variant: boolean;
+  campaign_name: string;
+  ad_group_name: string;
+  keyword: string;
+  impressions: number;
+  clicks: number;
+  spend_usd: number;
+  top_impr_rate_pct: number | null;
+  abs_top_impr_rate_pct: number | null;
+  conversions: number;
+  all_conversions: number;
+  media_buyer: string | null;
 }
 
 interface AdDoc {
@@ -122,40 +162,155 @@ interface ConversionDoc {
   ad_group_name: string | null;
 }
 
-/** Day field normalised to a Date (stored as Date or as "DD/MM/YYYY" text), then filtered. */
-function selectStages(field: string, range: Record<string, Date> | undefined, campaign: string | null, keep: string[]) {
+interface KeywordDoc {
+  _d: Date;
+  keyword: string;
+  search_term: string | null;
+  goal: string | null;
+  conversions?: number;
+  all_conversions?: number;
+  campaign_name: string;
+  ad_group_name: string;
+  match_type: string | null;
+  bid_usd: number | null;
+  impressions: number;
+  clicks: number;
+  spend_usd: number;
+  top_impr_rate_pct: number | null;
+  abs_top_impr_rate_pct: number | null;
+  media_buyer: string | null;
+}
+
+/**
+ * Day field normalised to a Date (stored as Date or as "DD/MM/YYYY" text), then filtered
+ * by date, campaign and media-buyer scope (`scope` is a buyerMatch() condition).
+ */
+function selectStages(
+  field: string,
+  range: Record<string, Date> | undefined,
+  campaign: string | null,
+  scope: Record<string, unknown>,
+  keep: string[],
+) {
   return [
+    { $match: scope },
     { $addFields: { _d: dayExpr(field) } },
     { $match: { _d: range ?? { $ne: null }, ...(campaign && { campaign_name: campaign }) } },
     { $project: Object.fromEntries([['_d', 1], ...keep.map((k) => [k, 1])]) },
   ];
 }
 
+/** A rate column stored as 0–100, or as a fraction (≤ 1) when loaded straight from the export. */
+const asPct = (v: number | null | undefined) => (typeof v !== 'number' || !Number.isFinite(v) ? null : v <= 1 ? v * 100 : v);
+const keywordKey = (campaign: string | null, adGroup: string | null, keyword: string | null) =>
+  `${campaign ?? ''}\u0001${adGroup ?? ''}\u0001${(keyword ?? '').trim().toLowerCase()}`;
+
 const groupKey = (date: string, campaign: string, adGroup: string) => `${date}\u0001${campaign}\u0001${adGroup}`;
 
-export async function getBingDashboard(query: BingDashboardQuery): Promise<BingDashboard> {
-  const [adsExtent, partnerExtent, partnerOffers, campaigns] = await Promise.all([
+/** Campaigns with no buyer suffix that appear in the keyword / search term reports → their Media Buyer (most rows wins). */
+export async function keywordCampaignBuyers(): Promise<Map<string, BingMediaBuyer>> {
+  type Row = { _id: { c: string; b: string | null }; n: number };
+  const pipeline = [{ $group: { _id: { c: '$campaign_name', b: '$media_buyer' }, n: { $sum: 1 } } }];
+  // keyword and search term reports both carry the Media Buyer column
+  const [fromKeywords, fromTerms] = await Promise.all([BingKeywordReport.aggregate<Row>(pipeline), BingSearchTerm.aggregate<Row>(pipeline)]);
+  const rows = [...fromKeywords, ...fromTerms].sort((a, b) => b.n - a.n);
+  const map = new Map<string, BingMediaBuyer>();
+  for (const r of rows) {
+    const buyer = normalizeBuyer(r._id.b);
+    if (!buyer || !r._id.c || map.has(r._id.c) || buyerOfCampaign(r._id.c) !== UNASSIGNED_BUYER) continue;
+    map.set(r._id.c, buyer);
+  }
+  return map;
+}
+
+/** Admin picks from the "Campaign buyers" section (bing_campaign_buyers), for campaigns without a suffix. */
+export async function manualCampaignBuyers(): Promise<Map<string, BingMediaBuyer>> {
+  const rows = await BingCampaignBuyer.find({}, { campaign_name: 1, media_buyer: 1, _id: 0 }).lean();
+  return new Map(
+    rows.filter((r) => buyerOfCampaign(r.campaign_name) === UNASSIGNED_BUYER).map((r) => [r.campaign_name, r.media_buyer] as const),
+  );
+}
+
+/**
+ * Buyer of every campaign that has no suffix in its name: the admin's pick first,
+ * then the keyword report's Media Buyer. (Suffixed campaigns are matched by regex.)
+ */
+export async function campaignBuyerMap(): Promise<Map<string, BingMediaBuyer>> {
+  const [fromKeywords, manual] = await Promise.all([keywordCampaignBuyers(), manualCampaignBuyers()]);
+  return new Map([...fromKeywords, ...manual]);
+}
+
+export interface BingViewer {
+  role: 'admin' | 'user';
+  access: { bing_buyers: BingMediaBuyer[] };
+}
+
+export async function getBingDashboard(query: BingDashboardQuery, viewer: BingViewer): Promise<BingDashboard> {
+  // which media buyers' rows this caller sees (null = everything)
+  const buyers = bingBuyerScope(viewer, query.buyer);
+  const campaignBuyers = await campaignBuyerMap();
+  const campaignScope = buyerMatch(buyers, 'campaign', 'campaign_name', campaignBuyers);
+  // keyword / search term rows: their Media Buyer column, or their campaign's buyer when it is blank
+  const keywordScope = rowBuyerMatch(buyers, campaignBuyers);
+  const rowBuyer = (code: string | null, campaign: string): string | null => {
+    const own = normalizeBuyer(code) ?? (code?.trim() || null);
+    if (own) return own;
+    const fromCampaign = buyerOfCampaign(campaign);
+    return fromCampaign !== UNASSIGNED_BUYER ? fromCampaign : (campaignBuyers.get(campaign) ?? null);
+  };
+
+  const [adsExtent, partnerExtent, keywordsExtent, termsExtent, partnerOffers, adCampaigns, keywordCampaigns, termCampaigns, allOffers] = await Promise.all([
     extent('ads'),
     extent('conversions'),
+    extent('keywords', keywordScope),
+    extent('search_terms', keywordScope),
+    BingConversion.distinct('offer_name', campaignScope) as Promise<string[]>,
+    BingAdReport.distinct('campaign_name', campaignScope) as Promise<string[]>,
+    BingKeywordReport.distinct('campaign_name', keywordScope) as Promise<string[]>,
+    BingSearchTerm.distinct('campaign_name', keywordScope) as Promise<string[]>,
+    // offer attribution needs every partner offer name, whoever's campaign it came from
     BingConversion.distinct('offer_name') as Promise<string[]>,
-    BingAdReport.distinct('campaign_name') as Promise<string[]>,
   ]);
-  const offerSet = new Set(partnerOffers);
+  const offerSet = new Set(allOffers);
+  const campaigns = [...new Set([...adCampaigns, ...keywordCampaigns, ...termCampaigns])];
 
-  // ranges are anchored on the latest day either export covers
-  const anchor = [adsExtent?.to, partnerExtent?.to].filter(Boolean).sort().pop() ?? null;
-  const bounds = anchor ? resolveRange(query.range, anchor) : null;
+  // ranges are anchored on the latest day any export covers
+  // Ranges are anchored on the latest day any export covers — but never after today, so one
+  // mis-dated row (e.g. "12/10/2026" read month-first as 10 Dec) can't push "This Month" into an empty future month.
+  const today = iso(new Date());
+  const latestData = [adsExtent?.to, partnerExtent?.to, keywordsExtent?.to, termsExtent?.to].filter(Boolean).sort().pop() ?? null;
+  const anchor = latestData && latestData > today ? today : latestData;
+  // a custom from / to (either end may be open) replaces the named range
+  const custom = !!(query.from || query.to);
+  const earliest = [adsExtent?.from, partnerExtent?.from, keywordsExtent?.from, termsExtent?.from].filter(Boolean).sort()[0] ?? null;
+  const bounds = custom
+    ? { from: query.from ?? earliest ?? query.to!, to: query.to ?? latestData ?? query.from! }
+    : anchor
+      ? resolveRange(query.range, anchor)
+      : null;
   const offer = query.offer ?? null;
   const campaign = query.campaign ?? null;
 
   const dateFilter = bounds ? { $gte: new Date(`${bounds.from}T00:00:00Z`), $lte: new Date(`${bounds.to}T00:00:00Z`) } : undefined;
-  const [ads, conversions] = await Promise.all([
+  const [ads, conversions, keywordDocs, termDocs] = await Promise.all([
     BingAdReport.aggregate<AdDoc>(
-      selectStages('report_date', dateFilter, campaign, ['campaign_name', 'ad_group_name', 'offer_name', 'impressions', 'clicks', 'spend_usd']),
+      selectStages('report_date', dateFilter, campaign, campaignScope, ['campaign_name', 'ad_group_name', 'offer_name', 'impressions', 'clicks', 'spend_usd']),
     ),
-    BingConversion.aggregate<ConversionDoc>(
-      selectStages('event_date', dateFilter, campaign, [
-        'sub_id', 'event_raw', 'event_stage', 'offer_name', 'event_count', 'revenue_usd', 'region', 'device', 'campaign_name', 'ad_group_name',
+    BingConversion.aggregate<ConversionDoc & { keyword: string | null }>(
+      selectStages('event_date', dateFilter, campaign, campaignScope, [
+        'sub_id', 'event_raw', 'event_stage', 'offer_name', 'event_count', 'revenue_usd', 'region', 'device', 'campaign_name', 'ad_group_name', 'keyword',
+      ]),
+    ),
+    BingKeywordReport.aggregate<KeywordDoc>(
+      selectStages('report_date', dateFilter, campaign, keywordScope, [
+        'keyword', 'search_term', 'goal', 'conversions', 'all_conversions', 'campaign_name', 'ad_group_name', 'match_type', 'bid_usd', 'impressions', 'clicks', 'spend_usd',
+        'top_impr_rate_pct', 'abs_top_impr_rate_pct', 'media_buyer',
+      ]),
+    ),
+    BingSearchTerm.aggregate<SearchTermDoc>(
+      selectStages('report_date', dateFilter, campaign, keywordScope, [
+        'search_term', 'added_excluded', 'match_type', 'close_variant', 'campaign_name', 'ad_group_name', 'keyword',
+        'impressions', 'clicks', 'spend_usd', 'top_impr_rate_pct', 'abs_top_impr_rate_pct', 'conversions', 'all_conversions', 'media_buyer',
       ]),
     ),
   ]);
@@ -338,32 +493,215 @@ export async function getBingDashboard(query: BingDashboardQuery): Promise<BingD
     .sort((a, b) => b.date.localeCompare(a.date) || b.revenue_usd - a.revenue_usd || a.sub_id.localeCompare(b.sub_id))
     .slice(0, MAX_CLICK_ROWS);
 
+  // ---- keywords: one row per campaign · ad group · keyword · match type ----
+  // partner funnel joined on campaign · ad group · keyword (the keyword parsed from the ad group name);
+  // the offer filter does not apply here — keyword spend has no offer
+  const partnerByKeyword = new Map<string, { base: number; purchase: number; revenue: number }>();
+  for (const c of conversions) {
+    if (!c.campaign_name || !c.ad_group_name) continue;
+    const k = keywordKey(c.campaign_name, c.ad_group_name, c.keyword);
+    const p = partnerByKeyword.get(k) ?? { base: 0, purchase: 0, revenue: 0 };
+    if (c.event_stage === 'first_page_view') p.base += c.event_count;
+    if (c.event_stage === 'purchase') p.purchase += c.event_count;
+    p.revenue += c.revenue_usd;
+    partnerByKeyword.set(k, p);
+  }
+  interface KwAcc {
+    keyword: string; searchTerm: string | null; goals: Set<string>; match: string | null; campaign: string; adGroup: string; buyer: string | null;
+    impressions: number; clicks: number; spend: number; days: Set<string>; bid: number | null; bidDate: string;
+    topW: number; topImpr: number; absW: number; absImpr: number;
+    conv: number; allConv: number; byGoal: Map<string, { conversions: number; all_conversions: number }>;
+  }
+  const goalList = (m: Map<string, { conversions: number; all_conversions: number }>) =>
+    [...m].map(([name, v]) => ({ name, ...v })).sort((x, y) => y.all_conversions - x.all_conversions || x.name.localeCompare(y.name));
+  const kw = new Map<string, KwAcc>();
+  for (const d of keywordDocs) {
+    const date = iso(d._d);
+    const term = d.search_term?.trim() || null;
+    const k = `${keywordKey(d.campaign_name, d.ad_group_name, d.keyword)}\u0001${d.match_type ?? ''}\u0001${term ?? ''}`;
+    const a = kw.get(k) ?? {
+      keyword: d.keyword, searchTerm: term, goals: new Set<string>(), match: d.match_type, campaign: d.campaign_name, adGroup: d.ad_group_name,
+      buyer: rowBuyer(d.media_buyer, d.campaign_name),
+      impressions: 0, clicks: 0, spend: 0, days: new Set<string>(), bid: null, bidDate: '', topW: 0, topImpr: 0, absW: 0, absImpr: 0,
+      conv: 0, allConv: 0, byGoal: new Map(),
+    };
+    a.impressions += d.impressions;
+    a.clicks += d.clicks;
+    a.spend += d.spend_usd;
+    a.conv += d.conversions ?? 0;
+    a.allConv += d.all_conversions ?? 0;
+    const goalName = d.goal?.trim();
+    if (goalName && goalName !== '-') {
+      a.goals.add(goalName);
+      const g = a.byGoal.get(goalName) ?? { conversions: 0, all_conversions: 0 };
+      g.conversions += d.conversions ?? 0;
+      g.all_conversions += d.all_conversions ?? 0;
+      a.byGoal.set(goalName, g);
+    }
+    if (d.impressions > 0) a.days.add(date);
+    if (typeof d.bid_usd === 'number' && date >= a.bidDate) { a.bid = d.bid_usd; a.bidDate = date; }
+    const top = asPct(d.top_impr_rate_pct);
+    const abs = asPct(d.abs_top_impr_rate_pct);
+    if (top !== null) { a.topW += top * d.impressions; a.topImpr += d.impressions; }
+    if (abs !== null) { a.absW += abs * d.impressions; a.absImpr += d.impressions; }
+    kw.set(k, a);
+  }
+  // partner events are per keyword, so with search terms they are shown once, on the keyword's top-spend term
+  const partnerShown = new Set<string>();
+  const keywords: BingKeywordRow[] = [...kw.values()]
+    .sort((x, y) => y.spend - x.spend || y.clicks - x.clicks)
+    .map((a) => {
+      const pk = keywordKey(a.campaign, a.adGroup, a.keyword);
+      const p = partnerShown.has(pk) ? undefined : partnerByKeyword.get(pk);
+      if (p) partnerShown.add(pk);
+      const revenue = p ? round2(p.revenue) : 0;
+      const spend = round2(a.spend);
+      return {
+        keyword: a.keyword,
+        search_term: a.searchTerm,
+        goal: a.goals.size ? [...a.goals].sort().join(', ') : null,
+        match_type: a.match,
+        campaign_name: a.campaign,
+        ad_group_name: a.adGroup,
+        media_buyer: a.buyer,
+        bid_usd: a.bid,
+        impressions: a.impressions,
+        clicks: a.clicks,
+        spend_usd: spend,
+        ctr: a.impressions ? round2((a.clicks / a.impressions) * 100) : null,
+        cpc_usd: a.clicks ? round2(a.spend / a.clicks) : null,
+        top_impr_rate_pct: a.topImpr ? round2(a.topW / a.topImpr) : null,
+        abs_top_impr_rate_pct: a.absImpr ? round2(a.absW / a.absImpr) : null,
+        active_days: a.days.size,
+        conversions: a.conv,
+        all_conversions: a.allConv,
+        conversion_goals: goalList(a.byGoal),
+        landing_page_views: p?.base ?? 0,
+        purchases: p?.purchase ?? 0,
+        revenue_usd: revenue,
+        roas_pct: spend > 0 && p ? round2(((revenue - spend) / spend) * 100) : null,
+      };
+    })
+    .sort((x, y) => y.spend_usd - x.spend_usd || y.clicks - x.clicks || y.impressions - x.impressions || x.keyword.localeCompare(y.keyword));
+
+  // ---- search terms: one row per campaign · ad group · keyword · search term · match type ----
+  // Connected on campaign · ad group · keyword to the keyword report for the bid.
+  // Conversion goals: Bing's search term report has no goal column, so a search term gets a goal only
+  // when the term itself converted on a day its keyword recorded that goal (keyword-level goals are
+  // NOT copied onto every search term). Partner results can't be tied to a search term (no click id
+  // in Bing's report), so they stay on the keyword rows and are 0 here.
+  const keywordInfo = new Map<string, { bid: number | null; bidDate: string }>();
+  const keywordGoalsByDay = new Map<string, Set<string>>();
+  for (const d of keywordDocs) {
+    const k = keywordKey(d.campaign_name, d.ad_group_name, d.keyword);
+    const info = keywordInfo.get(k) ?? { bid: null, bidDate: '' };
+    const date = iso(d._d);
+    if (typeof d.bid_usd === 'number' && date >= info.bidDate) { info.bid = d.bid_usd; info.bidDate = date; }
+    keywordInfo.set(k, info);
+    const goalName = d.goal?.trim();
+    if (goalName && goalName !== '-' && ((d.all_conversions ?? 0) > 0 || (d.conversions ?? 0) > 0)) {
+      const dk = `${k}\u0001${date}`;
+      keywordGoalsByDay.set(dk, (keywordGoalsByDay.get(dk) ?? new Set()).add(goalName));
+    }
+  }
+  interface StAcc {
+    term: string; keyword: string; match: string | null; close: boolean; added: string | null; campaign: string; adGroup: string;
+    buyer: string | null; impressions: number; clicks: number; spend: number; conv: number; allConv: number;
+    topW: number; topImpr: number; absW: number; absImpr: number; goals: Set<string>;
+  }
+  const st = new Map<string, StAcc>();
+  for (const d of termDocs) {
+    const k = `${keywordKey(d.campaign_name, d.ad_group_name, d.keyword)}\u0001${d.search_term.trim().toLowerCase()}\u0001${d.match_type ?? ''}\u0001${d.close_variant ? 1 : 0}`;
+    const a = st.get(k) ?? {
+      term: d.search_term, keyword: d.keyword, match: d.match_type, close: !!d.close_variant, added: d.added_excluded,
+      campaign: d.campaign_name, adGroup: d.ad_group_name, buyer: rowBuyer(d.media_buyer, d.campaign_name),
+      impressions: 0, clicks: 0, spend: 0, conv: 0, allConv: 0, topW: 0, topImpr: 0, absW: 0, absImpr: 0, goals: new Set<string>(),
+    };
+    a.impressions += d.impressions;
+    a.clicks += d.clicks;
+    a.spend += d.spend_usd;
+    a.conv += d.conversions ?? 0;
+    a.allConv += d.all_conversions ?? 0;
+    // this term converted today → it carries the goals its keyword recorded on the same day
+    if ((d.all_conversions ?? 0) > 0 || (d.conversions ?? 0) > 0) {
+      for (const g of keywordGoalsByDay.get(`${keywordKey(d.campaign_name, d.ad_group_name, d.keyword)}\u0001${iso(d._d)}`) ?? []) a.goals.add(g);
+    }
+    const top = asPct(d.top_impr_rate_pct);
+    const abs = asPct(d.abs_top_impr_rate_pct);
+    if (top !== null) { a.topW += top * d.impressions; a.topImpr += d.impressions; }
+    if (abs !== null) { a.absW += abs * d.impressions; a.absImpr += d.impressions; }
+    st.set(k, a);
+  }
+  const searchTerms: BingSearchTermRow[] = [...st.values()]
+    .sort((x, y) => y.spend - x.spend || y.clicks - x.clicks)
+    .map((a) => {
+      const info = keywordInfo.get(keywordKey(a.campaign, a.adGroup, a.keyword));
+      const spend = round2(a.spend);
+      const goals = [...a.goals].sort();
+      return {
+        search_term: a.term,
+        keyword: a.keyword,
+        match_type: a.match,
+        close_variant: a.close,
+        added_excluded: a.added,
+        campaign_name: a.campaign,
+        ad_group_name: a.adGroup,
+        media_buyer: a.buyer,
+        conversion_name: goals.length ? goals.join(', ') : null,
+        conversion_goals: goals,
+        bid_usd: info?.bid ?? null,
+        in_keyword_report: !!info,
+        impressions: a.impressions,
+        clicks: a.clicks,
+        spend_usd: spend,
+        ctr: a.impressions ? round2((a.clicks / a.impressions) * 100) : null,
+        cpc_usd: a.clicks ? round2(a.spend / a.clicks) : null,
+        cpm_usd: a.impressions ? round2((a.spend / a.impressions) * 1000) : null,
+        top_impr_rate_pct: a.topImpr ? round2(a.topW / a.topImpr) : null,
+        abs_top_impr_rate_pct: a.absImpr ? round2(a.absW / a.absImpr) : null,
+        conversions: a.conv,
+        all_conversions: a.allConv,
+        // partner results are per keyword (see the Keywords view), never split onto search terms
+        landing_page_views: 0,
+        purchases: 0,
+        revenue_usd: 0,
+        roas_pct: null,
+      };
+    });
+
   // ---- KPIs ----
   const total = row(selected, null, 'total', null, false);
   const spend = total.spend_usd ?? 0;
   const revenue = total.revenue_usd ?? 0;
   const net = round2(revenue - spend);
 
-  const allPeriod = adsExtent || partnerExtent
-    ? formatPeriod(
-        [adsExtent?.from, partnerExtent?.from].filter(Boolean).sort()[0]!,
-        [adsExtent?.to, partnerExtent?.to].filter(Boolean).sort().pop()!,
-      )
+  const extents = [adsExtent, partnerExtent, keywordsExtent, termsExtent].filter((e): e is { from: string; to: string } => !!e);
+  const allPeriod = extents.length
+    ? formatPeriod(extents.map((e) => e.from).sort()[0]!, extents.map((e) => e.to).sort().pop()!)
     : null;
+  // every option shows the days it covers, e.g. "This Month (Oct 1–16, 2026)"
   const dateRanges: DateRangeOption[] = [
     { key: 'all_time', label: allPeriod ? `All Time (${allPeriod})` : 'All Time' },
-    ...DATE_RANGE_OPTIONS.filter((o) => o.key !== 'all_time'),
+    ...DATE_RANGE_OPTIONS.filter((o) => o.key !== 'all_time').map((o) => {
+      const b = anchor ? resolveRange(o.key, anchor) : null;
+      return b && b.from <= b.to ? { ...o, label: `${o.label} (${formatPeriod(b.from, b.to)})` } : o;
+    }),
   ];
 
   return {
     range: {
-      key: query.range,
-      label: dateRanges.find((o) => o.key === query.range)?.label ?? query.range,
+      key: custom ? 'custom' : query.range,
+      label: custom && bounds ? `Custom (${formatPeriod(bounds.from, bounds.to)})` : (dateRanges.find((o) => o.key === query.range)?.label ?? query.range),
       from: bounds?.from ?? null,
       to: bounds?.to ?? null,
     },
-    filters: { offer, campaign },
-    options: { date_ranges: dateRanges, offers: [...partnerOffers].sort(), campaigns: [...campaigns].sort() },
+    filters: { offer, campaign, buyer: query.buyer ?? null },
+    options: {
+      date_ranges: dateRanges,
+      offers: [...partnerOffers].sort(),
+      campaigns: [...campaigns].sort(),
+      buyers: buyerOptions(viewer),
+    },
     statistics: {
       total_revenue: revenue,
       total_amount_spend: spend,
@@ -382,6 +720,8 @@ export async function getBingDashboard(query: BingDashboardQuery): Promise<BingD
     geo: { by_region: segments('region'), by_device: segments('device') },
     clicks,
     funnel: { by_date: byDate, by_offer: byOffer, by_ad_group: byAdGroup },
+    keywords,
+    search_terms: searchTerms,
     meta: {
       ad_rows: ads.length,
       conversion_rows: conversions.length,
@@ -390,6 +730,12 @@ export async function getBingDashboard(query: BingDashboardQuery): Promise<BingD
       ads_through: adsExtent?.to ?? null,
       partner_through: partnerExtent?.to ?? null,
       unattributed_events: selectedConversions.filter((c) => !c.campaign_name).length,
+      keyword_rows: keywordDocs.length,
+      keywords_period: keywordsExtent ? formatPeriod(keywordsExtent.from, keywordsExtent.to) : null,
+      search_term_rows: termDocs.length,
+      /** Latest data day when it is after today (a mis-dated row); null when all dates look right. */
+      future_dated_through: latestData && latestData > today ? latestData : null,
+      search_terms_period: termsExtent ? formatPeriod(termsExtent.from, termsExtent.to) : null,
     },
   };
 }

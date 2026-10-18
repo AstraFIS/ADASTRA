@@ -14,6 +14,8 @@ import { BingConversion } from '../models/bingConversion.model.js';
 import type { UserAccess, UserRole } from '../models/user.model.js';
 import type { OverviewMonth, PlatformMetrics, PlatformSummary, PortfolioOverview } from '../types/platforms.js';
 import { dayExpr } from '../utils/bingDate.js';
+import { bingBuyerScope, buyerMatch } from '../utils/bingBuyer.js';
+import { campaignBuyerMap } from './bing.service.js';
 import { isoDay } from '../utils/dateRange.js';
 import { facebookScope, hasPlatformAccess } from './access.service.js';
 import { getFbStatistics, reportAggregate } from './fbStatistics.service.js';
@@ -79,10 +81,15 @@ async function facebookMonths(): Promise<string[]> {
 // ---------------------------------------------------------------------------
 // Bing (day fields may be Dates or "DD/MM/YYYY" text — see dayExpr)
 // ---------------------------------------------------------------------------
-async function bingMetrics(p: Period): Promise<PlatformMetrics> {
+// limited to the caller's media buyers (campaign-name suffix _th / _th2, or the keyword report's
+// Media Buyer for campaigns without one); admins see every campaign
+async function bingMetrics(user: { role: UserRole; access: UserAccess }, p: Period): Promise<PlatformMetrics> {
   const range = dayRange(p);
+  const buyers = bingBuyerScope(user);
+  const scope = buyerMatch(buyers, 'campaign', 'campaign_name', buyers ? await campaignBuyerMap() : new Map());
   const [[ads], [conv]] = await Promise.all([
     BingAdReport.aggregate<{ spend: number; ads: string[]; last: Date | null }>([
+      { $match: scope },
       { $addFields: { _d: dayExpr('report_date') } },
       { $match: { _d: range } },
       {
@@ -95,6 +102,7 @@ async function bingMetrics(p: Period): Promise<PlatformMetrics> {
       },
     ]),
     BingConversion.aggregate<{ revenue: number; last: Date | null }>([
+      { $match: scope },
       { $addFields: { _d: dayExpr('event_date') } },
       { $match: { _d: range } },
       { $group: { _id: null, revenue: { $sum: '$revenue_usd' }, last: { $max: '$_d' } } },
@@ -138,7 +146,7 @@ export async function getPortfolioOverview(
 
   const [fb, bing, fbMonths, bMonths] = await Promise.all([
     canFacebook ? facebookMetrics(user, p) : null,
-    canBing ? bingMetrics(p) : null,
+    canBing ? bingMetrics(user, p) : null,
     canFacebook ? facebookMonths() : [],
     canBing ? bingMonths() : [],
   ]);
