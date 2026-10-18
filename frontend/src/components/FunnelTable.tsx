@@ -3,8 +3,6 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { formatCurrency, formatInteger, formatPercent } from '@/lib/format';
 import type { FunnelRow } from '@/types/fbFunnel';
 
-const LOW_SAMPLE_CLICKS = 10;
-
 type SortDir = 'asc' | 'desc';
 
 interface Column {
@@ -28,8 +26,6 @@ function FunnelCell({ count, previous }: { count: number; previous: number }) {
   );
 }
 
-const lowSample = <span className="text-ink-3">low sample</span>;
-
 function funnelColumn(
   key: keyof FunnelRow & string,
   label: string,
@@ -42,12 +38,8 @@ function funnelColumn(
     align: 'right',
     defaultDir: 'desc',
     sortValue: (row) => row[key] as number,
-    render: (row) =>
-      row.link_clicks < LOW_SAMPLE_CLICKS ? (
-        lowSample
-      ) : (
-        <FunnelCell count={row[key] as number} previous={previous(row)} />
-      ),
+    // every row shows its real numbers, however few clicks it has
+    render: (row) => <FunnelCell count={row[key] as number} previous={previous(row)} />,
   };
 }
 
