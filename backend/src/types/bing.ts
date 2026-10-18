@@ -1,9 +1,44 @@
 import type { DateRangeKey, DateRangeOption } from './facebook.js';
+import type { BingBuyerFilter } from '../utils/bingBuyer.js';
 
 export interface BingDashboardQuery {
   range: DateRangeKey;
   offer?: string | undefined;
   campaign?: string | undefined;
+  /** "TH", "TH2" … or "Unassigned" (admins); omitted = every buyer the caller may see. */
+  buyer?: BingBuyerFilter | undefined;
+  /** Custom range (YYYY-MM-DD, inclusive). When either is set it replaces `range`. */
+  from?: string | undefined;
+  to?: string | undefined;
+}
+
+/** Search term table row: campaign · ad group · keyword · match type (· search term), from bing_keyword_reports. */
+export interface BingKeywordRow {
+  keyword: string;
+  search_term: string | null; // null when the export has no Search term column
+  goal: string | null; // conversion name (the export's Goal column); null = empty
+  match_type: string | null;
+  campaign_name: string;
+  ad_group_name: string;
+  media_buyer: string | null;
+  bid_usd: number | null; // latest bid in the range
+  impressions: number;
+  clicks: number;
+  spend_usd: number;
+  ctr: number | null; // clicks ÷ impressions × 100
+  cpc_usd: number | null; // spend ÷ clicks
+  top_impr_rate_pct: number | null; // impression-weighted
+  abs_top_impr_rate_pct: number | null;
+  active_days: number; // days with impressions
+  conversions: number; // Bing "Conv."
+  all_conversions: number; // Bing "All conv."
+  /** Conversions per goal name (Purchase, Quiz Started …), most first. */
+  conversion_goals: { name: string; conversions: number; all_conversions: number }[];
+  /** Partner funnel joined on campaign · ad group · keyword (0 when no partner event matches). */
+  landing_page_views: number;
+  purchases: number;
+  revenue_usd: number;
+  roas_pct: number | null; // (revenue − spend) ÷ spend × 100, null without partner data
 }
 
 /** KPI tiles. Spend / clicks / impressions from bing_ad_reports, funnel + revenue from bing_conversions. */
@@ -85,16 +120,53 @@ export interface BingClickRow {
   revenue_usd: number;
 }
 
+/** Search term report row (bing_search_terms), connected to the keyword report and the partner funnel. */
+export interface BingSearchTermRow {
+  search_term: string;
+  keyword: string;
+  match_type: string | null; // "exact" | "phrase" | "broad"
+  close_variant: boolean; // "Exact (close variant)" in the export
+  added_excluded: string | null;
+  campaign_name: string;
+  ad_group_name: string;
+  media_buyer: string | null;
+  /** Goals this term converted on: its keyword's goals on the days the term itself converted; null when none. */
+  conversion_name: string | null;
+  /** Same as conversion_name, as a list. */
+  conversion_goals: string[];
+  bid_usd: number | null;
+  in_keyword_report: boolean;
+  impressions: number;
+  clicks: number;
+  spend_usd: number;
+  ctr: number | null;
+  cpc_usd: number | null;
+  cpm_usd: number | null;
+  top_impr_rate_pct: number | null;
+  abs_top_impr_rate_pct: number | null;
+  conversions: number; // Bing "Conv."
+  all_conversions: number; // Bing "All conv."
+  /** Always 0 / null: partner results can't be tied to a search term — they are on the keyword rows. */
+  landing_page_views: number;
+  purchases: number;
+  revenue_usd: number;
+  roas_pct: number | null;
+}
+
 export interface BingDashboard {
-  range: { key: DateRangeKey; label: string; from: string | null; to: string | null };
-  filters: { offer: string | null; campaign: string | null };
-  options: { date_ranges: DateRangeOption[]; offers: string[]; campaigns: string[] };
+  range: { key: DateRangeKey | 'custom'; label: string; from: string | null; to: string | null };
+  filters: { offer: string | null; campaign: string | null; buyer: BingBuyerFilter | null };
+  options: { date_ranges: DateRangeOption[]; offers: string[]; campaigns: string[]; buyers: BingBuyerFilter[] };
   statistics: BingStatistics;
   daily: BingDailyPoint[];
   geo: { by_region: BingSegment[]; by_device: BingSegment[] };
   /** Partner events in the selection with their click ids, newest first (max 5000). */
   clicks: BingClickRow[];
   funnel: { by_date: BingFunnelRow[]; by_offer: BingFunnelRow[]; by_ad_group: BingFunnelRow[] };
+  /** Keyword report rows in the selection, highest spend first. */
+  keywords: BingKeywordRow[];
+  /** Search term report rows, highest spend first. */
+  search_terms: BingSearchTermRow[];
   meta: {
     ad_rows: number;
     conversion_rows: number;
@@ -105,5 +177,10 @@ export interface BingDashboard {
     partner_through: string | null;
     /** Partner events in the selection that carry no campaign / ad group. */
     unattributed_events: number;
+    keyword_rows: number;
+    keywords_period: string | null;
+    search_term_rows: number;
+    future_dated_through: string | null;
+    search_terms_period: string | null;
   };
 }
