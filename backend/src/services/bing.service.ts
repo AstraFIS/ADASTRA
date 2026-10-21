@@ -12,9 +12,10 @@
  *     ad-group days with no offer click keep their spend on a "no offer click" line.
  * Partner events without campaign / ad group (tracking added Oct 5) are kept, with no spend.
  *
- * Media buyers (see utils/bingBuyer.ts): every query is limited to the buyers the caller may see —
- * ad reports / conversions by the campaign-name suffix (_th, _th2), keyword reports by their
- * media_buyer column. Non-admins never see Unassigned rows.
+ * Media buyers (see utils/bingBuyer.ts): every query is limited to the buyers the caller may see,
+ * using each collection's own media_buyer field (ad reports, conversions, keyword and search term
+ * reports). A row with an empty media_buyer falls back to its campaign's buyer. Non-admins never see
+ * Unassigned rows.
  *
  *   bing_keyword_reports – Bing keyword export: per keyword × match type, with partner funnel
  *                          joined on campaign · ad group · keyword (shown in its own table)
@@ -249,7 +250,9 @@ export async function getBingDashboard(query: BingDashboardQuery, viewer: BingVi
   // which media buyers' rows this caller sees (null = everything)
   const buyers = bingBuyerScope(viewer, query.buyer);
   const campaignBuyers = await campaignBuyerMap();
-  const campaignScope = buyerMatch(buyers, 'campaign', 'campaign_name', campaignBuyers);
+  // ad reports and partner conversions: their own media_buyer field (TH, TH2, "TH02" …); only a row whose
+  // media_buyer is empty falls back to its campaign's buyer (suffix → admin pick → keyword report)
+  const campaignScope = rowBuyerMatch(buyers, campaignBuyers);
   // keyword / search term rows: their Media Buyer column, or their campaign's buyer when it is blank
   const keywordScope = rowBuyerMatch(buyers, campaignBuyers);
   const rowBuyer = (code: string | null, campaign: string): string | null => {

@@ -14,7 +14,7 @@ import { BingConversion } from '../models/bingConversion.model.js';
 import type { UserAccess, UserRole } from '../models/user.model.js';
 import type { OverviewMonth, PlatformMetrics, PlatformSummary, PortfolioOverview } from '../types/platforms.js';
 import { dayExpr } from '../utils/bingDate.js';
-import { bingBuyerScope, buyerMatch } from '../utils/bingBuyer.js';
+import { bingBuyerScope, rowBuyerMatch } from '../utils/bingBuyer.js';
 import { campaignBuyerMap } from './bing.service.js';
 import { isoDay } from '../utils/dateRange.js';
 import { facebookScope, hasPlatformAccess } from './access.service.js';
@@ -86,7 +86,7 @@ async function facebookMonths(): Promise<string[]> {
 async function bingMetrics(user: { role: UserRole; access: UserAccess }, p: Period): Promise<PlatformMetrics> {
   const range = dayRange(p);
   const buyers = bingBuyerScope(user);
-  const scope = buyerMatch(buyers, 'campaign', 'campaign_name', buyers ? await campaignBuyerMap() : new Map());
+  const scope = rowBuyerMatch(buyers, buyers ? await campaignBuyerMap() : new Map());
   const [[ads], [conv]] = await Promise.all([
     BingAdReport.aggregate<{ spend: number; ads: string[]; last: Date | null }>([
       { $match: scope },
