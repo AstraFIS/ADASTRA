@@ -1,5 +1,6 @@
 import { Schema, model, type Model } from 'mongoose';
 import { parseDayMonthYear } from '../utils/bingDate.js';
+import { normalizeBuyer } from '../utils/bingBuyer.js';
 
 export const BING_EVENT_STAGES = [
   'first_page_view',
@@ -33,6 +34,8 @@ export interface IBingConversion {
   theme: string | null;
   keyword: string | null;
   attributed: boolean;
+  /** Media buyer (TH, TH2 …; "TH02" is stored as "TH2"). Empty → the campaign's buyer is used. */
+  media_buyer: string | null;
 }
 
 const optional = { type: String, trim: true, maxlength: 300, default: null };
@@ -54,6 +57,7 @@ const bingConversionSchema = new Schema<IBingConversion>(
     theme: optional,
     keyword: optional,
     attributed: { type: Boolean, required: true, default: false },
+    media_buyer: { type: String, trim: true, maxlength: 20, default: null, set: (v: unknown) => (typeof v === 'string' ? (normalizeBuyer(v) ?? (v.trim() || null)) : v) },
   },
   { collection: 'bing_conversions', timestamps: true },
 );

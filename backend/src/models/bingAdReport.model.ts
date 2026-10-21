@@ -1,5 +1,6 @@
 import { Schema, model, type Model } from 'mongoose';
 import { parseDayMonthYear } from '../utils/bingDate.js';
+import { normalizeBuyer } from '../utils/bingBuyer.js';
 
 /**
  * Bing Ads export, one document per day × campaign × ad group × ad.
@@ -27,6 +28,8 @@ export interface IBingAdReport {
   cpc_usd: number | null;
   top_impr_rate_pct: number | null;
   abs_top_impr_rate_pct: number | null;
+  /** Media buyer (TH, TH2 …; "TH02" is stored as "TH2"). Empty → the campaign's buyer is used. */
+  media_buyer: string | null;
 }
 
 const label = { type: String, required: true, trim: true, maxlength: 300 };
@@ -51,6 +54,7 @@ const bingAdReportSchema = new Schema<IBingAdReport>(
     cpc_usd: { type: Number, default: null },
     top_impr_rate_pct: { type: Number, default: null },
     abs_top_impr_rate_pct: { type: Number, default: null },
+    media_buyer: { type: String, trim: true, maxlength: 20, default: null, set: (v: unknown) => (typeof v === 'string' ? (normalizeBuyer(v) ?? (v.trim() || null)) : v) },
   },
   { collection: 'bing_ad_reports', timestamps: true },
 );
