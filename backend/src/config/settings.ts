@@ -11,7 +11,7 @@ export const SETTINGS = {
   NODE_ENV: 'production',
   PORT: 4000,
 
-  MONGODB_URI: 'mongodb+srv://aghababat_db_user:edevz9wuqWF6etfL@cluster0.uzswb51.mongodb.net/',
+  MONGODB_URI: 'mongodb+srv://aghababat_db_user:xxJrgBjdIwOJk7Ma@cluster0.uzswb51.mongodb.net/',
   MONGODB_DB_NAME: 'adastra',
 
   // 64 hex chars, generate with: openssl rand -hex 32
