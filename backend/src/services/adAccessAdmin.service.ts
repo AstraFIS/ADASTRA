@@ -3,7 +3,7 @@ import { AdCreative } from '../models/adCreative.model.js';
 import { AdTaxonomy, type TaxonomyData, type TaxonomySource } from '../models/adTaxonomy.model.js';
 import { FacebookAdReport } from '../models/facebookAdReport.model.js';
 import { FacebookConversion } from '../models/facebookConversion.model.js';
-import { NO_AD_NAME, num, reportAggregate, textValues } from './fbStatistics.service.js';
+import { NO_AD_NAME, num, reportAggregate, textValues, TOTAL_SPEND } from './fbStatistics.service.js';
 
 /** Links saved from the admin page. null = no override; "" = cleared on purpose. */
 export interface AdLinks {
@@ -22,6 +22,12 @@ export interface AdAssignment {
   links: AdLinks;
   /** Taxonomy saved from this page (null = none; frontend/data.json is used). */
   taxonomy: SavedTaxonomy | null;
+  /** Amount spent incl. provider fee, all time (0 when the ad never spent). */
+  spendUsd: number;
+  /** Partner revenue for the ad, all time. */
+  revenueUsd: number;
+  /** Last day (YYYY-MM-DD) with spend > 0, or null. */
+  lastSpendDate: string | null;
 }
 
 export interface SavedTaxonomy extends TaxonomyData {
@@ -54,7 +60,16 @@ const NO_LINKS: AdLinks = { image: null, video: null, landing: null };
  */
 export async function listAdAssignments(): Promise<AdAssignment[]> {
   const [reported, accessRows, creativeRows, taxonomyRows] = await Promise.all([
-    reportAggregate<{ _id: string | null }>([{ $group: { _id: { $toString: '$ad_name' } } }]),
+    reportAggregate<{ _id: string | null; spend: number; revenue: number; lastSpend: Date | null }>([
+      {
+        $group: {
+          _id: { $toString: '$ad_name' },
+          spend: { $sum: TOTAL_SPEND },
+          revenue: { $sum: num('revenue_usd') },
+          lastSpend: { $max: { $cond: [{ $gt: [num('spend_usd'), 0] }, '$report_date', null] } },
+        },
+      },
+    ]),
     AdAccess.find({}, { ad_name: 1, user_access_type: 1, _id: 0 }).lean(),
     AdCreative.find({}).lean(),
     AdTaxonomy.find({}).lean(),
@@ -85,6 +100,8 @@ export async function listAdAssignments(): Promise<AdAssignment[]> {
     reported.map((r) => (r._id ?? '').trim()).filter((v) => v !== '' && v !== 'null' && v !== NO_AD_NAME),
   );
   const all = new Set([...reportedNames, ...groupByAd.keys(), ...linksByAd.keys(), ...taxonomyByAd.keys()]);
+  const totalsByAd = new Map(reported.map((r) => [(r._id ?? '').trim(), r]));
+  const round2 = (n: number) => Math.round(n * 100) / 100;
 
   return [...all].sort(byName).map((adName) => ({
     adName,
@@ -92,6 +109,12 @@ export async function listAdAssignments(): Promise<AdAssignment[]> {
     hasReports: reportedNames.has(adName),
     links: linksByAd.get(adName) ?? NO_LINKS,
     taxonomy: taxonomyByAd.get(adName) ?? null,
+    spendUsd: round2(totalsByAd.get(adName)?.spend ?? 0),
+    revenueUsd: round2(totalsByAd.get(adName)?.revenue ?? 0),
+    lastSpendDate: (() => {
+      const d = totalsByAd.get(adName)?.lastSpend;
+      return d instanceof Date ? d.toISOString().slice(0, 10) : null;
+    })(),
   }));
 }
 
