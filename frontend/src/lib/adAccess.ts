@@ -12,6 +12,11 @@ export interface AdAssignment {
   links: CreativeOverride;
   /** Taxonomy saved from the Ad groups page (null = none; data.json is used). */
   taxonomy: (TaxonomyData & { source: TaxonomySource }) | null;
+  /** Amount spent incl. provider fee, all time (missing on older backends). */
+  spendUsd?: number;
+  revenueUsd?: number;
+  /** Last day (YYYY-MM-DD) with spend. */
+  lastSpendDate?: string | null;
 }
 
 export interface AdAssignmentInput {
