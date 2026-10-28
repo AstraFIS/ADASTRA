@@ -8,7 +8,7 @@ import {
   type TaxonomyData,
   type TaxonomySource,
 } from '@/lib/creativeTaxonomy';
-import { formatPercent } from '@/lib/format';
+import { formatCurrency, formatDate, formatPercent } from '@/lib/format';
 import BulkTaxonomyPanel, { type ImportItem } from '@/components/BulkTaxonomyPanel';
 import TaxonomyEditor from '@/components/TaxonomyEditor';
 import UnnamedRowsPanel from '@/components/UnnamedRowsPanel';
@@ -19,7 +19,8 @@ type LoadState =
   | { kind: 'error'; message: string };
 
 type Choice = AdGroup | null;
-type Filter = 'all' | 'unassigned' | 'missing' | 'unclassified' | 'lowconf' | AdGroup;
+type Filter = 'all' | 'unassigned' | 'unassigned_spend' | 'missing' | 'unclassified' | 'lowconf' | AdGroup;
+type SortKey = 'spend' | 'name';
 type LinkField = 'image' | 'video' | 'landing';
 type Links = Record<LinkField, string>;
 
@@ -29,6 +30,8 @@ const LINK_FIELDS: { key: LinkField; label: string; placeholder: string }[] = [
   { key: 'landing', label: 'Landing page link', placeholder: 'Add landing page link…' },
 ];
 
+const spendOf = (a: AdAssignment) => a.spendUsd ?? 0;
+
 const isWebUrl = (v: string) => v === '' || /^https?:\/\/\S+$/i.test(v);
 
 const GROUPS: AdGroup[] = ['Meta1', 'Meta2'];
@@ -36,6 +39,7 @@ const GROUPS: AdGroup[] = ['Meta1', 'Meta2'];
 const FILTERS: { value: Filter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'unassigned', label: 'Unassigned' },
+  { value: 'unassigned_spend', label: 'Unassigned with spend' },
   { value: 'missing', label: 'Missing links' },
   { value: 'unclassified', label: 'No taxonomy' },
   { value: 'lowconf', label: 'Low confidence' },
@@ -78,6 +82,8 @@ export default function AdAccessPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
+  // ads that spent money come first, so the ones that matter are grouped first
+  const [sortKey, setSortKey] = useState<SortKey>('spend');
   /** Unsaved taxonomy edits: ad name -> new taxonomy. */
   const [taxDraft, setTaxDraft] = useState<Map<string, TaxDraft>>(new Map());
   const [aiEnabled, setAiEnabled] = useState(false);
@@ -257,14 +263,20 @@ export default function AdAccessPage() {
   }
 
   const counts = useMemo(() => {
-    const c = { Meta1: 0, Meta2: 0, unassigned: 0, missing: 0, unclassified: 0, lowconf: 0 };
+    const c = { Meta1: 0, Meta2: 0, unassigned: 0, unassignedSpend: 0, unassignedSpendUsd: 0, missing: 0, unclassified: 0, lowconf: 0 };
     for (const a of ads) {
       if (hasMissing(a)) c.missing += 1;
       if (currentTaxonomy(a) === null) c.unclassified += 1;
       else if (isLowConfidence(a)) c.lowconf += 1;
       const g = currentGroup(a.adName);
       if (g) c[g] += 1;
-      else c.unassigned += 1;
+      else {
+        c.unassigned += 1;
+        if (spendOf(a) > 0) {
+          c.unassignedSpend += 1;
+          c.unassignedSpendUsd += spendOf(a);
+        }
+      }
     }
     return c;
   }, [ads, currentGroup, hasMissing, currentTaxonomy, isLowConfidence]);
@@ -276,12 +288,13 @@ export default function AdAccessPage() {
       const g = currentGroup(a.adName);
       if (filter === 'all') return true;
       if (filter === 'unassigned') return g === null;
+      if (filter === 'unassigned_spend') return g === null && spendOf(a) > 0;
       if (filter === 'missing') return hasMissing(a);
       if (filter === 'unclassified') return currentTaxonomy(a) === null;
       if (filter === 'lowconf') return isLowConfidence(a);
       return g === filter;
-    });
-  }, [ads, search, filter, currentGroup, hasMissing, currentTaxonomy, isLowConfidence]);
+    }).sort((a, b) => (sortKey === 'spend' ? spendOf(b) - spendOf(a) : 0) || a.adName.localeCompare(b.adName, undefined, { numeric: true }));
+  }, [ads, search, filter, sortKey, currentGroup, hasMissing, currentTaxonomy, isLowConfidence]);
 
   function choose(names: string[], group: Choice) {
     setNotice(null);
@@ -426,10 +439,23 @@ export default function AdAccessPage() {
 
       {state.kind === 'ok' && (
         <>
-          <div className="grid grid-cols-2 gap-3 sm:max-w-4xl sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 sm:max-w-5xl sm:grid-cols-4 lg:grid-cols-7">
             <Stat label="Meta1" value={counts.Meta1} className="text-azure" />
             <Stat label="Meta2" value={counts.Meta2} className="text-violet" />
             <Stat label="Unassigned" value={counts.unassigned} className="text-spend" />
+            <button
+              type="button"
+              onClick={() => {
+                setFilter('unassigned_spend');
+                setSortKey('spend');
+              }}
+              title="Show unassigned ads that have spend"
+              className="rounded-xl border border-loss/50 bg-loss/5 px-4 py-3 text-left hover:bg-loss/10"
+            >
+              <p className="text-xs font-medium uppercase tracking-wide text-ink-3">Unassigned with spend</p>
+              <p className="mt-1 text-2xl font-extrabold text-loss">{counts.unassignedSpend}</p>
+              <p className="text-xs text-ink-3">{formatCurrency(counts.unassignedSpendUsd)} spent</p>
+            </button>
             <Stat label="Missing links" value={counts.missing} className="text-loss" />
             <Stat label="No taxonomy" value={counts.unclassified} className="text-spend" />
             <Stat label="Low confidence" value={counts.lowconf} className="text-spend" />
@@ -558,7 +584,16 @@ export default function AdAccessPage() {
                       aria-label="Select all shown ads"
                     />
                   </th>
-                  <th className="px-4 py-3">Ad name</th>
+                  <th className="px-4 py-3" aria-sort={sortKey === 'name' ? 'ascending' : 'none'}>
+                    <button type="button" onClick={() => setSortKey('name')} className={sortKey === 'name' ? 'text-ink' : 'hover:text-ink'}>
+                      Ad name{sortKey === 'name' && ' ▲'}
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 text-right" aria-sort={sortKey === 'spend' ? 'descending' : 'none'}>
+                    <button type="button" onClick={() => setSortKey('spend')} className={sortKey === 'spend' ? 'text-ink' : 'hover:text-ink'}>
+                      Spend (all time){sortKey === 'spend' && ' ▼'}
+                    </button>
+                  </th>
                   <th className="px-4 py-3">Group</th>
                   <th className="px-4 py-3">Creative taxonomy</th>
                   {LINK_FIELDS.map((f) => (
@@ -571,7 +606,7 @@ export default function AdAccessPage() {
               <tbody>
                 {visible.length === 0 && (
                   <tr>
-                    <td colSpan={4 + LINK_FIELDS.length} className="px-4 py-8 text-center text-ink-3">
+                    <td colSpan={5 + LINK_FIELDS.length} className="px-4 py-8 text-center text-ink-3">
                       No ads match.
                     </td>
                   </tr>
@@ -598,6 +633,18 @@ export default function AdAccessPage() {
                           </span>
                         )}
                         {changed && <span className="ml-2 text-xs font-normal text-spend">unsaved</span>}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums">
+                        {spendOf(a) > 0 ? (
+                          <>
+                            <span className={`font-semibold ${group === null ? 'text-loss' : 'text-ink'}`}>{formatCurrency(spendOf(a))}</span>
+                            {a.lastSpendDate && (
+                              <span className="block text-[11px] text-ink-3">last {formatDate(a.lastSpendDate, 'short')}</span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-ink-3">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-2.5">
                         <div className="inline-flex gap-1" role="group" aria-label={`Group for ${a.adName}`}>
