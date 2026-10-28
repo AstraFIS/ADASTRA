@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthContext';
 import AdRevenueSpendBars from '@/components/AdRevenueSpendBars';
 import AudienceCard from '@/components/AudienceCard';
+import CampaignTable from '@/components/CampaignTable';
 import ChartLegend from '@/components/ChartLegend';
 import CustomDateRange from '@/components/CustomDateRange';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -68,6 +69,16 @@ const dayParam = (value: string | null) => (value && ISO_DAY.test(value) ? value
 const groupParam = (value: string | null) =>
   (FACEBOOK_ACCESS_GROUPS as readonly string[]).includes(value ?? '') ? (value as string) : ALL;
 
+type TableView = 'ad' | 'campaign';
+const TABLE_VIEW_KEY = 'adastra.fb.tableView';
+function readTableView(): TableView {
+  try {
+    return window.localStorage.getItem(TABLE_VIEW_KEY) === 'campaign' ? 'campaign' : 'ad';
+  } catch {
+    return 'ad';
+  }
+}
+
 const REVENUE_COLOR = 'var(--color-revenue)';
 const SPEND_COLOR = 'var(--color-spend)';
 const PROFIT_COLOR = 'var(--color-violet)';
@@ -111,6 +122,16 @@ export default function FacebookDashboardPage() {
     };
   }, [group]);
   const [reloadKey, setReloadKey] = useState(0);
+  // bottom table: per ad & offer (default) or the campaign → ad set → ad tree; remembered per browser
+  const [tableView, setTableView] = useState<TableView>(readTableView);
+  const chooseTableView = (v: TableView) => {
+    setTableView(v);
+    try {
+      window.localStorage.setItem(TABLE_VIEW_KEY, v);
+    } catch {
+      // storage unavailable: the choice just isn't remembered
+    }
+  };
   const [showAllAds, setShowAllAds] = useState(false);
 
   useEffect(() => {
@@ -306,6 +327,17 @@ export default function FacebookDashboardPage() {
 
   const funnelData = funnel.kind === 'ok' ? funnel.data : funnel.kind === 'loading' ? funnel.previous : null;
   const funnelBusy = funnel.kind === 'loading';
+
+  // same filters as every other Facebook request on the page
+  const tableQuery = (() => {
+    const qs = new URLSearchParams(custom ? {} : { range });
+    if (from) qs.set('from', from);
+    if (to) qs.set('to', to);
+    if (ad) qs.set('ad', ad);
+    if (offer) qs.set('offer', offer);
+    if (group) qs.set('group', group);
+    return qs.toString();
+  })();
 
   // prefer the database's ad / offer lists; keep the current selection selectable even if it's not listed
   // once the real options have loaded they are authoritative, even when empty (e.g. a group with no rows yet)
@@ -638,23 +670,57 @@ export default function FacebookDashboardPage() {
       <ErrorBoundary label="The funnel table">
       <section
         aria-labelledby="funnel-heading"
-        aria-busy={funnelBusy}
-        className={`rounded-xl border border-line bg-surface p-7 transition-opacity ${funnelBusy ? 'opacity-70' : ''}`}
+        aria-busy={tableView === 'ad' && funnelBusy}
+        className={`rounded-xl border border-line bg-surface p-7 transition-opacity ${tableView === 'ad' && funnelBusy ? 'opacity-70' : ''}`}
       >
-        <h2 id="funnel-heading" className="text-lg font-bold text-ink">
-          Funnel Performance by Ad Name &amp; Offer
-        </h2>
-        <p className="mt-1 text-sm leading-relaxed text-ink-2">
-          Amount Spent / Link Clicks / CTR / CPC / CAC / ROAS / funnel-stage columns all respect the
-          date range selected above · funnel percentages are step-over-step: First Page View % =
-          First Page View ÷ Link Clicks · Q.S. % = Q.S. ÷ First Page View · Q.C. % = Q.C. ÷
-          Q.S. · Add To Cart % = Add To Cart ÷ Q.C. · Purchase % = Purchase ÷ Add To Cart (&quot;—&quot;
-          when the previous stage is 0) · click a column to sort
-        </p>
-        {funnel.kind === 'error' ? (
-          <p className="mt-6 text-sm text-loss">Funnel data unavailable: {funnel.message}</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <h2 id="funnel-heading" className="text-lg font-bold text-ink">
+            {tableView === 'ad' ? <>Funnel Performance by Ad Name &amp; Offer</> : 'Performance by Campaign / Ad Set / Ad'}
+          </h2>
+          <div role="tablist" aria-label="Table view" className="inline-flex rounded-lg border border-line bg-surface-2 p-0.5 text-sm">
+            {(
+              [
+                ['ad', 'By ad & offer'],
+                ['campaign', 'By campaign'],
+              ] as const
+            ).map(([v, label]) => (
+              <button
+                key={v}
+                type="button"
+                role="tab"
+                aria-selected={tableView === v}
+                onClick={() => chooseTableView(v)}
+                className={`rounded-md px-3 py-1.5 font-semibold ${tableView === v ? 'bg-surface text-ink shadow-sm' : 'text-ink-2 hover:text-ink'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {tableView === 'ad' ? (
+          <>
+            <p className="mt-1 text-sm leading-relaxed text-ink-2">
+              Amount Spent / Link Clicks / CTR / CPC / CAC / ROAS / funnel-stage columns all respect the
+              date range selected above · funnel percentages are step-over-step: First Page View % =
+              First Page View ÷ Link Clicks · Q.S. % = Q.S. ÷ First Page View · Q.C. % = Q.C. ÷
+              Q.S. · Add To Cart % = Add To Cart ÷ Q.C. · Purchase % = Purchase ÷ Add To Cart (&quot;—&quot;
+              when the previous stage is 0) · ads with under 10 clicks show &quot;low sample&quot; · click a
+              column to sort
+            </p>
+            {funnel.kind === 'error' ? (
+              <p className="mt-6 text-sm text-loss">Funnel data unavailable: {funnel.message}</p>
+            ) : (
+              <FunnelTable rows={funnelData?.rows ?? []} activeWindowDays={funnelData?.meta.active_window_days} />
+            )}
+          </>
         ) : (
-          <FunnelTable rows={funnelData?.rows ?? []} activeWindowDays={funnelData?.meta.active_window_days} />
+          <>
+            <p className="mt-1 text-sm leading-relaxed text-ink-2">
+              Each campaign with its ad sets and ads, for the filters above · click a campaign or ad set to fold it ·
+              untick &quot;Show ad names&quot; to see campaigns and ad sets only · click a column to sort
+            </p>
+            <CampaignTable query={tableQuery} reloadKey={reloadKey} />
+          </>
         )}
       </section>
       </ErrorBoundary>
