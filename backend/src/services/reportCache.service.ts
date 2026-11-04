@@ -4,6 +4,8 @@ import mongoose from 'mongoose';
 import { FacebookAdReport } from '../models/facebookAdReport.model.js';
 import { FacebookConversion } from '../models/facebookConversion.model.js';
 import { FacebookProvider } from '../models/facebookProvider.model.js';
+import { BingAdReport } from '../models/bingAdReport.model.js';
+import { BingConversion } from '../models/bingConversion.model.js';
 
 /**
  * Speed-ups for the Facebook dashboard.
@@ -52,13 +54,15 @@ let ttlIndexReady = false;
 /** Rows in the report collections + the Ad groups save counter: changes whenever the data does. */
 export async function dataVersion(): Promise<string> {
   if (versionMemo && Date.now() - versionMemo.at < VERSION_MEMO_MS) return versionMemo.value;
-  const [reports, conversions, providers, meta] = await Promise.all([
+  const [reports, conversions, providers, bingAds, bingConv, meta] = await Promise.all([
     FacebookAdReport.collection.estimatedDocumentCount(),
     FacebookConversion.collection.estimatedDocumentCount(),
     FacebookProvider.collection.estimatedDocumentCount(),
+    BingAdReport.collection.estimatedDocumentCount(),
+    BingConversion.collection.estimatedDocumentCount(),
     metaColl().findOne({ _id: 'fb_cache' }),
   ]);
-  const value = `${reports}.${conversions}.${providers}.${meta?.v ?? 0}`;
+  const value = `${reports}.${conversions}.${providers}.${bingAds}.${bingConv}.${meta?.v ?? 0}`;
   versionMemo = { value, at: Date.now() };
   return value;
 }

@@ -8,6 +8,7 @@ const navItems: { to: string; label: string; end: boolean; adminOnly: boolean; p
   { to: '/', label: 'Overview', end: true, adminOnly: false },
   { to: '/platforms/facebook', label: 'Facebook', end: false, adminOnly: false, platform: 'facebook' },
   { to: '/platforms/microsoft', label: 'Bing', end: false, adminOnly: false, platform: 'microsoft' },
+  { to: '/finance', label: 'Finance', end: false, adminOnly: false },
   { to: '/users', label: 'Users', end: false, adminOnly: true },
   { to: '/ad-access', label: 'Ad groups', end: false, adminOnly: true },
 ];

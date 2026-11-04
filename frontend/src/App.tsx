@@ -7,6 +7,7 @@ import AdAccessPage from '@/pages/AdAccessPage';
 import BingDashboardPage from '@/pages/BingDashboardPage';
 import FacebookAdDetailPage from '@/pages/FacebookAdDetailPage';
 import FacebookDashboardPage from '@/pages/FacebookDashboardPage';
+import FinancePage from '@/pages/FinancePage';
 import HomePage from '@/pages/HomePage';
 import LoginPage from '@/pages/LoginPage';
 import NotFoundPage from '@/pages/NotFoundPage';
@@ -28,6 +29,7 @@ export default function App() {
           <Route element={<RequirePlatform platform="microsoft" />}>
             <Route path="platforms/microsoft" element={<BingDashboardPage />} />
           </Route>
+          <Route path="finance" element={<FinancePage />} />
           <Route path="platforms/:slug" element={<PlatformPage />} />
           <Route element={<RequireRole roles={['admin']} />}>
             <Route path="users" element={<UsersPage />} />
