@@ -9,6 +9,17 @@ export interface FbStatistics {
   cpc: number | null;
   /** Percentage, e.g. 3.4 for 3.4 % */
   ctr: number | null;
+  /** Leads = partner "Add to Cart" events (missing on an older backend). */
+  leads?: number;
+  /** Amount spent (incl. fees) ÷ leads */
+  cpl?: number | null;
+  /** Spend before fees ÷ impressions × 1000 */
+  cpm?: number | null;
+  purchases?: number;
+  /** Percentage: purchases ÷ link clicks × 100 */
+  cr?: number | null;
+  /** Amount spent (incl. fees) ÷ purchases */
+  cac?: number | null;
 }
 
 export interface ProviderFeeStat {
