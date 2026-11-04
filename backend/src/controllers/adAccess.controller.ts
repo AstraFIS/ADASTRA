@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { z } from 'zod';
+import { bumpDataVersion } from '../services/reportCache.service.js';
 import { FACEBOOK_ACCESS_GROUPS } from '../models/adAccess.model.js';
 import { TAXONOMY_SOURCES } from '../models/adTaxonomy.model.js';
 import {
@@ -74,6 +75,7 @@ export async function saveAdAccess(req: Request, res: Response): Promise<void> {
     saveAdLinks(links),
     saveAdTaxonomies(taxonomies),
   ]);
+  await bumpDataVersion(); // the dashboards' cached answers depend on the groups
   res.json({ groupsSaved, linksSaved, taxonomiesSaved, ads: await listAdAssignments() });
 }
 
@@ -86,6 +88,7 @@ export async function getUnnamedRows(_req: Request, res: Response): Promise<void
 export async function saveUnnamedRows(req: Request, res: Response): Promise<void> {
   const { items } = rowGroupsSchema.parse(req.body);
   const changed = await saveRowGroups(items);
+  await bumpDataVersion();
   res.json({ changed, rows: await listUnnamedRows() });
 }
 
