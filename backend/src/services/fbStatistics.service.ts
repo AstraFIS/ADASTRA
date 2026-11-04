@@ -1,5 +1,6 @@
 import type { PipelineStage } from 'mongoose';
 import { FacebookAdReport } from '../models/facebookAdReport.model.js';
+import { FacebookConversion } from '../models/facebookConversion.model.js';
 import { FacebookProvider } from '../models/facebookProvider.model.js';
 import type { DateRangeKey } from '../types/facebook.js';
 import { dayExpr } from '../utils/bingDate.js';
@@ -180,20 +181,48 @@ const PROVIDER_FEE_STAGES: PipelineStage[] = [
  *  2. plus facebook_conversions (partner events: funnel + revenue, see PARTNER_ROWS),
  *     joined to the Facebook rows on day + ad name by the grouping of each endpoint.
  */
-export const BLENDED_REPORT_ROWS: PipelineStage[] = [
-  { $addFields: { report_date: REPORT_DATE, provider_name: PROVIDER_NAME } },
-  ...PROVIDER_FEE_STAGES,
-  { $unionWith: { coll: 'facebook_conversions', pipeline: PARTNER_ROWS as never } },
-  // one spelling for "no ad name" (empty, missing, or "<NA>" / "nan" left by a spreadsheet)
-  { $addFields: { ad_name: { $cond: [{ $in: [{ $ifNull: ['$ad_name', ''] }, MISSING_AD_NAMES] }, NO_AD_NAME, '$ad_name'] } } },
-];
+export const BLENDED_REPORT_ROWS: PipelineStage[] = blendStages();
+
+/** The blend, optionally reading only some days of each collection (see datePrefilter). */
+function blendStages(pre?: { reports: PipelineStage.Match; conversions: PipelineStage.Match }): PipelineStage[] {
+  return [
+    ...(pre ? [pre.reports] : []),
+    { $addFields: { report_date: REPORT_DATE, provider_name: PROVIDER_NAME } },
+    ...PROVIDER_FEE_STAGES,
+    { $unionWith: { coll: 'facebook_conversions', pipeline: [...(pre ? [pre.conversions] : []), ...PARTNER_ROWS] as never } },
+    // one spelling for "no ad name" (empty, missing, or "<NA>" / "nan" left by a spreadsheet)
+    { $addFields: { ad_name: { $cond: [{ $in: [{ $ifNull: ['$ad_name', ''] }, MISSING_AD_NAMES] }, NO_AD_NAME, '$ad_name'] } } },
+  ];
+}
 
 /**
  * Aggregate over the blended report rows (facebook_ad_reports + partner events, provider
  * fees from the provider table). Use this instead of a model's own aggregate().
+ * A leading date-range $match is also applied to each collection before the blend.
  */
 export function reportAggregate<T>(pipeline: PipelineStage[]) {
-  return FacebookAdReport.aggregate<T>([...BLENDED_REPORT_ROWS, ...pipeline]);
+  const pre = datePrefilter(pipeline);
+  return FacebookAdReport.aggregate<T>([...(pre ? blendStages(pre) : BLENDED_REPORT_ROWS), ...pipeline]);
+}
+
+/**
+ * When a pipeline starts with a date-range $match (dateMatch), filter each collection by
+ * that range before the blend, so MongoDB reads only those days through the date index.
+ * Rows whose day is still stored as text pass through and are filtered after the blend as
+ * before, so the result is always the same; see ensureDatesNormalized in reportCache.service.
+ */
+function datePrefilter(pipeline: PipelineStage[]): { reports: PipelineStage.Match; conversions: PipelineStage.Match } | null {
+  const first = pipeline[0] as { $match?: Record<string, unknown> } | undefined;
+  const rd = first?.$match?.report_date as { $gte?: unknown; $lte?: unknown } | undefined;
+  if (!rd || typeof rd !== 'object') return null;
+  const range: Record<string, Date> = {};
+  if (rd.$gte instanceof Date) range.$gte = rd.$gte;
+  if (rd.$lte instanceof Date) range.$lte = rd.$lte;
+  if (!range.$gte && !range.$lte) return null;
+  const on = (field: string): PipelineStage.Match => ({
+    $match: { $or: [{ [field]: range }, { [field]: { $type: 'string' } }] },
+  });
+  return { reports: on('report_date'), conversions: on('event_date') };
 }
 
 /**
@@ -203,6 +232,7 @@ export function reportAggregate<T>(pipeline: PipelineStage[]) {
  * with a numeric ad_name. Pipelines are not cast.
  */
 export async function latestReportDate(match: ReportFilter): Promise<Date | null> {
+  if (Object.keys(match).length === 0) return latestOverall();
   const [row] = await reportAggregate<{ report_date: Date }>([
     { $match: { ...match, report_date: { $type: 'date' } } },
     { $sort: { report_date: -1 } },
@@ -210,6 +240,41 @@ export async function latestReportDate(match: ReportFilter): Promise<Date | null
     { $project: { _id: 0, report_date: 1 } },
   ]);
   return row?.report_date ?? null;
+}
+
+let latestMemo: { at: number; value: Date | null } | null = null;
+
+/**
+ * Newest day in either collection. With every day stored as a Date this is two indexed
+ * look-ups instead of a pass over all rows; if any day is still text it falls back to that pass.
+ */
+async function latestOverall(): Promise<Date | null> {
+  if (latestMemo && Date.now() - latestMemo.at < 30_000) return latestMemo.value;
+  const reports = FacebookAdReport.collection;
+  const conversions = FacebookConversion.collection;
+  const [textReport, textConversion] = await Promise.all([
+    reports.findOne({ report_date: { $type: 'string' } }, { projection: { _id: 1 } }),
+    conversions.findOne({ event_date: { $type: 'string' } }, { projection: { _id: 1 } }),
+  ]);
+  let value: Date | null;
+  if (textReport || textConversion) {
+    const [row] = await reportAggregate<{ report_date: Date }>([
+      { $match: { report_date: { $type: 'date' } } },
+      { $sort: { report_date: -1 } },
+      { $limit: 1 },
+      { $project: { _id: 0, report_date: 1 } },
+    ]);
+    value = row?.report_date ?? null;
+  } else {
+    const [a, b] = await Promise.all([
+      reports.find({ report_date: { $type: 'date' } }, { projection: { report_date: 1 } }).sort({ report_date: -1 }).limit(1).next(),
+      conversions.find({ event_date: { $type: 'date' } }, { projection: { event_date: 1 } }).sort({ event_date: -1 }).limit(1).next(),
+    ]);
+    const days = [a?.report_date, b?.event_date].filter((d): d is Date => d instanceof Date);
+    value = days.length ? new Date(Math.max(...days.map((d) => d.getTime()))) : null;
+  }
+  latestMemo = { at: Date.now(), value };
+  return value;
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
