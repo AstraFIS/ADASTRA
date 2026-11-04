@@ -659,23 +659,28 @@ const sumCells = (cells: (Cell | undefined)[]): Cell | undefined => {
 function OfferTable({ data }: { data: FinanceResult }) {
   const [metric, setMetric] = useState<'profit' | 'revenue' | 'cost'>('profit');
   const [closed, setClosed] = useState<Set<string>>(new Set());
-  const [platform, setPlatform] = useState<'all' | 'facebook' | 'bing'>('all');
   const months = data.months.map((m) => m.month);
+  // one column per traffic source, like the By partner table; a single source when only one is visible
+  const sources: ('facebook' | 'bing')[] = [
+    ...(data.platforms.facebook ? (['facebook'] as const) : []),
+    ...(data.platforms.bing ? (['bing'] as const) : []),
+  ];
+  const both = sources.length > 1;
+  const SOURCE = { facebook: { label: 'Facebook', cls: 'text-azure' }, bing: { label: 'Bing', cls: 'text-violet' } } as const;
 
   // partner → login → offers
   const tree = useMemo(() => {
     const partners = new Map<string, Map<string, FinanceResult['offers']>>();
     for (const o of data.offers) {
-      if (platform !== 'all' && o.platform !== platform) continue;
       const p = o.partner_name ?? NO_PARTNER;
       const l = o.partner_login ?? NO_LOGIN;
       const logins = partners.get(p) ?? new Map();
       partners.set(p, logins);
       logins.set(l, [...(logins.get(l) ?? []), o]);
     }
-    const order = (data.partners.map((p) => p.partner_name ?? NO_PARTNER));
+    const order = data.partners.map((p) => p.partner_name ?? NO_PARTNER);
     return [...partners.entries()].sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
-  }, [data, platform]);
+  }, [data]);
 
   const value = (v: number) => <span className={metric === 'profit' ? tone(v) : 'text-ink'}>{money(v)}</span>;
   const cell = (c: Cell | undefined) => (c === undefined || empty(c) ? <span className="text-ink-3">{NA}</span> : value(c[metric]));
@@ -686,14 +691,22 @@ function OfferTable({ data }: { data: FinanceResult }) {
       else n.add(k);
       return n;
     });
-  const rowCells = (offers: FinanceResult['offers']) => (
+  const of = (offers: FinanceResult['offers'], src: 'facebook' | 'bing') => offers.filter((o) => o.platform === src);
+  const rowCells = (offers: FinanceResult['offers'], strong = false) => (
     <>
-      {months.map((m) => (
-        <td key={m} className={td}>
-          {cell(sumCells(offers.map((o) => o.months[m])))}
+      {months.map((m) =>
+        sources.map((src, i) => (
+          <td key={`${m}|${src}`} className={`${td} ${i === 0 ? 'border-l border-line' : ''}`}>
+            {cell(sumCells(of(offers, src).map((o) => o.months[m])))}
+          </td>
+        )),
+      )}
+      {sources.map((src, i) => (
+        <td key={`t|${src}`} className={`${td} ${i === 0 ? 'border-l-2 border-line-strong' : ''} ${strong ? 'font-semibold' : ''}`}>
+          {cell(sumCells(of(offers, src)))}
         </td>
       ))}
-      <td className={`${td} border-l border-line font-semibold`}>{cell(sumCells(offers))}</td>
+      {both && <td className={`${td} font-semibold`}>{cell(sumCells(offers))}</td>}
     </>
   );
 
@@ -704,62 +717,63 @@ function OfferTable({ data }: { data: FinanceResult }) {
           <h2 id="fin-offers" className="text-base font-bold text-ink">
             By partner, login and offer — month by month
           </h2>
-          <p className="mt-0.5 text-xs text-ink-3">Click a partner or login to fold it · offers are linked to partners on Ad groups → Partners &amp; logins</p>
+          <p className="mt-0.5 text-xs text-ink-3">
+            {both ? 'Facebook and Bing side by side for every month · ' : ''}click a partner or login to fold it · offers are linked
+            to partners on Ad groups → Partners &amp; logins
+          </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {data.platforms.facebook && data.platforms.bing && (
-            <div className="flex gap-1 rounded-lg border border-line bg-surface-2 p-0.5 text-sm" role="group" aria-label="Traffic source">
-              {(
-                [
-                  ['all', 'All traffic'],
-                  ['facebook', 'Facebook'],
-                  ['bing', 'Bing'],
-                ] as const
-              ).map(([v, l]) => (
-                <button
-                  key={v}
-                  type="button"
-                  aria-pressed={platform === v}
-                  onClick={() => setPlatform(v)}
-                  className={`rounded-md px-3 py-1 font-semibold ${platform === v ? 'bg-surface text-ink' : 'text-ink-2 hover:text-ink'}`}
-                >
-                  {l}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="flex gap-1 rounded-lg border border-line bg-surface-2 p-0.5 text-sm" role="group" aria-label="Show">
-            {(['profit', 'revenue', 'cost'] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                aria-pressed={metric === m}
-                onClick={() => setMetric(m)}
-                className={`rounded-md px-3 py-1 font-semibold capitalize ${metric === m ? 'bg-surface text-ink' : 'text-ink-2 hover:text-ink'}`}
-              >
-                {m}
-              </button>
-            ))}
-          </div>
+        <div className="flex gap-1 rounded-lg border border-line bg-surface-2 p-0.5 text-sm" role="group" aria-label="Show">
+          {(['profit', 'revenue', 'cost'] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              aria-pressed={metric === m}
+              onClick={() => setMetric(m)}
+              className={`rounded-md px-3 py-1 font-semibold capitalize ${metric === m ? 'bg-surface text-ink' : 'text-ink-2 hover:text-ink'}`}
+            >
+              {m}
+            </button>
+          ))}
         </div>
       </div>
       <div className="mt-3 overflow-x-auto">
-        <table className="w-full min-w-[760px] border-collapse text-sm">
+        <table className="w-full min-w-[900px] border-collapse text-[13px]">
           <thead>
             <tr className="text-[11px] uppercase tracking-[0.06em] text-ink-3">
-              <th className="px-2 py-2 text-left font-medium">Partner / login / offer</th>
+              <th rowSpan={both ? 2 : 1} className="px-2 py-2 text-left font-medium">
+                Partner / login / offer
+              </th>
               {data.months.map((m) => (
-                <th key={m.month} className={th}>
+                <th key={m.month} colSpan={sources.length} className={`border-l border-line px-2 pt-2 ${both ? 'text-center' : 'pb-2 text-right'} font-semibold text-ink-2`}>
                   {m.label}
                 </th>
               ))}
-              <th className={`${th} border-l border-line`}>Total</th>
+              <th colSpan={sources.length + (both ? 1 : 0)} className={`border-l-2 border-line-strong px-2 pt-2 ${both ? 'text-center' : 'pb-2 text-right'} font-semibold text-ink`}>
+                Total
+              </th>
             </tr>
+            {both && (
+              <tr className="text-[11px] uppercase tracking-[0.06em]">
+                {months.map((m) =>
+                  sources.map((src, i) => (
+                    <th key={`${m}|${src}`} className={`${th} ${SOURCE[src].cls} ${i === 0 ? 'border-l border-line' : ''}`}>
+                      {SOURCE[src].label}
+                    </th>
+                  )),
+                )}
+                {sources.map((src, i) => (
+                  <th key={`t|${src}`} className={`${th} ${SOURCE[src].cls} ${i === 0 ? 'border-l-2 border-line-strong' : ''}`}>
+                    {SOURCE[src].label}
+                  </th>
+                ))}
+                <th className={`${th} text-ink`}>All</th>
+              </tr>
+            )}
           </thead>
           <tbody>
             {tree.length === 0 && (
               <tr>
-                <td colSpan={months.length + 2} className="px-2 py-6 text-center text-ink-3">
+                <td colSpan={1 + months.length * sources.length + sources.length + (both ? 1 : 0)} className="px-2 py-6 text-center text-ink-3">
                   No data in this period.
                 </td>
               </tr>
@@ -776,7 +790,7 @@ function OfferTable({ data }: { data: FinanceResult }) {
                         {partner}
                       </button>
                     </th>
-                    {rowCells(all)}
+                    {rowCells(all, true)}
                   </tr>
                   {pOpen &&
                     [...logins.entries()].map(([login, offers]) => {
@@ -796,7 +810,7 @@ function OfferTable({ data }: { data: FinanceResult }) {
                           {lOpen &&
                             offers.map((o) => (
                               <tr key={`${o.platform}|${o.offer_name}`} className="border-t border-line/60 text-ink-2">
-                                <th scope="row" className="max-w-[420px] truncate py-1.5 pl-14 pr-2 text-left font-normal" title={o.offer_name}>
+                                <th scope="row" className="max-w-[380px] truncate py-1.5 pl-14 pr-2 text-left font-normal" title={o.offer_name}>
                                   <span className={`mr-2 rounded px-1 text-[10px] font-semibold ${o.platform === 'facebook' ? 'bg-azure/15 text-azure' : 'bg-violet/15 text-violet'}`}>
                                     {o.platform === 'facebook' ? 'FB' : 'Bing'}
                                   </span>
@@ -812,6 +826,16 @@ function OfferTable({ data }: { data: FinanceResult }) {
               );
             })}
           </tbody>
+          {tree.length > 0 && (
+            <tfoot>
+              <tr className="border-t-2 border-line-strong font-bold text-ink">
+                <th scope="row" className="px-2 py-2 text-left">
+                  Total
+                </th>
+                {rowCells(data.offers, true)}
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
     </section>
