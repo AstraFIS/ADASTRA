@@ -511,9 +511,44 @@ function ProviderTable({ data }: { data: FinanceResult }) {
 const NO_PARTNER = 'Unassigned partner';
 const NO_LOGIN = '(no login set)';
 
+function PlatformSplitBar({ fb, bing }: { fb: number; bing: number }) {
+  const total = fb + bing;
+  if (total <= 0) return <span className="text-ink-3">{NA}</span>;
+  const f = (fb / total) * 100;
+  return (
+    <span className="inline-flex items-center gap-2" title={`Facebook ${formatPercent(fb / total, 1)} · Bing ${formatPercent(bing / total, 1)}`}>
+      <span className="flex h-2 w-24 overflow-hidden rounded-full bg-surface-2">
+        <span className="h-full bg-azure" style={{ width: `${f}%` }} />
+        <span className="h-full bg-violet" style={{ width: `${100 - f}%` }} />
+      </span>
+      <span className="w-16 text-right text-[11px] text-ink-3">{f >= 50 ? `${Math.round(f)}% FB` : `${Math.round(100 - f)}% Bing`}</span>
+    </span>
+  );
+}
+
 function PartnerSummary({ data }: { data: FinanceResult }) {
   if (data.partners.length === 0) return null;
   const assigned = data.partners.some((p) => p.partner_name !== null);
+  const { facebook: showFb, bing: showBing } = data.platforms;
+  const both = showFb && showBing;
+  const split = (r: FinanceResult['partners'][number]['by_platform'], platform: 'facebook' | 'bing') => {
+    const x = r[platform];
+    return (
+      <td
+        className={td}
+        title={`${platform === 'facebook' ? 'Facebook' : 'Bing'}: revenue ${money(x.revenue)} · cost ${money(x.cost)} · profit ${money(x.profit)} · ${x.purchases} purchases`}
+      >
+        {x.revenue === 0 && x.cost === 0 ? (
+          <span className="text-ink-3">{NA}</span>
+        ) : (
+          <>
+            {money(x.revenue)}
+            <span className={`block text-[10px] ${tone(x.profit)}`}>profit {money(x.profit)}</span>
+          </>
+        )}
+      </td>
+    );
+  };
   return (
     <section className="rounded-xl border border-line bg-surface p-5" aria-labelledby="fin-partners">
       <h2 id="fin-partners" className="text-base font-bold text-ink">
@@ -521,17 +556,20 @@ function PartnerSummary({ data }: { data: FinanceResult }) {
       </h2>
       <p className="mt-0.5 text-xs text-ink-3">
         {assigned
-          ? 'Revenue, cost and profit per partner and partner login for the period · cost = spend on that partner’s offers'
+          ? 'Revenue per partner and partner login, split by traffic source (Facebook / Bing) · hover a cell for its cost and purchases'
           : 'No offers are linked to a partner yet — set them on Ad groups → Partners & logins.'}
       </p>
       <div className="mt-3 overflow-x-auto">
-        <table className="w-full min-w-[760px] border-collapse text-sm">
+        <table className="w-full min-w-[980px] border-collapse text-sm">
           <thead>
             <tr className="text-[11px] uppercase tracking-[0.06em] text-ink-3">
               <th className="px-2 py-2 text-left font-medium">Partner / login</th>
               <th className={th}>Offers</th>
-              <th className={th}>Revenue</th>
-              <th className={th}>Share of revenue</th>
+              <th className={th}>Total revenue</th>
+              <th className={th}>Share</th>
+              {showFb && <th className={`${th} text-azure`}>Facebook revenue</th>}
+              {showBing && <th className={`${th} text-violet`}>Bing revenue</th>}
+              {both && <th className={th}>Traffic split</th>}
               <th className={th}>Cost</th>
               <th className={th}>Profit</th>
               <th className={th}>Purchases</th>
@@ -546,17 +584,14 @@ function PartnerSummary({ data }: { data: FinanceResult }) {
                   </th>
                   <td className={td}>{p.logins.reduce((s, l) => s + l.offers, 0)}</td>
                   <td className={`${td} text-revenue`}>{money(p.revenue)}</td>
-                  <td className={td}>
-                    <span className="inline-flex items-center gap-2">
-                      <span className="h-1.5 w-20 rounded-full bg-surface-2">
-                        <span
-                          className="block h-full rounded-full bg-revenue"
-                          style={{ width: `${Math.min(100, Math.max(0, p.share_of_revenue_pct ?? 0))}%` }}
-                        />
-                      </span>
-                      {pct(p.share_of_revenue_pct)}
-                    </span>
-                  </td>
+                  <td className={td}>{pct(p.share_of_revenue_pct)}</td>
+                  {showFb && split(p.by_platform, 'facebook')}
+                  {showBing && split(p.by_platform, 'bing')}
+                  {both && (
+                    <td className={td}>
+                      <PlatformSplitBar fb={p.by_platform.facebook.revenue} bing={p.by_platform.bing.revenue} />
+                    </td>
+                  )}
                   <td className={td}>{money(p.cost)}</td>
                   <td className={`${td} ${tone(p.profit)}`}>{money(p.profit)}</td>
                   <td className={td}>{formatInteger(p.purchases)}</td>
@@ -568,7 +603,14 @@ function PartnerSummary({ data }: { data: FinanceResult }) {
                     </th>
                     <td className={td}>{l.offers}</td>
                     <td className={td}>{money(l.revenue)}</td>
-                    <td className={td}>{p.revenue > 0 ? formatPercent(l.revenue / data.totals.total.revenue, 1) : NA}</td>
+                    <td className={td}>{data.totals.total.revenue > 0 ? formatPercent(l.revenue / data.totals.total.revenue, 1) : NA}</td>
+                    {showFb && split(l.by_platform, 'facebook')}
+                    {showBing && split(l.by_platform, 'bing')}
+                    {both && (
+                      <td className={td}>
+                        <PlatformSplitBar fb={l.by_platform.facebook.revenue} bing={l.by_platform.bing.revenue} />
+                      </td>
+                    )}
                     <td className={td}>{money(l.cost)}</td>
                     <td className={`${td} ${tone(l.profit)}`}>{money(l.profit)}</td>
                     <td className={td}>{formatInteger(l.purchases)}</td>
@@ -577,6 +619,26 @@ function PartnerSummary({ data }: { data: FinanceResult }) {
               </Fragment>
             ))}
           </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-line-strong font-bold text-ink">
+              <th scope="row" className="px-2 py-2 text-left">
+                Total
+              </th>
+              <td className={td}>{data.offers.length}</td>
+              <td className={td}>{money(data.totals.total.revenue)}</td>
+              <td className={td}>100%</td>
+              {showFb && <td className={td}>{money(data.totals.facebook?.revenue)}</td>}
+              {showBing && <td className={td}>{money(data.totals.bing?.revenue)}</td>}
+              {both && (
+                <td className={td}>
+                  <PlatformSplitBar fb={data.totals.facebook?.revenue ?? 0} bing={data.totals.bing?.revenue ?? 0} />
+                </td>
+              )}
+              <td className={td}>{money(data.totals.total.cost)}</td>
+              <td className={`${td} ${tone(data.totals.total.profit)}`}>{money(data.totals.total.profit)}</td>
+              <td className={td}>{formatInteger(data.totals.total.purchases)}</td>
+            </tr>
+          </tfoot>
         </table>
       </div>
     </section>
@@ -597,12 +659,14 @@ const sumCells = (cells: (Cell | undefined)[]): Cell | undefined => {
 function OfferTable({ data }: { data: FinanceResult }) {
   const [metric, setMetric] = useState<'profit' | 'revenue' | 'cost'>('profit');
   const [closed, setClosed] = useState<Set<string>>(new Set());
+  const [platform, setPlatform] = useState<'all' | 'facebook' | 'bing'>('all');
   const months = data.months.map((m) => m.month);
 
   // partner → login → offers
   const tree = useMemo(() => {
     const partners = new Map<string, Map<string, FinanceResult['offers']>>();
     for (const o of data.offers) {
+      if (platform !== 'all' && o.platform !== platform) continue;
       const p = o.partner_name ?? NO_PARTNER;
       const l = o.partner_login ?? NO_LOGIN;
       const logins = partners.get(p) ?? new Map();
@@ -611,7 +675,7 @@ function OfferTable({ data }: { data: FinanceResult }) {
     }
     const order = (data.partners.map((p) => p.partner_name ?? NO_PARTNER));
     return [...partners.entries()].sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
-  }, [data]);
+  }, [data, platform]);
 
   const value = (v: number) => <span className={metric === 'profit' ? tone(v) : 'text-ink'}>{money(v)}</span>;
   const cell = (c: Cell | undefined) => (c === undefined || empty(c) ? <span className="text-ink-3">{NA}</span> : value(c[metric]));
@@ -642,18 +706,41 @@ function OfferTable({ data }: { data: FinanceResult }) {
           </h2>
           <p className="mt-0.5 text-xs text-ink-3">Click a partner or login to fold it · offers are linked to partners on Ad groups → Partners &amp; logins</p>
         </div>
-        <div className="flex gap-1 rounded-lg border border-line bg-surface-2 p-0.5 text-sm" role="group" aria-label="Show">
-          {(['profit', 'revenue', 'cost'] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              aria-pressed={metric === m}
-              onClick={() => setMetric(m)}
-              className={`rounded-md px-3 py-1 font-semibold capitalize ${metric === m ? 'bg-surface text-ink' : 'text-ink-2 hover:text-ink'}`}
-            >
-              {m}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-2">
+          {data.platforms.facebook && data.platforms.bing && (
+            <div className="flex gap-1 rounded-lg border border-line bg-surface-2 p-0.5 text-sm" role="group" aria-label="Traffic source">
+              {(
+                [
+                  ['all', 'All traffic'],
+                  ['facebook', 'Facebook'],
+                  ['bing', 'Bing'],
+                ] as const
+              ).map(([v, l]) => (
+                <button
+                  key={v}
+                  type="button"
+                  aria-pressed={platform === v}
+                  onClick={() => setPlatform(v)}
+                  className={`rounded-md px-3 py-1 font-semibold ${platform === v ? 'bg-surface text-ink' : 'text-ink-2 hover:text-ink'}`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-1 rounded-lg border border-line bg-surface-2 p-0.5 text-sm" role="group" aria-label="Show">
+            {(['profit', 'revenue', 'cost'] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                aria-pressed={metric === m}
+                onClick={() => setMetric(m)}
+                className={`rounded-md px-3 py-1 font-semibold capitalize ${metric === m ? 'bg-surface text-ink' : 'text-ink-2 hover:text-ink'}`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
       <div className="mt-3 overflow-x-auto">

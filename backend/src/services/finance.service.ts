@@ -342,33 +342,40 @@ export async function getFinance(user: User, fromIn?: string, toIn?: string): Pr
 
 /** Partner → login totals from the offer rows (offers without a partner form one "unassigned" line). */
 function partnerRows(offers: FinanceOfferRow[], totalRevenue: number): FinancePartnerRow[] {
-  const byPartner = new Map<string, FinancePartnerRow>();
-  for (const o of offers) {
-    const key = o.partner_name ?? '';
-    let p = byPartner.get(key);
-    if (!p) {
-      byPartner.set(key, (p = { partner_name: o.partner_name, revenue: 0, cost: 0, profit: 0, purchases: 0, share_of_revenue_pct: null, logins: [] }));
+  type Acc = { revenue: number; cost: number; purchases: number };
+  const acc = (): Acc => ({ revenue: 0, cost: 0, purchases: 0 });
+  type Node = { all: Acc; facebook: Acc; bing: Acc };
+  const node = (): Node => ({ all: acc(), facebook: acc(), bing: acc() });
+  const addTo = (n: Node, o: FinanceOfferRow) => {
+    for (const a of [n.all, n[o.platform]]) {
+      a.revenue += o.revenue;
+      a.cost += o.cost;
+      a.purchases += o.purchases;
     }
-    p.revenue += o.revenue;
-    p.cost += o.cost;
-    p.purchases += o.purchases;
-    let l = p.logins.find((x) => x.partner_login === o.partner_login);
-    if (!l) p.logins.push((l = { partner_login: o.partner_login, revenue: 0, cost: 0, profit: 0, purchases: 0, offers: 0 }));
-    l.revenue += o.revenue;
-    l.cost += o.cost;
-    l.purchases += o.purchases;
+  };
+  const fin = (a: Acc) => ({ revenue: round2(a.revenue), cost: round2(a.cost), profit: round2(a.revenue - a.cost), purchases: Math.round(a.purchases) });
+  const split = (n: Node) => ({ facebook: fin(n.facebook), bing: fin(n.bing) });
+
+  const partners = new Map<string, { name: string | null; n: Node; logins: Map<string, { login: string | null; n: Node; offers: number }> }>();
+  for (const o of offers) {
+    const pk = o.partner_name ?? '';
+    let p = partners.get(pk);
+    if (!p) partners.set(pk, (p = { name: o.partner_name, n: node(), logins: new Map() }));
+    addTo(p.n, o);
+    const lk = o.partner_login ?? '';
+    let l = p.logins.get(lk);
+    if (!l) p.logins.set(lk, (l = { login: o.partner_login, n: node(), offers: 0 }));
+    addTo(l.n, o);
     l.offers += 1;
   }
-  return [...byPartner.values()]
+  return [...partners.values()]
     .map((p) => ({
-      ...p,
-      revenue: round2(p.revenue),
-      cost: round2(p.cost),
-      profit: round2(p.revenue - p.cost),
-      purchases: Math.round(p.purchases),
-      share_of_revenue_pct: ratio(p.revenue, totalRevenue, 100),
-      logins: p.logins
-        .map((l) => ({ ...l, revenue: round2(l.revenue), cost: round2(l.cost), profit: round2(l.revenue - l.cost), purchases: Math.round(l.purchases) }))
+      partner_name: p.name,
+      ...fin(p.n.all),
+      by_platform: split(p.n),
+      share_of_revenue_pct: ratio(p.n.all.revenue, totalRevenue, 100),
+      logins: [...p.logins.values()]
+        .map((l) => ({ partner_login: l.login, ...fin(l.n.all), by_platform: split(l.n), offers: l.offers }))
         .sort((a, b) => b.revenue - a.revenue),
     }))
     .sort((a, b) => Number(a.partner_name === null) - Number(b.partner_name === null) || b.revenue - a.revenue);

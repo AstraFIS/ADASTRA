@@ -42,15 +42,32 @@ export interface FinanceOfferRow {
   purchases: number;
 }
 
-/** One partner's totals over the period, with a line per login. */
+/** Revenue / cost / profit / purchases of one partner or login on one platform. */
+export interface FinancePlatformSplit {
+  revenue: number;
+  cost: number;
+  profit: number;
+  purchases: number;
+}
+
+/** One partner's totals over the period, split by platform, with a line per login. */
 export interface FinancePartnerRow {
   partner_name: string | null; // null = offers not assigned to a partner yet
   revenue: number;
   cost: number;
   profit: number;
   purchases: number;
+  by_platform: { facebook: FinancePlatformSplit; bing: FinancePlatformSplit };
   share_of_revenue_pct: number | null;
-  logins: { partner_login: string | null; revenue: number; cost: number; profit: number; purchases: number; offers: number }[];
+  logins: {
+    partner_login: string | null;
+    revenue: number;
+    cost: number;
+    profit: number;
+    purchases: number;
+    by_platform: { facebook: FinancePlatformSplit; bing: FinancePlatformSplit };
+    offers: number;
+  }[];
 }
 
 export interface FinanceResult {
