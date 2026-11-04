@@ -64,6 +64,15 @@ export interface RowGroupInput {
   group: AdGroup | null;
 }
 
+/** An offer and the partner / partner login it runs under (Ad groups page → Partners). */
+export interface PartnerOfferRow {
+  platform: 'facebook' | 'bing';
+  offer_name: string;
+  partner_name: string | null;
+  partner_login: string | null;
+  in_data: boolean;
+}
+
 export const adAccessApi = {
   list: () => api.get<{ groups: AdGroup[]; ads: AdAssignment[] }>('/ad-access'),
   save: (body: { assignments: AdAssignmentInput[]; links: AdLinksInput[]; taxonomies: AdTaxonomyInput[] }) =>
@@ -71,6 +80,9 @@ export const adAccessApi = {
   rows: () => api.get<{ groups: AdGroup[]; rows: UnnamedRowBucket[] }>('/ad-access/rows'),
   saveRows: (items: RowGroupInput[]) =>
     api.put<{ changed: number; rows: UnnamedRowBucket[] }>('/ad-access/rows', { items }),
+  partners: () => api.get<{ offers: PartnerOfferRow[] }>('/ad-access/partners'),
+  savePartners: (items: Omit<PartnerOfferRow, 'in_data'>[]) =>
+    api.put<{ saved: number; offers: PartnerOfferRow[] }>('/ad-access/partners', { items }),
   aiStatus: () => api.get<{ enabled: boolean }>('/ad-access/ai-status'),
   classify: (ads: { adName: string; imageUrl: string; landingUrl?: string | null }[]) =>
     api.post<{ results: ClassifyResult[] }>('/ad-access/classify', { ads }),

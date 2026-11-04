@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { bumpDataVersion } from '../services/reportCache.service.js';
+import { listPartnerOffers, savePartnerOffers } from '../services/partnerOffers.service.js';
+import { PARTNER_PLATFORMS } from '../models/partnerOffer.model.js';
 import { FACEBOOK_ACCESS_GROUPS } from '../models/adAccess.model.js';
 import { TAXONOMY_SOURCES } from '../models/adTaxonomy.model.js';
 import {
@@ -90,6 +92,33 @@ export async function saveUnnamedRows(req: Request, res: Response): Promise<void
   const changed = await saveRowGroups(items);
   await bumpDataVersion();
   res.json({ changed, rows: await listUnnamedRows() });
+}
+
+const partnerOffersSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        platform: z.enum(PARTNER_PLATFORMS),
+        offer_name: z.string().trim().min(1).max(300),
+        partner_name: z.string().trim().max(120).nullable(),
+        partner_login: z.string().trim().max(120).nullable(),
+      }),
+    )
+    .min(1)
+    .max(500),
+});
+
+/** GET /api/ad-access/partners — every offer with its partner and partner login (admin only) */
+export async function getPartnerOffers(_req: Request, res: Response): Promise<void> {
+  res.json({ offers: await listPartnerOffers() });
+}
+
+/** PUT /api/ad-access/partners — set partner + login per offer; an empty partner removes it (admin only) */
+export async function putPartnerOffers(req: Request, res: Response): Promise<void> {
+  const { items } = partnerOffersSchema.parse(req.body);
+  const saved = await savePartnerOffers(items);
+  await bumpDataVersion();
+  res.json({ saved, offers: await listPartnerOffers() });
 }
 
 /** GET /api/ad-access/ai-status — whether "Classify with AI" is available (admin only) */

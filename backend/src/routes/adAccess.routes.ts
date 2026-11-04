@@ -3,7 +3,9 @@ import {
   classifyAds,
   getAdAccess,
   getAiStatus,
+  getPartnerOffers,
   getUnnamedRows,
+  putPartnerOffers,
   saveAdAccess,
   saveUnnamedRows,
 } from '../controllers/adAccess.controller.js';
@@ -18,5 +20,7 @@ adAccessRouter.get('/', getAdAccess);
 adAccessRouter.put('/', saveAdAccess);
 adAccessRouter.get('/rows', getUnnamedRows);
 adAccessRouter.put('/rows', saveUnnamedRows);
+adAccessRouter.get('/partners', getPartnerOffers);
+adAccessRouter.put('/partners', putPartnerOffers);
 adAccessRouter.get('/ai-status', getAiStatus);
 adAccessRouter.post('/classify', classifyAds);

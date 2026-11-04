@@ -266,6 +266,7 @@ export default function FinancePage() {
 
       <MonthlyTable data={data} />
       {data.platforms.facebook && <ProviderTable data={data} />}
+      <PartnerSummary data={data} />
       <OfferTable data={data} />
     </div>
   );
@@ -507,29 +508,139 @@ function ProviderTable({ data }: { data: FinanceResult }) {
   );
 }
 
+const NO_PARTNER = 'Unassigned partner';
+const NO_LOGIN = '(no login set)';
+
+function PartnerSummary({ data }: { data: FinanceResult }) {
+  if (data.partners.length === 0) return null;
+  const assigned = data.partners.some((p) => p.partner_name !== null);
+  return (
+    <section className="rounded-xl border border-line bg-surface p-5" aria-labelledby="fin-partners">
+      <h2 id="fin-partners" className="text-base font-bold text-ink">
+        By partner
+      </h2>
+      <p className="mt-0.5 text-xs text-ink-3">
+        {assigned
+          ? 'Revenue, cost and profit per partner and partner login for the period · cost = spend on that partner’s offers'
+          : 'No offers are linked to a partner yet — set them on Ad groups → Partners & logins.'}
+      </p>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full min-w-[760px] border-collapse text-sm">
+          <thead>
+            <tr className="text-[11px] uppercase tracking-[0.06em] text-ink-3">
+              <th className="px-2 py-2 text-left font-medium">Partner / login</th>
+              <th className={th}>Offers</th>
+              <th className={th}>Revenue</th>
+              <th className={th}>Share of revenue</th>
+              <th className={th}>Cost</th>
+              <th className={th}>Profit</th>
+              <th className={th}>Purchases</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.partners.map((p) => (
+              <Fragment key={p.partner_name ?? ''}>
+                <tr className="border-t-2 border-line bg-surface-2/50 font-semibold text-ink">
+                  <th scope="row" className={`px-2 py-2 text-left ${p.partner_name ? '' : 'italic text-ink-2'}`}>
+                    {p.partner_name ?? NO_PARTNER}
+                  </th>
+                  <td className={td}>{p.logins.reduce((s, l) => s + l.offers, 0)}</td>
+                  <td className={`${td} text-revenue`}>{money(p.revenue)}</td>
+                  <td className={td}>
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-1.5 w-20 rounded-full bg-surface-2">
+                        <span
+                          className="block h-full rounded-full bg-revenue"
+                          style={{ width: `${Math.min(100, Math.max(0, p.share_of_revenue_pct ?? 0))}%` }}
+                        />
+                      </span>
+                      {pct(p.share_of_revenue_pct)}
+                    </span>
+                  </td>
+                  <td className={td}>{money(p.cost)}</td>
+                  <td className={`${td} ${tone(p.profit)}`}>{money(p.profit)}</td>
+                  <td className={td}>{formatInteger(p.purchases)}</td>
+                </tr>
+                {p.logins.map((l) => (
+                  <tr key={`${p.partner_name}|${l.partner_login}`} className="border-t border-line text-ink-2">
+                    <th scope="row" className="py-1.5 pl-8 pr-2 text-left font-normal">
+                      {l.partner_login ? <span className="font-mono text-[12px] text-ink">{l.partner_login}</span> : <span className="italic">{NO_LOGIN}</span>}
+                    </th>
+                    <td className={td}>{l.offers}</td>
+                    <td className={td}>{money(l.revenue)}</td>
+                    <td className={td}>{p.revenue > 0 ? formatPercent(l.revenue / data.totals.total.revenue, 1) : NA}</td>
+                    <td className={td}>{money(l.cost)}</td>
+                    <td className={`${td} ${tone(l.profit)}`}>{money(l.profit)}</td>
+                    <td className={td}>{formatInteger(l.purchases)}</td>
+                  </tr>
+                ))}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+type Cell = { cost: number; revenue: number; profit: number };
+const sumCells = (cells: (Cell | undefined)[]): Cell | undefined => {
+  const present = cells.filter((c): c is Cell => c !== undefined);
+  if (!present.length) return undefined;
+  return present.reduce((a, c) => ({ cost: a.cost + c.cost, revenue: a.revenue + c.revenue, profit: a.profit + c.profit }), {
+    cost: 0,
+    revenue: 0,
+    profit: 0,
+  });
+};
+
 function OfferTable({ data }: { data: FinanceResult }) {
   const [metric, setMetric] = useState<'profit' | 'revenue' | 'cost'>('profit');
+  const [closed, setClosed] = useState<Set<string>>(new Set());
   const months = data.months.map((m) => m.month);
-  const grouped = useMemo(() => {
-    const out: { platform: 'facebook' | 'bing'; rows: FinanceResult['offers'] }[] = [];
-    for (const platform of ['facebook', 'bing'] as const) {
-      const rows = data.offers.filter((o) => o.platform === platform);
-      if (rows.length) out.push({ platform, rows });
+
+  // partner → login → offers
+  const tree = useMemo(() => {
+    const partners = new Map<string, Map<string, FinanceResult['offers']>>();
+    for (const o of data.offers) {
+      const p = o.partner_name ?? NO_PARTNER;
+      const l = o.partner_login ?? NO_LOGIN;
+      const logins = partners.get(p) ?? new Map();
+      partners.set(p, logins);
+      logins.set(l, [...(logins.get(l) ?? []), o]);
     }
-    return out;
+    const order = (data.partners.map((p) => p.partner_name ?? NO_PARTNER));
+    return [...partners.entries()].sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
   }, [data]);
-  const cell = (c: { cost: number; revenue: number; profit: number } | undefined) =>
-    c === undefined || empty(c) ? <span className="text-ink-3">{NA}</span> : value(c[metric]);
+
   const value = (v: number) => <span className={metric === 'profit' ? tone(v) : 'text-ink'}>{money(v)}</span>;
+  const cell = (c: Cell | undefined) => (c === undefined || empty(c) ? <span className="text-ink-3">{NA}</span> : value(c[metric]));
+  const toggle = (k: string) =>
+    setClosed((s) => {
+      const n = new Set(s);
+      if (n.has(k)) n.delete(k);
+      else n.add(k);
+      return n;
+    });
+  const rowCells = (offers: FinanceResult['offers']) => (
+    <>
+      {months.map((m) => (
+        <td key={m} className={td}>
+          {cell(sumCells(offers.map((o) => o.months[m])))}
+        </td>
+      ))}
+      <td className={`${td} border-l border-line font-semibold`}>{cell(sumCells(offers))}</td>
+    </>
+  );
 
   return (
     <section className="rounded-xl border border-line bg-surface p-5" aria-labelledby="fin-offers">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 id="fin-offers" className="text-base font-bold text-ink">
-            By offer and month
+            By partner, login and offer — month by month
           </h2>
-          <p className="mt-0.5 text-xs text-ink-3">Which offers make or lose money, month by month</p>
+          <p className="mt-0.5 text-xs text-ink-3">Click a partner or login to fold it · offers are linked to partners on Ad groups → Partners &amp; logins</p>
         </div>
         <div className="flex gap-1 rounded-lg border border-line bg-surface-2 p-0.5 text-sm" role="group" aria-label="Show">
           {(['profit', 'revenue', 'cost'] as const).map((m) => (
@@ -546,10 +657,10 @@ function OfferTable({ data }: { data: FinanceResult }) {
         </div>
       </div>
       <div className="mt-3 overflow-x-auto">
-        <table className="w-full min-w-[700px] border-collapse text-sm">
+        <table className="w-full min-w-[760px] border-collapse text-sm">
           <thead>
             <tr className="text-[11px] uppercase tracking-[0.06em] text-ink-3">
-              <th className="px-3 py-2 text-left font-medium">Offer</th>
+              <th className="px-2 py-2 text-left font-medium">Partner / login / offer</th>
               {data.months.map((m) => (
                 <th key={m.month} className={th}>
                   {m.label}
@@ -559,35 +670,60 @@ function OfferTable({ data }: { data: FinanceResult }) {
             </tr>
           </thead>
           <tbody>
-            {grouped.length === 0 && (
+            {tree.length === 0 && (
               <tr>
-                <td colSpan={months.length + 2} className="px-3 py-6 text-center text-ink-3">
+                <td colSpan={months.length + 2} className="px-2 py-6 text-center text-ink-3">
                   No data in this period.
                 </td>
               </tr>
             )}
-            {grouped.map((g) => (
-              <Fragment key={g.platform}>
-                <tr className="bg-surface-2/50">
-                  <th colSpan={months.length + 2} scope="colgroup" className={`px-3 py-1.5 text-left text-xs font-semibold ${g.platform === 'facebook' ? 'text-azure' : 'text-violet'}`}>
-                    {g.platform === 'facebook' ? 'Facebook' : 'Bing'}
-                  </th>
-                </tr>
-                {g.rows.map((o) => (
-                  <tr key={`${o.platform}|${o.offer_name}`} className="border-t border-line">
-                    <th scope="row" className="max-w-[360px] truncate px-3 py-2 text-left font-medium text-ink" title={o.offer_name}>
-                      {o.offer_name}
+            {tree.map(([partner, logins]) => {
+              const pOpen = !closed.has(partner);
+              const all = [...logins.values()].flat();
+              return (
+                <Fragment key={partner}>
+                  <tr className="border-t-2 border-line bg-surface-2/50 font-semibold text-ink">
+                    <th scope="row" className="px-2 py-2 text-left">
+                      <button type="button" onClick={() => toggle(partner)} aria-expanded={pOpen} className={partner === NO_PARTNER ? 'italic text-ink-2' : ''}>
+                        <span className="mr-1.5 text-ink-3">{pOpen ? '▾' : '▸'}</span>
+                        {partner}
+                      </button>
                     </th>
-                    {months.map((m) => (
-                      <td key={m} className={td}>
-                        {cell(o.months[m])}
-                      </td>
-                    ))}
-                    <td className={`${td} border-l border-line font-semibold`}>{cell(o)}</td>
+                    {rowCells(all)}
                   </tr>
-                ))}
-              </Fragment>
-            ))}
+                  {pOpen &&
+                    [...logins.entries()].map(([login, offers]) => {
+                      const lk = `${partner}|${login}`;
+                      const lOpen = !closed.has(lk);
+                      return (
+                        <Fragment key={lk}>
+                          <tr className="border-t border-line text-ink">
+                            <th scope="row" className="py-1.5 pl-7 pr-2 text-left font-medium">
+                              <button type="button" onClick={() => toggle(lk)} aria-expanded={lOpen}>
+                                <span className="mr-1.5 text-ink-3">{lOpen ? '▾' : '▸'}</span>
+                                {login === NO_LOGIN ? <span className="italic text-ink-2">{login}</span> : <span className="font-mono text-[12px]">{login}</span>}
+                              </button>
+                            </th>
+                            {rowCells(offers)}
+                          </tr>
+                          {lOpen &&
+                            offers.map((o) => (
+                              <tr key={`${o.platform}|${o.offer_name}`} className="border-t border-line/60 text-ink-2">
+                                <th scope="row" className="max-w-[420px] truncate py-1.5 pl-14 pr-2 text-left font-normal" title={o.offer_name}>
+                                  <span className={`mr-2 rounded px-1 text-[10px] font-semibold ${o.platform === 'facebook' ? 'bg-azure/15 text-azure' : 'bg-violet/15 text-violet'}`}>
+                                    {o.platform === 'facebook' ? 'FB' : 'Bing'}
+                                  </span>
+                                  {o.offer_name}
+                                </th>
+                                {rowCells([o])}
+                              </tr>
+                            ))}
+                        </Fragment>
+                      );
+                    })}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>

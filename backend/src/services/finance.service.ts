@@ -11,7 +11,8 @@ import { BingAdReport } from '../models/bingAdReport.model.js';
 import { BingConversion } from '../models/bingConversion.model.js';
 import { FacebookProvider } from '../models/facebookProvider.model.js';
 import type { UserAccess, UserRole } from '../models/user.model.js';
-import type { FinanceFigures, FinanceMonth, FinanceOfferRow, FinanceProviderRow, FinanceResult } from '../types/finance.js';
+import type { FinanceFigures, FinanceMonth, FinanceOfferRow, FinancePartnerRow, FinanceProviderRow, FinanceResult } from '../types/finance.js';
+import { partnerMap } from './partnerOffers.service.js';
 import { dayExpr } from '../utils/bingDate.js';
 import { bingBuyerScope, rowBuyerMatch } from '../utils/bingBuyer.js';
 import { isoDay } from '../utils/dateRange.js';
@@ -195,10 +196,11 @@ export async function getFinance(user: User, fromIn?: string, toIn?: string): Pr
   if (from > to) [from, to] = [to, from];
   const months = monthsBetween(from, to);
 
-  const [fbRows, bing, providerTable] = await Promise.all([
+  const [fbRows, bing, providerTable, partners] = await Promise.all([
     canFb ? facebookData(user, from, to) : [],
     canBing ? bingData(user, from, to) : { spend: [], conv: [] },
     canFb ? FacebookProvider.find({}, { provider_name: 1, fee_pct: 1, _id: 0 }).lean() : [],
+    partnerMap(),
   ]);
 
   const fb = new Map(months.map((m) => [m, zero()]));
@@ -211,10 +213,27 @@ export async function getFinance(user: User, fromIn?: string, toIn?: string): Pr
     const offerName = name && name !== 'null' ? name : '(no offer)';
     const key = `${platform}|${offerName}`;
     let row = offers.get(key);
-    if (!row) offers.set(key, (row = { offer_name: offerName, platform, months: {}, cost: 0, revenue: 0, profit: 0 }));
+    if (!row) {
+      const who = partners.get(key);
+      offers.set(
+        key,
+        (row = {
+          offer_name: offerName,
+          platform,
+          partner_name: who?.partner ?? null,
+          partner_login: who?.login ?? null,
+          months: {},
+          cost: 0,
+          revenue: 0,
+          profit: 0,
+          purchases: 0,
+        }),
+      );
+    }
     return row;
   };
-  const addOffer = (row: FinanceOfferRow, m: string, cost: number, revenue: number) => {
+  const addOffer = (row: FinanceOfferRow, m: string, cost: number, revenue: number, purchases = 0) => {
+    row.purchases += purchases;
     const cell = (row.months[m] ??= { cost: 0, revenue: 0, profit: 0 });
     cell.cost += cost;
     cell.revenue += revenue;
@@ -227,7 +246,7 @@ export async function getFinance(user: User, fromIn?: string, toIn?: string): Pr
     const sums = fb.get(m);
     if (!sums) continue;
     add(sums, { spend: r.spend, fees: r.fees, revenue: r.revenue, purchases: r.purchases, leads: r.leads });
-    addOffer(offer(r._id.offer, 'facebook'), m, r.total, r.revenue);
+    addOffer(offer(r._id.offer, 'facebook'), m, r.total, r.revenue, r.purchases);
     if (r.spend > 0) {
       const name = r._id.provider ? String(r._id.provider) : NO_PROVIDER;
       let p = providers.get(name);
@@ -261,7 +280,7 @@ export async function getFinance(user: User, fromIn?: string, toIn?: string): Pr
     const sums = bg.get(r._id.m);
     if (!sums) continue;
     add(sums, { revenue: r.revenue, purchases: r.purchases, leads: r.leads });
-    addOffer(offer(r._id.offer, 'bing'), r._id.m, 0, r.revenue);
+    addOffer(offer(r._id.offer, 'bing'), r._id.m, 0, r.revenue, r.purchases);
   }
 
   const totalFb = zero();
@@ -288,6 +307,21 @@ export async function getFinance(user: User, fromIn?: string, toIn?: string): Pr
   const roundCells = <T extends Record<string, number>>(cells: Record<string, T>) =>
     Object.fromEntries(Object.entries(cells).map(([k, v]) => [k, Object.fromEntries(Object.entries(v).map(([a, n]) => [a, round2(n)])) as T]));
 
+  const offerRows = [...offers.values()]
+    .map((o) => {
+      for (const c of Object.values(o.months)) c.profit = c.revenue - c.cost;
+      return {
+        ...o,
+        cost: round2(o.cost),
+        revenue: round2(o.revenue),
+        profit: round2(o.revenue - o.cost),
+        purchases: Math.round(o.purchases),
+        months: roundCells(o.months),
+      };
+    })
+    .filter((o) => o.cost > 0 || o.revenue > 0)
+    .sort((a, b) => b.revenue + b.cost - (a.revenue + a.cost));
+
   return {
     range: { from, to },
     available,
@@ -301,12 +335,41 @@ export async function getFinance(user: User, fromIn?: string, toIn?: string): Pr
     providers: [...providers.values()]
       .map((p) => ({ ...p, spend: round2(p.spend), fee: round2(p.fee), months: roundCells(p.months) }))
       .sort((a, b) => Number(a.no_provider) - Number(b.no_provider) || b.fee - a.fee || b.spend - a.spend),
-    offers: [...offers.values()]
-      .map((o) => {
-        for (const c of Object.values(o.months)) c.profit = c.revenue - c.cost;
-        return { ...o, cost: round2(o.cost), revenue: round2(o.revenue), profit: round2(o.revenue - o.cost), months: roundCells(o.months) };
-      })
-      .filter((o) => o.cost > 0 || o.revenue > 0)
-      .sort((a, b) => b.revenue + b.cost - (a.revenue + a.cost)),
+    offers: offerRows,
+    partners: partnerRows(offerRows, totalAll.revenue),
   };
+}
+
+/** Partner → login totals from the offer rows (offers without a partner form one "unassigned" line). */
+function partnerRows(offers: FinanceOfferRow[], totalRevenue: number): FinancePartnerRow[] {
+  const byPartner = new Map<string, FinancePartnerRow>();
+  for (const o of offers) {
+    const key = o.partner_name ?? '';
+    let p = byPartner.get(key);
+    if (!p) {
+      byPartner.set(key, (p = { partner_name: o.partner_name, revenue: 0, cost: 0, profit: 0, purchases: 0, share_of_revenue_pct: null, logins: [] }));
+    }
+    p.revenue += o.revenue;
+    p.cost += o.cost;
+    p.purchases += o.purchases;
+    let l = p.logins.find((x) => x.partner_login === o.partner_login);
+    if (!l) p.logins.push((l = { partner_login: o.partner_login, revenue: 0, cost: 0, profit: 0, purchases: 0, offers: 0 }));
+    l.revenue += o.revenue;
+    l.cost += o.cost;
+    l.purchases += o.purchases;
+    l.offers += 1;
+  }
+  return [...byPartner.values()]
+    .map((p) => ({
+      ...p,
+      revenue: round2(p.revenue),
+      cost: round2(p.cost),
+      profit: round2(p.revenue - p.cost),
+      purchases: Math.round(p.purchases),
+      share_of_revenue_pct: ratio(p.revenue, totalRevenue, 100),
+      logins: p.logins
+        .map((l) => ({ ...l, revenue: round2(l.revenue), cost: round2(l.cost), profit: round2(l.revenue - l.cost), purchases: Math.round(l.purchases) }))
+        .sort((a, b) => b.revenue - a.revenue),
+    }))
+    .sort((a, b) => Number(a.partner_name === null) - Number(b.partner_name === null) || b.revenue - a.revenue);
 }

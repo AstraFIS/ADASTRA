@@ -32,10 +32,25 @@ export interface FinanceProviderRow {
 export interface FinanceOfferRow {
   offer_name: string;
   platform: 'facebook' | 'bing';
+  /** From partner_offers (Ad groups page); null = not assigned yet. */
+  partner_name: string | null;
+  partner_login: string | null;
   months: Record<string, { cost: number; revenue: number; profit: number }>;
   cost: number;
   revenue: number;
   profit: number;
+  purchases: number;
+}
+
+/** One partner's totals over the period, with a line per login. */
+export interface FinancePartnerRow {
+  partner_name: string | null; // null = offers not assigned to a partner yet
+  revenue: number;
+  cost: number;
+  profit: number;
+  purchases: number;
+  share_of_revenue_pct: number | null;
+  logins: { partner_login: string | null; revenue: number; cost: number; profit: number; purchases: number; offers: number }[];
 }
 
 export interface FinanceResult {
@@ -46,4 +61,5 @@ export interface FinanceResult {
   totals: { facebook: FinanceFigures | null; bing: FinanceFigures | null; total: FinanceFigures };
   providers: FinanceProviderRow[];
   offers: FinanceOfferRow[];
+  partners: FinancePartnerRow[];
 }

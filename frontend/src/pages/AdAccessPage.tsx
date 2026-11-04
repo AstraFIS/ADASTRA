@@ -11,6 +11,7 @@ import {
 import { formatCurrency, formatDate, formatPercent } from '@/lib/format';
 import BulkTaxonomyPanel, { type ImportItem } from '@/components/BulkTaxonomyPanel';
 import TaxonomyEditor from '@/components/TaxonomyEditor';
+import PartnerOffersPanel from '@/components/PartnerOffersPanel';
 import UnnamedRowsPanel from '@/components/UnnamedRowsPanel';
 
 type LoadState =
@@ -425,6 +426,8 @@ export default function AdAccessPage() {
       )}
 
       <UnnamedRowsPanel />
+
+      <PartnerOffersPanel />
 
       {state.kind === 'loading' && <p className="text-ink-2">Loading ads…</p>}
 
