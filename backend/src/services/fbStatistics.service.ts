@@ -30,6 +30,12 @@ export interface FbStatistics {
   link_clicks: number; // Σ link_clicks
   cpc: number | null; // Σ spend_usd ÷ Σ link_clicks (before fees), null without clicks
   ctr: number | null; // Σ link_clicks ÷ Σ impressions × 100, null without impressions
+  leads: number; // Σ add_to_carts (partner "Add to Cart" events)
+  cpl: number | null; // total_amount_spend ÷ leads (cost per lead, incl. provider fees)
+  cpm: number | null; // Σ spend_usd ÷ Σ impressions × 1000 (before fees, like Facebook)
+  purchases: number; // Σ purchase_events
+  cr: number | null; // purchases ÷ link_clicks × 100 (click → purchase conversion rate)
+  cac: number | null; // total_amount_spend ÷ purchases (incl. provider fees)
 }
 
 /** "Ad platform provider fees" card: one provider's spend and fee over the selection. */
@@ -288,6 +294,12 @@ const EMPTY: FbStatistics = {
   link_clicks: 0,
   cpc: null,
   ctr: null,
+  leads: 0,
+  cpl: null,
+  cpm: null,
+  purchases: 0,
+  cr: null,
+  cac: null,
 };
 
 export type ReportBounds = { from: string; to: string } | null;
@@ -371,6 +383,8 @@ export async function getFbStatistics(query: FbStatisticsQuery): Promise<FbStati
     landing_page_views: number;
     link_clicks: number;
     impressions: number;
+    leads: number;
+    purchases: number;
     rows: number;
     ads: string[];
   }>([
@@ -385,6 +399,8 @@ export async function getFbStatistics(query: FbStatisticsQuery): Promise<FbStati
         landing_page_views: { $sum: '$landing_page_views' },
         link_clicks: { $sum: '$link_clicks' },
         impressions: { $sum: '$impressions' },
+        leads: { $sum: num('add_to_carts') },
+        purchases: { $sum: num('purchase_events') },
         rows: { $sum: 1 },
         ads: { $addToSet: '$ad_name' },
       },
@@ -420,6 +436,12 @@ export async function getFbStatistics(query: FbStatisticsQuery): Promise<FbStati
       link_clicks: agg.link_clicks,
       cpc: agg.link_clicks > 0 ? round2(agg.spend_before_fees / agg.link_clicks) : null,
       ctr: agg.impressions > 0 ? round2((agg.link_clicks / agg.impressions) * 100) : null,
+      leads: Math.round(agg.leads),
+      cpl: agg.leads > 0 ? round2(total_amount_spend / agg.leads) : null,
+      cpm: agg.impressions > 0 ? round2((agg.spend_before_fees / agg.impressions) * 1000) : null,
+      purchases: Math.round(agg.purchases),
+      cr: agg.link_clicks > 0 ? round2((agg.purchases / agg.link_clicks) * 100) : null,
+      cac: agg.purchases > 0 ? round2(total_amount_spend / agg.purchases) : null,
     },
     meta: {
       rows: agg.rows,

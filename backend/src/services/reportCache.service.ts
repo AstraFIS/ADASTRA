@@ -23,6 +23,8 @@ import { FacebookProvider } from '../models/facebookProvider.model.js';
  *    Atlas shows up within CACHE_TTL_MS.
  */
 
+/** Bump when an API answer's shape changes, so a deploy never serves answers cached by the old code. */
+const API_SHAPE = '2';
 const CACHE_TTL_MS = 5 * 60_000;
 const VERSION_MEMO_MS = 5_000;
 const NORMALIZE_EVERY_MS = 10 * 60_000;
@@ -141,7 +143,7 @@ export function ensureDatesNormalized(version: string): Promise<void> {
 
 function keyFor(req: Request): string {
   const u = req.user;
-  const raw = `${req.baseUrl}${req.url}|${u?.role ?? ''}|${JSON.stringify(u?.access ?? null)}`;
+  const raw = `${API_SHAPE}|${req.baseUrl}${req.url}|${u?.role ?? ''}|${JSON.stringify(u?.access ?? null)}`;
   return createHash('sha1').update(raw).digest('hex');
 }
 
