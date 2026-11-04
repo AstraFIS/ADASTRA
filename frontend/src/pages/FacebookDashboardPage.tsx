@@ -10,17 +10,15 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import FilterSelect from '@/components/FilterSelect';
 import FunnelTable from '@/components/FunnelTable';
 import GeoDeviceSection from '@/components/GeoDeviceSection';
+import KpiPanel from '@/components/KpiPanel';
 import LineChart from '@/components/LineChart';
 import ProviderTable from '@/components/ProviderTable';
-import StatCard from '@/components/StatCard';
 import { api } from '@/lib/api';
 import {
   formatCompactCurrency,
   formatCurrency,
   formatDate,
   formatDayMonth,
-  formatInteger,
-  formatPercent,
 } from '@/lib/format';
 import { FACEBOOK_ACCESS_GROUPS } from '@/types/auth';
 import type { FacebookDashboard } from '@/types/facebook';
@@ -286,8 +284,6 @@ export default function FacebookDashboardPage() {
   const statsData = stats.kind === 'ok' ? stats.data : stats.kind === 'loading' ? stats.previous : null;
   const statsBusy = stats.kind === 'loading';
   const kpi = statsData?.statistics ?? null;
-  const roas = kpi && kpi.total_amount_spend > 0 ? kpi.net_profit / kpi.total_amount_spend : null;
-  const NA = '—';
 
   const namedLabel = filters.options.dateRanges.find((r) => r.key === filters.dateRange)?.label;
   const customLabel =
@@ -418,103 +414,13 @@ export default function FacebookDashboardPage() {
         </div>
       </section>
 
-      <section
-        aria-label="Key metrics"
-        aria-busy={statsBusy}
-        className={`grid grid-cols-2 gap-3 transition-opacity sm:grid-cols-4 lg:grid-cols-7 ${statsBusy ? 'opacity-70' : ''}`}
-      >
-        {/* row 1: money and results */}
-        <StatCard
-          size="sm"
-          tone="revenue"
-          label="Revenue"
-          value={kpi ? formatCurrency(kpi.total_revenue) : NA}
-          caption={periodLabel}
-        />
-        <StatCard
-          size="sm"
-          tone="spend"
-          label="Amount Spent"
-          value={kpi ? formatCurrency(kpi.total_amount_spend) : NA}
-          caption={
-            statsData ? `incl. ${formatCurrency(statsData.meta.provider_fees)} fees` : periodLabel
-          }
-        />
-        <StatCard
-          size="sm"
-          tone={kpi && kpi.net_profit < 0 ? 'loss' : 'revenue'}
-          label="Net Profit"
-          value={kpi ? formatCurrency(kpi.net_profit) : NA}
-          caption={`ROAS ${roas === null ? 'n/a' : formatPercent(roas, 1)}`}
-          captionTone={roas === null ? 'default' : roas < 0 ? 'bad' : 'good'}
-        />
-        <StatCard
-          size="sm"
-          tone="accent"
-          label="Purchases"
-          value={kpi?.purchases == null ? NA : formatInteger(kpi.purchases)}
-          caption="partner purchases"
-        />
-        <StatCard
-          size="sm"
-          tone="accent"
-          label="CAC"
-          value={kpi?.cac == null ? NA : formatCurrency(kpi.cac)}
-          caption="spend ÷ purchases"
-        />
-        <StatCard
-          size="sm"
-          tone="accent"
-          label="Leads (Add to Cart)"
-          value={kpi?.leads == null ? NA : formatInteger(kpi.leads)}
-          caption="add-to-cart events"
-        />
-        <StatCard
-          size="sm"
-          tone="accent"
-          label="CPL (Add to Cart)"
-          value={kpi?.cpl == null ? NA : formatCurrency(kpi.cpl)}
-          caption="spend ÷ leads"
-        />
-
-        {/* row 2: traffic */}
-        <StatCard
-          size="sm"
-          label="LP Views"
-          value={kpi ? formatInteger(kpi.landing_page_views) : NA}
-          caption="landing page views"
-        />
-        <StatCard
-          size="sm"
-          label="Link Clicks"
-          value={kpi ? formatInteger(kpi.link_clicks) : NA}
-          caption="all ads"
-        />
-        <StatCard
-          size="sm"
-          label="CPC"
-          value={kpi?.cpc == null ? NA : formatCurrency(kpi.cpc)}
-          caption="spend ÷ link clicks"
-        />
-        <StatCard
-          size="sm"
-          label="CPM"
-          value={kpi?.cpm == null ? NA : formatCurrency(kpi.cpm)}
-          caption="spend per 1,000 impr."
-        />
-        <StatCard
-          size="sm"
-          label="CTR"
-          value={kpi?.ctr == null ? NA : formatPercent(kpi.ctr / 100, 2)}
-          caption="link clicks ÷ impressions"
-        />
-        <StatCard
-          size="sm"
-          label="CR"
-          value={kpi?.cr == null ? NA : formatPercent(kpi.cr / 100, 2)}
-          caption="purchases ÷ link clicks"
-        />
-      </section>
+      <KpiPanel
+        kpi={kpi}
+        fees={statsData ? statsData.meta.provider_fees : null}
+        impressions={statsData ? statsData.meta.impressions : null}
+        caption={periodLabel}
+        busy={statsBusy}
+      />
 
       {stats.kind === 'error' && (
         <p role="alert" className="-mt-4 text-sm text-loss">
