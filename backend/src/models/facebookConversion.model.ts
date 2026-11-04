@@ -57,6 +57,7 @@ const facebookConversionSchema = new Schema<IFacebookConversion>(
 
 facebookConversionSchema.index({ event_date: 1, ad_name: 1 });
 facebookConversionSchema.index({ event_stage: 1 });
+facebookConversionSchema.index({ event_date: -1 });
 
 export const FacebookConversion: Model<IFacebookConversion> = model<IFacebookConversion>(
   'FacebookConversion',
