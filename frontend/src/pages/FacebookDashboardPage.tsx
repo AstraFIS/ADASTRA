@@ -421,8 +421,9 @@ export default function FacebookDashboardPage() {
       <section
         aria-label="Key metrics"
         aria-busy={statsBusy}
-        className={`grid grid-cols-2 gap-3 transition-opacity sm:grid-cols-4 xl:grid-cols-7 ${statsBusy ? 'opacity-70' : ''}`}
+        className={`grid grid-cols-2 gap-3 transition-opacity sm:grid-cols-4 lg:grid-cols-7 ${statsBusy ? 'opacity-70' : ''}`}
       >
+        {/* row 1: money and results */}
         <StatCard
           size="sm"
           tone="revenue"
@@ -449,6 +450,36 @@ export default function FacebookDashboardPage() {
         />
         <StatCard
           size="sm"
+          tone="accent"
+          label="Purchases"
+          value={kpi?.purchases == null ? NA : formatInteger(kpi.purchases)}
+          caption="partner purchases"
+        />
+        <StatCard
+          size="sm"
+          tone="accent"
+          label="CAC"
+          value={kpi?.cac == null ? NA : formatCurrency(kpi.cac)}
+          caption="spend ÷ purchases"
+        />
+        <StatCard
+          size="sm"
+          tone="accent"
+          label="Leads (Add to Cart)"
+          value={kpi?.leads == null ? NA : formatInteger(kpi.leads)}
+          caption="add-to-cart events"
+        />
+        <StatCard
+          size="sm"
+          tone="accent"
+          label="CPL (Add to Cart)"
+          value={kpi?.cpl == null ? NA : formatCurrency(kpi.cpl)}
+          caption="spend ÷ leads"
+        />
+
+        {/* row 2: traffic */}
+        <StatCard
+          size="sm"
           label="LP Views"
           value={kpi ? formatInteger(kpi.landing_page_views) : NA}
           caption="landing page views"
@@ -467,9 +498,21 @@ export default function FacebookDashboardPage() {
         />
         <StatCard
           size="sm"
+          label="CPM"
+          value={kpi?.cpm == null ? NA : formatCurrency(kpi.cpm)}
+          caption="spend per 1,000 impr."
+        />
+        <StatCard
+          size="sm"
           label="CTR"
           value={kpi?.ctr == null ? NA : formatPercent(kpi.ctr / 100, 2)}
-          caption="weighted by clicks"
+          caption="link clicks ÷ impressions"
+        />
+        <StatCard
+          size="sm"
+          label="CR"
+          value={kpi?.cr == null ? NA : formatPercent(kpi.cr / 100, 2)}
+          caption="purchases ÷ link clicks"
         />
       </section>
 
