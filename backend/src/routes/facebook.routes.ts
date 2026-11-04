@@ -13,8 +13,12 @@ import { facebookAdScope } from '../services/access.service.js';
 import { getFacebookAdDetail, getFacebookDashboard } from '../services/facebook.service.js';
 import { DATE_RANGE_KEYS } from '../types/facebook.js';
 import { HttpError } from '../utils/httpError.js';
+import { cacheReports } from '../services/reportCache.service.js';
 
 export const facebookRouter = Router();
+
+// every Facebook answer is cached until the data changes (see reportCache.service)
+facebookRouter.use(cacheReports);
 
 const emptyToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
 
