@@ -131,6 +131,36 @@ export default function BingFunnelTable({ rows, view }: Props) {
     return <p className="mt-6 text-sm text-ink-3">No Bing Ads or partner rows for this selection.</p>;
   }
 
+  // sum of the rows shown; ratios recomputed from the sums (rows whose spend is still pending add no spend)
+  const sum = (k: keyof BingFunnelRow) => rows.reduce((s, r) => s + (Number(r[k]) || 0), 0);
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  const ratio = (a: number, b: number, scale = 1) => (b > 0 ? round2((a / b) * scale) : null);
+  const spend = round2(sum('spend_usd'));
+  const revenue = round2(sum('revenue_usd'));
+  const clicks = sum('clicks');
+  const purchases = sum('purchase');
+  const pendingRows = rows.filter((r) => r.spend_usd === null).length;
+  const total: BingFunnelRow = {
+    date: 'Total',
+    label: view === 'date' ? '' : 'Total',
+    sub_label: null,
+    impressions: sum('impressions'),
+    clicks,
+    spend_usd: spend,
+    spend_estimated: false,
+    base: sum('base'),
+    start_quiz: sum('start_quiz'),
+    quiz_completed: sum('quiz_completed'),
+    lead: sum('lead'),
+    add_to_cart: sum('add_to_cart'),
+    purchase: purchases,
+    revenue_usd: revenue,
+    ctr: ratio(clicks, sum('impressions'), 100),
+    cpc_usd: ratio(spend, clicks),
+    cac_usd: ratio(spend, purchases),
+    roas_pct: ratio(revenue - spend, spend, 100),
+  };
+
   return (
     <div className="mt-4 overflow-x-auto">
       <table className="w-full min-w-[1240px] border-collapse text-sm">
@@ -167,6 +197,27 @@ export default function BingFunnelTable({ rows, view }: Props) {
             </tr>
           ))}
         </tbody>
+        <tfoot>
+          <tr className="border-t-2 border-line-strong bg-surface-2/60 font-bold">
+            {columns.map((c, i) => (
+              <td
+                key={c.key}
+                className={`whitespace-nowrap px-3 py-3 text-ink ${c.align === 'right' ? 'text-right tabular-nums' : 'text-left'}`}
+              >
+                {i === 0 ? (
+                  <span title="Sum of the rows shown — follows the filters above">
+                    Total ({rows.length} row{rows.length === 1 ? '' : 's'})
+                    {pendingRows > 0 && <span className="ml-1 text-xs font-normal text-ink-3">· {pendingRows} with spend pending</span>}
+                  </span>
+                ) : c.key === 'label' ? (
+                  ''
+                ) : (
+                  c.render(total)
+                )}
+              </td>
+            ))}
+          </tr>
+        </tfoot>
       </table>
     </div>
   );
