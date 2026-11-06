@@ -37,7 +37,7 @@ export interface CampaignMetrics {
   link_clicks: number;
   landing_page_views: number;
   ctr_all: number | null; // clicks_all ÷ impressions × 100
-  cpc_usd: number | null; // spend_usd ÷ clicks_all
+  cpc_usd: number | null; // total_spend_usd ÷ clicks_all (incl. provider fees)
   first_page_views: number;
   questionnaire_starts: number;
   questionnaire_completed: number;
@@ -158,7 +158,7 @@ function finish(acc: Acc): CampaignMetrics {
     link_clicks: Math.round(s.link_clicks),
     landing_page_views: Math.round(s.landing_page_views),
     ctr_all: ratio(s.clicks_all, s.impressions, 100),
-    cpc_usd: ratio(s.spend_usd, s.clicks_all),
+    cpc_usd: ratio(s.total_spend_usd, s.clicks_all),
     first_page_views: Math.round(s.first_page_views),
     questionnaire_starts: Math.round(s.questionnaire_starts),
     questionnaire_completed: Math.round(s.questionnaire_completed),

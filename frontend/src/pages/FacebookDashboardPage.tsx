@@ -649,12 +649,9 @@ export default function FacebookDashboardPage() {
         {tableView === 'ad' ? (
           <>
             <p className="mt-1 text-sm leading-relaxed text-ink-2">
-              Amount Spent / Link Clicks / CTR / CPC / CAC / ROAS / funnel-stage columns all respect the
-              date range selected above · funnel percentages are step-over-step: First Page View % =
-              First Page View ÷ Link Clicks · Q.S. % = Q.S. ÷ First Page View · Q.C. % = Q.C. ÷
-              Q.S. · Add To Cart % = Add To Cart ÷ Q.C. · Purchase % = Purchase ÷ Add To Cart (&quot;—&quot;
-              when the previous stage is 0) · ads with under 10 clicks show &quot;low sample&quot; · click a
-              column to sort
+              Every column follows the filters above · Total Ad Spend = Original Ad Spend + Provider Fee, and CPC,
+              CAC and ROAS are always on Total Ad Spend · funnel % is step-over-step (each stage ÷ the one before;
+              &quot;—&quot; when the previous stage is 0) · the Total row sums the rows shown · click a column to sort
             </p>
             {funnel.kind === 'error' ? (
               <p className="mt-6 text-sm text-loss">Funnel data unavailable: {funnel.message}</p>

@@ -28,11 +28,11 @@ export interface FbStatistics {
   net_profit: number; // total_revenue − total_amount_spend
   landing_page_views: number; // Σ landing_page_views
   link_clicks: number; // Σ link_clicks
-  cpc: number | null; // Σ spend_usd ÷ Σ link_clicks (before fees), null without clicks
+  cpc: number | null; // total_amount_spend ÷ Σ link_clicks (incl. provider fees), null without clicks
   ctr: number | null; // Σ link_clicks ÷ Σ impressions × 100, null without impressions
   leads: number; // Σ add_to_carts (partner "Add to Cart" events)
   cpl: number | null; // total_amount_spend ÷ leads (cost per lead, incl. provider fees)
-  cpm: number | null; // Σ spend_usd ÷ Σ impressions × 1000 (before fees, like Facebook)
+  cpm: number | null; // total_amount_spend ÷ Σ impressions × 1000 (incl. provider fees)
   purchases: number; // Σ purchase_events
   cr: number | null; // purchases ÷ link_clicks × 100 (click → purchase conversion rate)
   cac: number | null; // total_amount_spend ÷ purchases (incl. provider fees)
@@ -434,11 +434,11 @@ export async function getFbStatistics(query: FbStatisticsQuery): Promise<FbStati
       net_profit: round2(total_revenue - total_amount_spend),
       landing_page_views: agg.landing_page_views,
       link_clicks: agg.link_clicks,
-      cpc: agg.link_clicks > 0 ? round2(agg.spend_before_fees / agg.link_clicks) : null,
+      cpc: agg.link_clicks > 0 ? round2(total_amount_spend / agg.link_clicks) : null,
       ctr: agg.impressions > 0 ? round2((agg.link_clicks / agg.impressions) * 100) : null,
       leads: Math.round(agg.leads),
       cpl: agg.leads > 0 ? round2(total_amount_spend / agg.leads) : null,
-      cpm: agg.impressions > 0 ? round2((agg.spend_before_fees / agg.impressions) * 1000) : null,
+      cpm: agg.impressions > 0 ? round2((total_amount_spend / agg.impressions) * 1000) : null,
       purchases: Math.round(agg.purchases),
       cr: agg.link_clicks > 0 ? round2((agg.purchases / agg.link_clicks) * 100) : null,
       cac: agg.purchases > 0 ? round2(total_amount_spend / agg.purchases) : null,

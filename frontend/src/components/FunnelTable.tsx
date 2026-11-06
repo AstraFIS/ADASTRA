@@ -66,12 +66,30 @@ const COLUMNS: Column[] = [
   },
   {
     key: 'total_spend_usd',
-    label: 'Amount Spent',
-    source: 'total_spend_usd = spend_usd + provider_fee_usd',
+    label: 'Total Ad Spend',
+    source: 'Total Ad Spend = Original Ad Spend + Provider Fee (used for CPC, CAC and ROAS)',
     align: 'right',
     defaultDir: 'desc',
     sortValue: (r) => r.total_spend_usd,
-    render: (r) => formatCurrency(r.total_spend_usd),
+    render: (r) => <span className="font-semibold">{formatCurrency(r.total_spend_usd)}</span>,
+  },
+  {
+    key: 'provider_fee_usd',
+    label: 'Provider Fee',
+    source: 'Provider Fee = Original Ad Spend × provider fee %',
+    align: 'right',
+    defaultDir: 'desc',
+    sortValue: (r) => r.provider_fee_usd,
+    render: (r) => <span className="text-ink-2">{formatCurrency(r.provider_fee_usd)}</span>,
+  },
+  {
+    key: 'spend_usd',
+    label: 'Original Ad Spend',
+    source: 'Original Ad Spend = amount spent in Facebook Ads, before provider fees',
+    align: 'right',
+    defaultDir: 'desc',
+    sortValue: (r) => r.spend_usd,
+    render: (r) => <span className="text-ink-2">{formatCurrency(r.spend_usd)}</span>,
   },
   {
     key: 'link_clicks',
@@ -94,7 +112,7 @@ const COLUMNS: Column[] = [
   {
     key: 'cpc_usd',
     label: 'CPC (all)',
-    source: 'cpc_usd = spend_usd ÷ clicks_all',
+    source: 'CPC = Total Ad Spend ÷ clicks (all)',
     align: 'right',
     defaultDir: 'asc',
     sortValue: (r) => r.cpc_usd,
@@ -117,7 +135,7 @@ const COLUMNS: Column[] = [
   {
     key: 'cac_usd',
     label: 'CAC',
-    source: 'cac_usd = total_spend_usd ÷ conversions',
+    source: 'CAC = Total Ad Spend ÷ purchases',
     align: 'right',
     defaultDir: 'asc',
     sortValue: (r) => r.cac_usd,
@@ -126,7 +144,7 @@ const COLUMNS: Column[] = [
   {
     key: 'roas_pct',
     label: 'ROAS',
-    source: 'roas_pct = net_profit_usd ÷ total_spend_usd',
+    source: 'ROAS = (Revenue − Total Ad Spend) ÷ Total Ad Spend',
     align: 'right',
     defaultDir: 'desc',
     sortValue: (r) => r.roas_pct,
@@ -189,6 +207,46 @@ export default function FunnelTable({ rows: input, activeWindowDays }: Props) {
 
   const hiddenCount = input.length - input.filter((r) => r.active).length;
 
+  // sum of the rows on screen (after the page filters and "Hide inactive ads"), ratios recomputed from the sums
+  const total = useMemo<FunnelRow | null>(() => {
+    if (rows.length === 0) return null;
+    const sum = (k: keyof FunnelRow) => rows.reduce((s, r) => s + (Number(r[k]) || 0), 0);
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    const ratio = (a: number, b: number, scale = 1) => (b > 0 ? round2((a / b) * scale) : null);
+    const total_spend_usd = round2(sum('total_spend_usd'));
+    const revenue_usd = round2(sum('revenue_usd'));
+    const net = round2(revenue_usd - total_spend_usd);
+    const clicks_all = sum('clicks_all');
+    const conversions = sum('conversions');
+    return {
+      ad_name: `Total (${rows.length} row${rows.length === 1 ? '' : 's'})`,
+      offer_name: '',
+      providers: [],
+      first_date: '',
+      last_date: '',
+      days: 0,
+      active: true,
+      spend_usd: round2(sum('spend_usd')),
+      provider_fee_usd: round2(sum('provider_fee_usd')),
+      total_spend_usd,
+      impressions: sum('impressions'),
+      clicks_all,
+      link_clicks: sum('link_clicks'),
+      ctr_all: ratio(clicks_all, sum('impressions'), 100),
+      cpc_usd: ratio(total_spend_usd, clicks_all),
+      first_page_views: sum('first_page_views'),
+      questionnaire_starts: sum('questionnaire_starts'),
+      questionnaire_completed: sum('questionnaire_completed'),
+      add_to_carts: sum('add_to_carts'),
+      purchase_events: sum('purchase_events'),
+      conversions,
+      revenue_usd,
+      net_profit_usd: net,
+      cac_usd: ratio(total_spend_usd, conversions),
+      roas_pct: ratio(net, total_spend_usd, 100),
+    };
+  }, [rows]);
+
   function toggleSort(column: Column) {
     setSort((current) =>
       current.key === column.key
@@ -214,7 +272,7 @@ export default function FunnelTable({ rows: input, activeWindowDays }: Props) {
       </label>
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-line">
-        <table className="w-full min-w-[1400px] border-collapse text-sm">
+        <table className="w-full min-w-[1650px] border-collapse text-sm">
           <thead>
             <tr className="bg-surface-2/60">
               {COLUMNS.map((column) => {
@@ -267,6 +325,28 @@ export default function FunnelTable({ rows: input, activeWindowDays }: Props) {
               </tr>
             ))}
           </tbody>
+          {total && (
+            <tfoot>
+              <tr className="border-t-2 border-line-strong bg-surface-2/60 font-bold">
+                {COLUMNS.map((column) => (
+                  <td
+                    key={column.key}
+                    className={`whitespace-nowrap px-4 py-3 tabular-nums text-ink ${
+                      column.align === 'right' ? 'text-right' : 'text-left'
+                    } ${column.key === 'ad_name' ? 'sticky left-0 z-10 bg-surface-2' : ''}`}
+                  >
+                    {column.key === 'ad_name' ? (
+                      <span title="Sum of the rows shown — follows the filters above and “Hide inactive ads”">{total.ad_name}</span>
+                    ) : column.key === 'offer_name' ? (
+                      ''
+                    ) : (
+                      column.render(total)
+                    )}
+                  </td>
+                ))}
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
     </div>

@@ -20,7 +20,7 @@ export interface AdStatistics {
   amount_spent: number; // Σ total_spend_usd (incl. provider fees)
   link_clicks: number;
   ctr: number | null; // link_clicks ÷ impressions × 100
-  cpc: number | null; // Σ spend_usd ÷ link_clicks (before fees)
+  cpc: number | null; // Σ total spend ÷ link_clicks (incl. provider fees)
   cac: number | null; // amount_spent ÷ conversions
   roas: number | null; // net_profit ÷ amount_spent × 100
   revenue: number; // Σ revenue_usd
@@ -130,7 +130,7 @@ const stats = (t: Totals | null): AdStatistics => {
     amount_spent,
     link_clicks: t?.link_clicks ?? 0,
     ctr: ratio(t?.link_clicks ?? 0, t?.impressions ?? 0, 100),
-    cpc: ratio(t?.spend_usd ?? 0, t?.link_clicks ?? 0),
+    cpc: ratio(t?.total_spend_usd ?? 0, t?.link_clicks ?? 0),
     cac: ratio(amount_spent, t?.conversions ?? 0),
     roas: ratio(net_profit, amount_spent, 100),
     revenue,

@@ -37,7 +37,7 @@ const COLUMNS: Column[] = [
   { key: 'impressions', label: 'Impr.', title: 'Impressions', value: (m) => m.impressions, render: (m) => formatInteger(m.impressions), defaultDir: 'desc' },
   { key: 'link_clicks', label: 'Link Clicks', title: 'Link clicks', value: (m) => m.link_clicks, render: (m) => formatInteger(m.link_clicks), defaultDir: 'desc' },
   { key: 'ctr_all', label: 'CTR', title: 'Clicks (all) ÷ impressions', value: (m) => m.ctr_all, render: (m) => (m.ctr_all === null ? '—' : formatPercent(m.ctr_all / 100, 2)), defaultDir: 'desc' },
-  { key: 'cpc_usd', label: 'CPC', title: 'Spend ÷ clicks (all)', value: (m) => m.cpc_usd, render: (m) => money(m.cpc_usd), defaultDir: 'asc' },
+  { key: 'cpc_usd', label: 'CPC', title: 'Total ad spend (incl. provider fee) ÷ clicks (all)', value: (m) => m.cpc_usd, render: (m) => money(m.cpc_usd), defaultDir: 'asc' },
   { key: 'landing_page_views', label: 'LP Views', title: 'Landing page views (Facebook)', value: (m) => m.landing_page_views, render: (m) => formatInteger(m.landing_page_views), defaultDir: 'desc' },
   count('first_page_views', 'First Page', 'First page views (partner)'),
   count('questionnaire_starts', 'Q.S.', 'Questionnaire starts (partner)'),

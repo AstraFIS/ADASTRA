@@ -32,7 +32,7 @@ export interface FunnelRow {
   clicks_all: number;
   link_clicks: number;
   ctr_all: number | null; // clicks_all ÷ impressions × 100
-  cpc_usd: number | null; // spend_usd ÷ clicks_all
+  cpc_usd: number | null; // total_spend_usd ÷ clicks_all (incl. provider fees)
 
   // funnel stages (step-over-step % is computed by the client)
   first_page_views: number;
@@ -136,7 +136,7 @@ export async function getFbFunnel(query: FbStatisticsQuery): Promise<FbFunnelRes
       clicks_all: g.clicks_all,
       link_clicks: g.link_clicks,
       ctr_all: ratio(g.clicks_all, g.impressions, 100),
-      cpc_usd: ratio(spend_usd, g.clicks_all),
+      cpc_usd: ratio(total_spend_usd, g.clicks_all),
 
       first_page_views: g.first_page_views,
       questionnaire_starts: g.questionnaire_starts,
