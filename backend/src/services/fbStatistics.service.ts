@@ -115,15 +115,22 @@ export const REPORT_DATE = {
 /** The row's provider: `provider_name`, or the sheet's `Provider` column when imported as-is. */
 export const PROVIDER_NAME = { $ifNull: ['$provider_name', '$Provider', null] };
 
-/** Partner event stage → the facebook_ad_reports funnel column it counts toward. */
-const STAGE_COLUMN: Record<string, string> = {
-  presell_visit: 'presell_visits',
-  first_page_view: 'first_page_views',
-  questionnaire_start: 'questionnaire_starts',
-  questionnaire_completed: 'questionnaire_completed',
-  add_to_cart: 'add_to_carts',
+/**
+ * facebook_ad_reports funnel column → the partner event stages that count toward it.
+ * Besides the standard stage names, the spellings some imports stored are accepted
+ * ("base", "start_quiz", "lead", …), so such rows are never silently left out.
+ */
+const STAGE_COLUMN: Record<string, string[]> = {
+  presell_visits: ['presell_visit'],
+  first_page_views: ['first_page_view', 'base'],
+  questionnaire_starts: ['questionnaire_start', 'start_quiz'],
+  questionnaire_completed: ['questionnaire_completed', 'lead', 'quiz_completion', 'quiz_completed'],
+  add_to_carts: ['add_to_cart'],
 };
-const countIf = (stage: string) => ({ $cond: [{ $eq: ['$event_stage', stage] }, '$event_count', 0] });
+const PURCHASE_STAGES = ['purchase'];
+const countIf = (stages: string[]) => ({
+  $cond: [{ $in: [{ $toLower: { $ifNull: ['$event_stage', ''] } }, stages] }, num('event_count'), 0],
+});
 
 /**
  * facebook_conversions (partner events) reshaped as report rows: no spend or delivery,
@@ -150,9 +157,9 @@ const PARTNER_ROWS: PipelineStage[] = [
       clicks_all: { $literal: 0 },
       link_clicks: { $literal: 0 },
       landing_page_views: { $literal: 0 },
-      ...Object.fromEntries(Object.entries(STAGE_COLUMN).map(([stage, column]) => [column, countIf(stage)])),
-      purchase_events: countIf('purchase'),
-      conversions: countIf('purchase'), // verified purchases drive CAC
+      ...Object.fromEntries(Object.entries(STAGE_COLUMN).map(([column, stages]) => [column, countIf(stages)])),
+      purchase_events: countIf(PURCHASE_STAGES),
+      conversions: countIf(PURCHASE_STAGES), // verified purchases drive CAC
       revenue_usd: { $ifNull: ['$revenue_usd', 0] },
     },
   },

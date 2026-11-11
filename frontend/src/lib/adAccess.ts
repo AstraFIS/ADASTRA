@@ -14,6 +14,8 @@ export interface AdAssignment {
   taxonomy: (TaxonomyData & { source: TaxonomySource }) | null;
   /** Amount spent incl. provider fee, all time (missing on older backends). */
   spendUsd?: number;
+  /** Partner funnel events, all time (missing on older backends). */
+  partnerEvents?: number;
   revenueUsd?: number;
   /** Last day (YYYY-MM-DD) with spend. */
   lastSpendDate?: string | null;

@@ -26,7 +26,7 @@ import { BingConversion } from '../models/bingConversion.model.js';
  */
 
 /** Bump when an API answer's shape changes, so a deploy never serves answers cached by the old code. */
-const API_SHAPE = '3';
+const API_SHAPE = '4';
 const CACHE_TTL_MS = 5 * 60_000;
 const VERSION_MEMO_MS = 5_000;
 const NORMALIZE_EVERY_MS = 10 * 60_000;

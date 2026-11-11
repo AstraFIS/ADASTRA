@@ -24,6 +24,8 @@ export interface AdAssignment {
   taxonomy: SavedTaxonomy | null;
   /** Amount spent incl. provider fee, all time (0 when the ad never spent). */
   spendUsd: number;
+  /** Partner funnel events (first page view … purchase), all time — shows partner-only ads. */
+  partnerEvents: number;
   /** Partner revenue for the ad, all time. */
   revenueUsd: number;
   /** Last day (YYYY-MM-DD) with spend > 0, or null. */
@@ -60,11 +62,16 @@ const NO_LINKS: AdLinks = { image: null, video: null, landing: null };
  */
 export async function listAdAssignments(): Promise<AdAssignment[]> {
   const [reported, accessRows, creativeRows, taxonomyRows] = await Promise.all([
-    reportAggregate<{ _id: string | null; spend: number; revenue: number; lastSpend: Date | null }>([
+    reportAggregate<{ _id: string | null; spend: number; revenue: number; events: number; lastSpend: Date | null }>([
       {
         $group: {
           _id: { $toString: '$ad_name' },
           spend: { $sum: TOTAL_SPEND },
+          events: {
+            $sum: {
+              $add: ['first_page_views', 'questionnaire_starts', 'questionnaire_completed', 'add_to_carts', 'purchase_events'].map((f) => num(f)),
+            },
+          },
           revenue: { $sum: num('revenue_usd') },
           lastSpend: { $max: { $cond: [{ $gt: [num('spend_usd'), 0] }, '$report_date', null] } },
         },
@@ -110,6 +117,7 @@ export async function listAdAssignments(): Promise<AdAssignment[]> {
     links: linksByAd.get(adName) ?? NO_LINKS,
     taxonomy: taxonomyByAd.get(adName) ?? null,
     spendUsd: round2(totalsByAd.get(adName)?.spend ?? 0),
+    partnerEvents: Math.round(totalsByAd.get(adName)?.events ?? 0),
     revenueUsd: round2(totalsByAd.get(adName)?.revenue ?? 0),
     lastSpendDate: (() => {
       const d = totalsByAd.get(adName)?.lastSpend;

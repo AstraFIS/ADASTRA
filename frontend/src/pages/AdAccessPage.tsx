@@ -32,6 +32,8 @@ const LINK_FIELDS: { key: LinkField; label: string; placeholder: string }[] = [
 ];
 
 const spendOf = (a: AdAssignment) => a.spendUsd ?? 0;
+/** Spent money or brought partner events — partner-only ads (no Meta row) count too. */
+const hasActivity = (a: AdAssignment) => spendOf(a) > 0 || (a.partnerEvents ?? 0) > 0 || (a.revenueUsd ?? 0) > 0;
 
 const isWebUrl = (v: string) => v === '' || /^https?:\/\/\S+$/i.test(v);
 
@@ -40,7 +42,7 @@ const GROUPS: AdGroup[] = ['Meta1', 'Meta2'];
 const FILTERS: { value: Filter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'unassigned', label: 'Unassigned' },
-  { value: 'unassigned_spend', label: 'Unassigned with spend' },
+  { value: 'unassigned_spend', label: 'Unassigned with activity' },
   { value: 'missing', label: 'Missing links' },
   { value: 'unclassified', label: 'No taxonomy' },
   { value: 'lowconf', label: 'Low confidence' },
@@ -273,7 +275,7 @@ export default function AdAccessPage() {
       if (g) c[g] += 1;
       else {
         c.unassigned += 1;
-        if (spendOf(a) > 0) {
+        if (hasActivity(a)) {
           c.unassignedSpend += 1;
           c.unassignedSpendUsd += spendOf(a);
         }
@@ -289,7 +291,7 @@ export default function AdAccessPage() {
       const g = currentGroup(a.adName);
       if (filter === 'all') return true;
       if (filter === 'unassigned') return g === null;
-      if (filter === 'unassigned_spend') return g === null && spendOf(a) > 0;
+      if (filter === 'unassigned_spend') return g === null && hasActivity(a);
       if (filter === 'missing') return hasMissing(a);
       if (filter === 'unclassified') return currentTaxonomy(a) === null;
       if (filter === 'lowconf') return isLowConfidence(a);
@@ -452,12 +454,12 @@ export default function AdAccessPage() {
                 setFilter('unassigned_spend');
                 setSortKey('spend');
               }}
-              title="Show unassigned ads that have spend"
+              title="Show unassigned ads that have spend or partner events"
               className="rounded-xl border border-loss/50 bg-loss/5 px-4 py-3 text-left hover:bg-loss/10"
             >
-              <p className="text-xs font-medium uppercase tracking-wide text-ink-3">Unassigned with spend</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-ink-3">Unassigned with activity</p>
               <p className="mt-1 text-2xl font-extrabold text-loss">{counts.unassignedSpend}</p>
-              <p className="text-xs text-ink-3">{formatCurrency(counts.unassignedSpendUsd)} spent</p>
+              <p className="text-xs text-ink-3">{formatCurrency(counts.unassignedSpendUsd)} spent · spend or partner events</p>
             </button>
             <Stat label="Missing links" value={counts.missing} className="text-loss" />
             <Stat label="No taxonomy" value={counts.unclassified} className="text-spend" />
