@@ -20,6 +20,10 @@ export interface FbStatisticsQuery {
   offer?: string | string[] | undefined;
   /** "ED" / "GLP": only that product category (see CATEGORY). */
   category?: string | undefined;
+  /** One provider, or several (see providerScope). */
+  provider?: string | string[] | undefined;
+  /** Ad names that ever spent under `provider` (set by providerScope); their partner events count for it. */
+  providerAds?: string[] | undefined;
   /** Ad names the caller may see (from facebookScope); null / undefined means every ad. */
   allowedAds?: string[] | null | undefined;
   /**
@@ -550,7 +554,7 @@ export function textValues(value: string): (string | number)[] {
 
 /** Mongo match for the ad / offer / access part of a query. */
 export function reportBaseMatch(
-  query: Pick<FbStatisticsQuery, 'ad' | 'offer' | 'category' | 'allowedAds' | 'allowedGroups'>,
+  query: Pick<FbStatisticsQuery, 'ad' | 'offer' | 'category' | 'provider' | 'providerAds' | 'allowedAds' | 'allowedGroups'>,
 ): ReportFilter {
   const baseMatch: ReportFilter = {};
   if (query.ad) baseMatch.ad_name = anyOf(query.ad);
@@ -563,7 +567,36 @@ export function reportBaseMatch(
   }
   if (query.offer) baseMatch.offer_name = anyOf(query.offer);
   if (query.category) baseMatch.category = query.category.toUpperCase();
+  if (query.provider) {
+    // Meta rows carry their provider; partner events don't, so they count for a provider through their ad name
+    const names = Array.isArray(query.provider) ? query.provider : [query.provider];
+    baseMatch.$and = [
+      {
+        $or: [
+          { provider_name: { $in: names } },
+          { provider_name: null, ad_name: { $in: (query.providerAds ?? []).flatMap(textValues) } },
+        ],
+      },
+    ];
+  }
   return baseMatch;
+}
+
+/**
+ * Provider filter → the ad names that spent under those providers (any date), so the partner
+ * events of those ads (which have no provider of their own) are counted for them too.
+ */
+export async function providerScope(
+  provider: string | string[] | undefined,
+): Promise<Pick<FbStatisticsQuery, 'provider' | 'providerAds'>> {
+  if (!provider) return {};
+  const names = Array.isArray(provider) ? provider : [provider];
+  const rows = await reportAggregate<{ _id: unknown }>([
+    { $match: { provider_name: { $in: names } } },
+    { $group: { _id: '$ad_name' } },
+  ]);
+  const providerAds = [...new Set(rows.map((r) => String(r._id ?? '').trim()).filter(Boolean))];
+  return { provider, providerAds };
 }
 
 /**

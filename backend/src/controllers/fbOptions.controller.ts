@@ -3,11 +3,14 @@ import { z } from 'zod';
 import { FACEBOOK_ACCESS_GROUPS } from '../models/adAccess.model.js';
 import { facebookScope } from '../services/access.service.js';
 import { getFbOptions } from '../services/fbOptions.service.js';
+import { providerScope } from '../services/fbStatistics.service.js';
+import { oneOrMany } from './fbStatistics.controller.js';
 
 const emptyToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
 const querySchema = z.object({
   group: z.preprocess(emptyToUndefined, z.enum(FACEBOOK_ACCESS_GROUPS).optional()),
   category: z.preprocess(emptyToUndefined, z.string().trim().max(20).optional()),
+  provider: oneOrMany,
 });
 
 /**
@@ -15,6 +18,6 @@ const querySchema = z.object({
  * from the report collection, limited to the ads the caller may see (and to one group's ads when given)
  */
 export async function getOptions(req: Request, res: Response): Promise<void> {
-  const { group, category } = querySchema.parse(req.query);
-  res.json(await getFbOptions({ ...(await facebookScope(req.user!, group)), category }));
+  const { group, category, provider } = querySchema.parse(req.query);
+  res.json(await getFbOptions({ ...(await facebookScope(req.user!, group)), category, ...(await providerScope(provider)) }));
 }

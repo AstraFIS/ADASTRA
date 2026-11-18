@@ -95,6 +95,9 @@ export default function FacebookDashboardPage() {
   const offers = params.getAll('offer').filter(Boolean);
   const adsKey = ads.join('\u0001');
   const offersKey = offers.join('\u0001');
+  // ad platform provider(s): their Meta spend + the partner events of the ads that ran under them
+  const providers = params.getAll('provider').filter(Boolean);
+  const providersKey = providers.join('\u0001');
   // product category (ED / GLP): narrows every number on the page
   const category = params.get('category') ?? ALL;
   // Meta1 / Meta2 (ad_access groups): admins can narrow the whole page to one group's ads
@@ -115,7 +118,11 @@ export default function FacebookDashboardPage() {
     let cancelled = false;
     api
       .get<FbOptionsResult>(
-        `/platforms/facebook/options?${new URLSearchParams({ ...(group ? { group } : {}), ...(category ? { category } : {}) }).toString()}`,
+        `/platforms/facebook/options?${(() => {
+          const qs = new URLSearchParams({ ...(group ? { group } : {}), ...(category ? { category } : {}) });
+          providers.forEach((p) => qs.append('provider', p));
+          return qs.toString();
+        })()}`,
       )
       .then((o) => {
         if (!cancelled) setOptions(o);
@@ -126,7 +133,7 @@ export default function FacebookDashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [group, category]);
+  }, [group, category, providersKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const [reloadKey, setReloadKey] = useState(0);
   // bottom table: per ad & offer (default) or the campaign → ad set → ad tree; remembered per browser
   const [tableView, setTableView] = useState<TableView>(readTableView);
@@ -149,6 +156,7 @@ export default function FacebookDashboardPage() {
     if (to) qs.set('to', to);
     ads.forEach((a) => qs.append('ad', a));
     offers.forEach((o) => qs.append('offer', o));
+    providers.forEach((p) => qs.append('provider', p));
     if (category) qs.set('category', category);
     if (group) qs.set('group', group);
 
@@ -230,12 +238,14 @@ export default function FacebookDashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [range, from, to, custom, adsKey, offersKey, category, group, reloadKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [range, from, to, custom, adsKey, offersKey, providersKey, category, group, reloadKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function setMulti(key: 'ad' | 'offer', values: string[]) {
+  function setMulti(key: 'ad' | 'offer' | 'provider', values: string[]) {
     const next = new URLSearchParams(params);
     next.delete(key);
     values.forEach((v) => next.append(key, v));
+    // the selected ads may not have run under the new provider(s)
+    if (key === 'provider') next.delete('ad');
     setParams(next, { replace: true });
   }
 
@@ -349,6 +359,7 @@ export default function FacebookDashboardPage() {
     if (to) qs.set('to', to);
     ads.forEach((a) => qs.append('ad', a));
     offers.forEach((o) => qs.append('offer', o));
+    providers.forEach((p) => qs.append('provider', p));
     if (category) qs.set('category', category);
     if (group) qs.set('group', group);
     return qs.toString();
@@ -359,6 +370,7 @@ export default function FacebookDashboardPage() {
   const adOptions = options ? options.ads : filters.options.ads;
   const offerOptions = options ? options.offers : filters.options.offers;
   // ED and GLP are always offered (a period may hold only one of them), plus any other category in the data
+  const providerOptions = options?.providers ?? [];
   const categoryOptions = [...new Set(['ED', 'GLP', ...(options?.categories ?? [])])];
   const withCurrent = (list: string[], current: string | null) =>
     current && !list.includes(current) ? [current, ...list] : list;
@@ -421,6 +433,16 @@ export default function FacebookDashboardPage() {
           ]}
           onChange={(v) => setFilter('category', v)}
           className="w-full sm:w-auto sm:min-w-[180px]"
+        />
+        <MultiSearchSelect
+          id="provider"
+          label="Provider"
+          values={providers}
+          options={providerOptions}
+          allLabel="All Providers"
+          noun="providers"
+          onChange={(v) => setMulti('provider', v)}
+          className="w-full sm:w-auto sm:min-w-[220px]"
         />
         <MultiSearchSelect
           id="ad-name"

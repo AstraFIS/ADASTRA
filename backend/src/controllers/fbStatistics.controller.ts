@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { providerScope } from '../services/fbStatistics.service.js';
 import { z } from 'zod';
 import { facebookScope } from '../services/access.service.js';
 import { getFbStatistics } from '../services/fbStatistics.service.js';
@@ -9,7 +10,7 @@ const emptyToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD');
 
 /** ?ad=a or ?ad=a&ad=b → 'a' or ['a', 'b'] (blank values dropped; nothing left → no filter). */
-const oneOrMany = z.preprocess(
+export const oneOrMany = z.preprocess(
   (v) => {
     const list = (Array.isArray(v) ? v : [v]).filter((x): x is string => typeof x === 'string' && x.trim() !== '');
     if (list.length === 0) return undefined;
@@ -28,6 +29,8 @@ export const reportQuerySchema = z
     offer: oneOrMany,
     /** ED / GLP: only that product category. */
     category: z.preprocess(emptyToUndefined, z.string().trim().max(20).optional()),
+    /** Ad platform provider(s), e.g. DAMS Aleph. */
+    provider: oneOrMany,
     /** Meta1 / Meta2: only that ad_access group's ads. */
     group: z.preprocess(emptyToUndefined, z.enum(FACEBOOK_ACCESS_GROUPS).optional()),
   })
@@ -43,5 +46,5 @@ export const reportQuerySchema = z
  */
 export async function getStatistics(req: Request, res: Response): Promise<void> {
   const q = reportQuerySchema.parse(req.query);
-  res.json(await getFbStatistics({ ...q, ...(await facebookScope(req.user!, q.group)) }));
+  res.json(await getFbStatistics({ ...q, ...(await facebookScope(req.user!, q.group)), ...(await providerScope(q.provider)) }));
 }
