@@ -13,6 +13,12 @@ export interface FbStatisticsQuery {
   to?: string | undefined;
   ad?: string | undefined;
   offer?: string | undefined;
+  /** "ED" / "GLP" / "Other": only that product category (see CATEGORY). */
+  category?: string | undefined;
+  /** Only this ad platform provider (see reportBaseMatch / providerScope). */
+  provider?: string | undefined;
+  /** Ad names that ever spent under `provider` (set by providerScope); their partner events count for it. */
+  providerAds?: string[] | undefined;
   /** Ad names the caller may see (from facebookScope); null / undefined means every ad. */
   allowedAds?: string[] | null | undefined;
   /**
@@ -169,6 +175,26 @@ const PARTNER_ROWS: PipelineStage[] = [
 export const NO_AD_NAME = '(no ad name)';
 const MISSING_AD_NAMES = ['', '<NA>', 'nan', 'NaN', 'None', 'null', 'undefined'];
 
+/**
+ * Product category of a row, from its names: the offer name decides first ("GLP" in any
+ * case → GLP, else "ED" in capitals → ED — capitals only, so "Meds" is not ED), then the
+ * ad name by the same rule; anything else is "Other".
+ */
+const nameText = (field: string) => ({ $toString: { $ifNull: [field, ''] } });
+const has = (field: string, regex: string, options = '') => ({ $regexMatch: { input: nameText(field), regex, options } });
+export const CATEGORY = {
+  $switch: {
+    branches: [
+      { case: has('$offer_name', 'glp', 'i'), then: 'GLP' },
+      { case: has('$offer_name', 'ED'), then: 'ED' },
+      { case: has('$ad_name', 'glp', 'i'), then: 'GLP' },
+      { case: has('$ad_name', 'ED'), then: 'ED' },
+    ],
+    default: 'Other',
+  },
+};
+export const CATEGORIES = ['ED', 'GLP', 'Other'] as const;
+
 /** First element of an array field, or null. */
 const first = (field: string) => ({ $arrayElemAt: [field, 0] });
 
@@ -205,6 +231,7 @@ function blendStages(pre?: { reports: PipelineStage.Match; conversions: Pipeline
     { $unionWith: { coll: 'facebook_conversions', pipeline: [...(pre ? [pre.conversions] : []), ...PARTNER_ROWS] as never } },
     // one spelling for "no ad name" (empty, missing, or "<NA>" / "nan" left by a spreadsheet)
     { $addFields: { ad_name: { $cond: [{ $in: [{ $ifNull: ['$ad_name', ''] }, MISSING_AD_NAMES] }, NO_AD_NAME, '$ad_name'] } } },
+    { $addFields: { category: CATEGORY } },
   ];
 }
 
@@ -329,7 +356,7 @@ export function textValues(value: string): (string | number)[] {
 
 /** Mongo match for the ad / offer / access part of a query. */
 export function reportBaseMatch(
-  query: Pick<FbStatisticsQuery, 'ad' | 'offer' | 'allowedAds' | 'allowedGroups'>,
+  query: Pick<FbStatisticsQuery, 'ad' | 'offer' | 'category' | 'provider' | 'providerAds' | 'allowedAds' | 'allowedGroups'>,
 ): ReportFilter {
   const baseMatch: ReportFilter = {};
   if (query.ad) baseMatch.ad_name = textMatch(query.ad);
@@ -341,7 +368,31 @@ export function reportBaseMatch(
     ];
   }
   if (query.offer) baseMatch.offer_name = textMatch(query.offer);
+  if (query.category) baseMatch.category = query.category;
+  if (query.provider) {
+    // Facebook rows carry their provider; partner events don't, so they count for a provider
+    // through their ad name (the ads that spent under it)
+    baseMatch.$and = [
+      {
+        $or: [
+          { provider_name: query.provider },
+          { provider_name: null, ad_name: { $in: (query.providerAds ?? []).flatMap(textValues) } },
+        ],
+      },
+    ];
+  }
   return baseMatch;
+}
+
+/** Provider filter → the ad names that ever spent under that provider (any date). */
+export async function providerScope(provider: string | undefined): Promise<Pick<FbStatisticsQuery, 'provider' | 'providerAds'>> {
+  if (!provider) return {};
+  const rows = await reportAggregate<{ _id: unknown }>([
+    { $match: { provider_name: provider } },
+    { $group: { _id: '$ad_name' } },
+  ]);
+  const providerAds = [...new Set(rows.map((r) => String(r._id ?? '').trim()).filter(Boolean))];
+  return { provider, providerAds };
 }
 
 /**

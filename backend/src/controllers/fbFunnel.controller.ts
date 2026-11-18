@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { facebookScope } from '../services/access.service.js';
 import { getFbFunnel } from '../services/fbFunnel.service.js';
 import { reportQuerySchema } from './fbStatistics.controller.js';
+import { providerScope } from '../services/fbStatistics.service.js';
 
 /**
  * GET /api/platforms/facebook/funnel?range=this_month&ad=…&offer=…&from=YYYY-MM-DD&to=YYYY-MM-DD
@@ -12,5 +13,5 @@ import { reportQuerySchema } from './fbStatistics.controller.js';
  */
 export async function getFunnel(req: Request, res: Response): Promise<void> {
   const q = reportQuerySchema.parse(req.query);
-  res.json(await getFbFunnel({ ...q, ...(await facebookScope(req.user!, q.group)) }));
+  res.json(await getFbFunnel({ ...q, ...(await facebookScope(req.user!, q.group)), ...(await providerScope(q.provider)) }));
 }

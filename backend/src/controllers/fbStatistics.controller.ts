@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { facebookScope } from '../services/access.service.js';
-import { getFbStatistics } from '../services/fbStatistics.service.js';
+import { CATEGORIES, getFbStatistics, providerScope } from '../services/fbStatistics.service.js';
 import { FACEBOOK_ACCESS_GROUPS } from '../models/adAccess.model.js';
 import { DATE_RANGE_KEYS } from '../types/facebook.js';
 
@@ -16,6 +16,10 @@ export const reportQuerySchema = z
     to: z.preprocess(emptyToUndefined, isoDate.optional()),
     ad: z.preprocess(emptyToUndefined, z.string().trim().max(200).optional()),
     offer: z.preprocess(emptyToUndefined, z.string().trim().max(200).optional()),
+    /** ED / GLP / Other (from the offer and ad names). */
+    category: z.preprocess(emptyToUndefined, z.enum(CATEGORIES).optional()),
+    /** Only this ad platform provider. */
+    provider: z.preprocess(emptyToUndefined, z.string().trim().max(200).optional()),
     /** Meta1 / Meta2: only that ad_access group's ads. */
     group: z.preprocess(emptyToUndefined, z.enum(FACEBOOK_ACCESS_GROUPS).optional()),
   })
@@ -31,5 +35,5 @@ export const reportQuerySchema = z
  */
 export async function getStatistics(req: Request, res: Response): Promise<void> {
   const q = reportQuerySchema.parse(req.query);
-  res.json(await getFbStatistics({ ...q, ...(await facebookScope(req.user!, q.group)) }));
+  res.json(await getFbStatistics({ ...q, ...(await facebookScope(req.user!, q.group)), ...(await providerScope(q.provider)) }));
 }
