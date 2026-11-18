@@ -91,6 +91,9 @@ export default function FacebookDashboardPage() {
   const custom = from !== '' || to !== '';
   const ad = params.get('ad') ?? ALL;
   const offer = params.get('offer') ?? ALL;
+  // ED / GLP (from the offer and ad names) and ad platform provider: narrow every number on the page
+  const category = params.get('category') ?? ALL;
+  const provider = params.get('provider') ?? ALL;
   // Meta1 / Meta2 (ad_access groups): admins can narrow the whole page to one group's ads
   const { user } = useAuth();
   const canFilterGroup = user?.role === 'admin';
@@ -108,7 +111,13 @@ export default function FacebookDashboardPage() {
   useEffect(() => {
     let cancelled = false;
     api
-      .get<FbOptionsResult>(`/platforms/facebook/options${group ? `?group=${encodeURIComponent(group)}` : ''}`)
+      .get<FbOptionsResult>(
+        `/platforms/facebook/options?${new URLSearchParams({
+          ...(group ? { group } : {}),
+          ...(category ? { category } : {}),
+          ...(provider ? { provider } : {}),
+        }).toString()}`,
+      )
       .then((o) => {
         if (!cancelled) setOptions(o);
       })
@@ -118,7 +127,7 @@ export default function FacebookDashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [group]);
+  }, [group, category, provider]);
   const [reloadKey, setReloadKey] = useState(0);
   // bottom table: per ad & offer (default) or the campaign → ad set → ad tree; remembered per browser
   const [tableView, setTableView] = useState<TableView>(readTableView);
@@ -141,6 +150,8 @@ export default function FacebookDashboardPage() {
     if (to) qs.set('to', to);
     if (ad) qs.set('ad', ad);
     if (offer) qs.set('offer', offer);
+    if (category) qs.set('category', category);
+    if (provider) qs.set('provider', provider);
     if (group) qs.set('group', group);
 
     api
@@ -221,14 +232,15 @@ export default function FacebookDashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [range, from, to, custom, ad, offer, group, reloadKey]);
+  }, [range, from, to, custom, ad, offer, category, provider, group, reloadKey]);
 
-  function setFilter(key: 'ad' | 'offer' | 'group', value: string) {
+  function setFilter(key: 'ad' | 'offer' | 'group' | 'category' | 'provider', value: string) {
     const next = new URLSearchParams(params);
     if (value === ALL) next.delete(key);
     else next.set(key, value);
-    // the selected ad may not belong to the new group
-    if (key === 'group') next.delete('ad');
+    // the selected ad (and offer) may not belong to the new group / category / provider
+    if (key === 'group' || key === 'category' || key === 'provider') next.delete('ad');
+    if (key === 'category') next.delete('offer');
     setParams(next, { replace: true });
   }
 
@@ -331,6 +343,8 @@ export default function FacebookDashboardPage() {
     if (to) qs.set('to', to);
     if (ad) qs.set('ad', ad);
     if (offer) qs.set('offer', offer);
+    if (category) qs.set('category', category);
+    if (provider) qs.set('provider', provider);
     if (group) qs.set('group', group);
     return qs.toString();
   })();
@@ -390,6 +404,31 @@ export default function FacebookDashboardPage() {
             className="w-full sm:w-auto sm:min-w-[200px]"
           />
         )}
+        <FilterSelect
+          id="category"
+          label="Category"
+          value={category}
+          options={[
+            { value: ALL, label: 'ED + GLP' },
+            { value: 'ED', label: 'ED' },
+            { value: 'GLP', label: 'GLP' },
+            // "Other" (neither name says ED or GLP) only shows when it is the current choice
+            ...(category === 'Other' ? [{ value: 'Other', label: 'Other' }] : []),
+          ]}
+          onChange={(v) => setFilter('category', v)}
+          className="w-full sm:w-auto sm:min-w-[180px]"
+        />
+        <FilterSelect
+          id="provider"
+          label="Provider"
+          value={provider}
+          options={[
+            { value: ALL, label: 'All Providers' },
+            ...withCurrent(options?.providers ?? [], provider || null).map((p) => ({ value: p, label: p })),
+          ]}
+          onChange={(v) => setFilter('provider', v)}
+          className="w-full sm:w-auto sm:min-w-[220px]"
+        />
         <FilterSelect
           id="ad-name"
           label="Filter by Ad Name"

@@ -2,7 +2,7 @@ import type { FacebookScope } from './access.service.js';
 import { FacebookAdReport } from '../models/facebookAdReport.model.js';
 import type { DateRangeOption } from '../types/facebook.js';
 import { DATE_RANGE_OPTIONS, isoDay } from '../utils/dateRange.js';
-import { latestReportDate, reportAggregate, reportBaseMatch, type ReportFilter } from './fbStatistics.service.js';
+import { latestReportDate, reportAggregate, reportBaseMatch, type FbStatisticsQuery, type ReportFilter } from './fbStatistics.service.js';
 
 export interface FbOptionsResult {
   dateRanges: DateRangeOption[];
@@ -32,13 +32,17 @@ async function countRows(match: ReportFilter): Promise<number> {
 }
 
 /** `allowedAds` limits every list to the ads the caller may see (null = every ad). */
-export async function getFbOptions(scope: FacebookScope): Promise<FbOptionsResult> {
+export async function getFbOptions(
+  scope: FacebookScope & Pick<FbStatisticsQuery, 'category' | 'provider' | 'providerAds'>,
+): Promise<FbOptionsResult> {
   const { allowedAds } = scope;
   const match = reportBaseMatch(scope);
+  // the provider list itself is not narrowed by the provider filter
+  const { $and: _provider, ...noProvider } = match;
   const [ads, offers, providers, latest, rows] = await Promise.all([
     distinctText('ad_name', match),
     distinctText('offer_name', match),
-    distinctText('provider_name', match),
+    distinctText('provider_name', noProvider),
     latestReportDate({}),
     allowedAds ? countRows(match) : FacebookAdReport.estimatedDocumentCount(),
   ]);
