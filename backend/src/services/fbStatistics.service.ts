@@ -1,8 +1,11 @@
-import type { PipelineStage } from 'mongoose';
+import { COLLECTIONS } from '../config/collections.js';
+import mongoose, { type PipelineStage } from 'mongoose';
 import { FacebookAdReport } from '../models/facebookAdReport.model.js';
 import { FacebookConversion } from '../models/facebookConversion.model.js';
 import { FacebookProvider } from '../models/facebookProvider.model.js';
 import type { DateRangeKey } from '../types/facebook.js';
+import { DEMO, demoReportAggregate, demoStore, refreshDemoStore } from '../config/demo.js';
+import { rowsDataVersion } from './reportCache.service.js';
 import { dayExpr } from '../utils/bingDate.js';
 import { DATE_RANGE_OPTIONS, isoDay, resolveRange } from '../utils/dateRange.js';
 
@@ -11,8 +14,12 @@ export interface FbStatisticsQuery {
   /** Explicit bounds (YYYY-MM-DD) take precedence over `range`. */
   from?: string | undefined;
   to?: string | undefined;
-  ad?: string | undefined;
-  offer?: string | undefined;
+  /** One ad name, or several (any of them). */
+  ad?: string | string[] | undefined;
+  /** One offer, or several (any of them). */
+  offer?: string | string[] | undefined;
+  /** "ED" / "GLP": only that product category (see CATEGORY). */
+  category?: string | undefined;
   /** Ad names the caller may see (from facebookScope); null / undefined means every ad. */
   allowedAds?: string[] | null | undefined;
   /**
@@ -151,6 +158,8 @@ const PARTNER_ROWS: PipelineStage[] = [
       gender: { $literal: 'unknown' },
       region: 1,
       device: 1,
+      placement: 1,
+      category: 1,
       provider_fee_pct: { $literal: 0 },
       spend_usd: { $literal: 0 },
       impressions: { $literal: 0 },
@@ -169,12 +178,50 @@ const PARTNER_ROWS: PipelineStage[] = [
 export const NO_AD_NAME = '(no ad name)';
 const MISSING_AD_NAMES = ['', '<NA>', 'nan', 'NaN', 'None', 'null', 'undefined'];
 
+/**
+ * Product category of a row ("ED" / "GLP"). The partner export carries it (Category column);
+ * imports may store it on Meta rows too. Rows without one — every older ED row — are
+ * classified from their offer / campaign / ad name: anything mentioning GLP is "GLP", the rest "ED".
+ */
+export const CATEGORY = {
+  $let: {
+    vars: { c: { $toUpper: { $trim: { input: { $ifNull: [{ $toString: '$category' }, ''] } } } } },
+    in: {
+      $cond: [
+        { $and: [{ $ne: ['$$c', ''] }, { $ne: ['$$c', 'NULL'] }] },
+        '$$c',
+        {
+          $cond: [
+            {
+              $regexMatch: {
+                input: {
+                  $concat: [
+                    { $ifNull: [{ $toString: '$offer_name' }, ''] },
+                    ' ',
+                    { $ifNull: [{ $toString: '$campaign_name' }, ''] },
+                    ' ',
+                    { $ifNull: [{ $toString: '$ad_name' }, ''] },
+                  ],
+                },
+                regex: 'glp',
+                options: 'i',
+              },
+            },
+            'GLP',
+            'ED',
+          ],
+        },
+      ],
+    },
+  },
+};
+
 /** First element of an array field, or null. */
 const first = (field: string) => ({ $arrayElemAt: [field, 0] });
 
 /** Provider fee % from facebook_providers; rows without a provider keep their spend with no fee. */
 const PROVIDER_FEE_STAGES: PipelineStage[] = [
-  { $lookup: { from: 'facebook_providers', localField: 'provider_name', foreignField: 'provider_name', as: '_provider' } },
+  { $lookup: { from: COLLECTIONS.providers, localField: 'provider_name', foreignField: 'provider_name', as: '_provider' } },
   { $addFields: { _hasProvider: { $gt: [{ $strLenCP: { $ifNull: [{ $toString: '$provider_name' }, ''] } }, 0] } } },
   {
     $addFields: {
@@ -186,6 +233,66 @@ const PROVIDER_FEE_STAGES: PipelineStage[] = [
   { $project: { _provider: 0, _hasProvider: 0 } },
 ];
 
+/** Same provider_name clean-up as PROVIDER_FEE_STAGES, without looking up the fee. */
+const PROVIDER_NAME_ONLY: PipelineStage[] = [
+  {
+    $addFields: {
+      provider_name: {
+        $cond: [{ $gt: [{ $strLenCP: { $ifNull: [{ $toString: '$provider_name' }, ''] } }, 0] }, '$provider_name', null],
+      },
+    },
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Provider fee attached at read time: the provider table is tiny, so it is read (memoised
+// for a few seconds) and turned into one $addFields — no $lookup, no rebuild when a fee changes.
+// ---------------------------------------------------------------------------
+
+const FEE_TABLE_MEMO_MS = 5_000;
+let feeTableMemo: { at: number; table: { provider_name: string; fee_pct: number }[] } | null = null;
+
+/** facebook_providers as [{ provider_name, fee_pct }] (Excel mode: the workbook's Summary!C6). */
+export async function providerFeeTable(): Promise<{ provider_name: string; fee_pct: number }[]> {
+  if (!DEMO && feeTableMemo && Date.now() - feeTableMemo.at < FEE_TABLE_MEMO_MS) return feeTableMemo.table;
+  let raw: { provider_name?: unknown; fee_pct?: unknown }[];
+  if (DEMO) {
+    await refreshDemoStore();
+    raw = demoStore().facebook_providers ?? [];
+  } else {
+    raw = await FacebookProvider.find({}, { provider_name: 1, fee_pct: 1, _id: 0 }).lean();
+  }
+  const table = raw
+    .map((p) => ({ provider_name: String(p.provider_name ?? '').trim(), fee_pct: Number(p.fee_pct) || 0 }))
+    .filter((p) => p.provider_name !== '');
+  feeTableMemo = { at: Date.now(), table };
+  return table;
+}
+
+/**
+ * provider_fee_pct for each row from the provider table: the table's fee for its provider,
+ * else the fee stored on the row; 0 for rows without a provider (partner rows, unassigned spend).
+ */
+async function providerFeeStage(): Promise<PipelineStage> {
+  const table = await providerFeeTable();
+  const fromTable =
+    table.length > 0
+      ? {
+          $switch: {
+            branches: table.map((t) => ({ case: { $eq: ['$provider_name', t.provider_name] }, then: t.fee_pct })),
+            default: { $ifNull: ['$provider_fee_pct', 0] },
+          },
+        }
+      : { $ifNull: ['$provider_fee_pct', 0] };
+  return { $addFields: { provider_fee_pct: { $cond: [{ $eq: [{ $ifNull: ['$provider_name', null] }, null] }, 0, fromTable] } } };
+}
+
+/** Puts a stage right after the pipeline's leading $match (so that match can still use an index). */
+function afterLeadingMatch(pipeline: PipelineStage[], stage: PipelineStage): PipelineStage[] {
+  const first = pipeline[0] as { $match?: unknown } | undefined;
+  return first?.$match ? [pipeline[0]!, stage, ...pipeline.slice(1)] : [stage, ...pipeline];
+}
+
 /**
  * Report rows as every endpoint sees them:
  *  1. facebook_ad_reports (the Facebook Ads export) with report_date normalised to a Date
@@ -196,15 +303,26 @@ const PROVIDER_FEE_STAGES: PipelineStage[] = [
  */
 export const BLENDED_REPORT_ROWS: PipelineStage[] = blendStages();
 
+/**
+ * The merged rows WITHOUT the provider fee: what facebook_report_rows (and the Excel-mode
+ * rows) store. Each row keeps only its provider_name; the fee % is attached at read time
+ * from facebook_providers (see providerFeeStage), so changing a fee needs no rebuild.
+ */
+export const MERGED_ROWS_NO_FEE: PipelineStage[] = blendStages(undefined, false);
+
 /** The blend, optionally reading only some days of each collection (see datePrefilter). */
-function blendStages(pre?: { reports: PipelineStage.Match; conversions: PipelineStage.Match }): PipelineStage[] {
+function blendStages(
+  pre?: { reports: PipelineStage.Match; conversions: PipelineStage.Match },
+  withFees = true,
+): PipelineStage[] {
   return [
     ...(pre ? [pre.reports] : []),
     { $addFields: { report_date: REPORT_DATE, provider_name: PROVIDER_NAME } },
-    ...PROVIDER_FEE_STAGES,
-    { $unionWith: { coll: 'facebook_conversions', pipeline: [...(pre ? [pre.conversions] : []), ...PARTNER_ROWS] as never } },
+    ...(withFees ? PROVIDER_FEE_STAGES : PROVIDER_NAME_ONLY),
+    { $unionWith: { coll: COLLECTIONS.partner, pipeline: [...(pre ? [pre.conversions] : []), ...PARTNER_ROWS] as never } },
     // one spelling for "no ad name" (empty, missing, or "<NA>" / "nan" left by a spreadsheet)
     { $addFields: { ad_name: { $cond: [{ $in: [{ $ifNull: ['$ad_name', ''] }, MISSING_AD_NAMES] }, NO_AD_NAME, '$ad_name'] } } },
+    { $addFields: { category: CATEGORY } },
   ];
 }
 
@@ -213,9 +331,92 @@ function blendStages(pre?: { reports: PipelineStage.Match; conversions: Pipeline
  * fees from the provider table). Use this instead of a model's own aggregate().
  * A leading date-range $match is also applied to each collection before the blend.
  */
-export function reportAggregate<T>(pipeline: PipelineStage[]) {
+export async function reportAggregate<T>(pipeline: PipelineStage[]): Promise<T[]> {
+  // Excel mode: the merged rows are built in memory from the workbook (see config/demo.ts)
+  if (DEMO) return demoReportAggregate<T>(MERGED_ROWS_NO_FEE, afterLeadingMatch(pipeline, await providerFeeStage()));
+  // one collection: read the pre-merged rows directly (indexed, no join per request);
+  // the provider fee % is attached here from the provider table, so fee edits apply at once
+  if (await ensureReportRows()) {
+    const withFee = afterLeadingMatch(pipeline, await providerFeeStage());
+    return (await mongoose.connection.collection(REPORT_ROWS).aggregate(withFee, { allowDiskUse: true }).toArray()) as T[];
+  }
+  // fallback (merged collection not built yet / build failed): the live blend
   const pre = datePrefilter(pipeline);
   return FacebookAdReport.aggregate<T>([...(pre ? blendStages(pre) : BLENDED_REPORT_ROWS), ...pipeline]);
+}
+
+// ---------------------------------------------------------------------------
+// facebook_report_rows: ONE pre-merged collection for every Facebook endpoint.
+// It holds the rows the live blend produces (Meta rows + partner events reshaped as report rows, dates as Dates, category set), so
+// every endpoint reads one indexed collection instead of joining three per request.
+// Rows keep only their provider_name; the fee % is matched from facebook_providers on every
+// read (providerFeeStage), so a fee change shows up immediately without a rebuild.
+// It is rebuilt automatically when the data changes: new / deleted rows, an Ad groups save (bumpDataVersion) — and at least every REPORT_ROWS_MAX_AGE_MS,
+// so values edited in place in Atlas show up too. Sources stay untouched.
+// ---------------------------------------------------------------------------
+
+export const REPORT_ROWS = COLLECTIONS.merged;
+const REPORT_ROWS_MAX_AGE_MS = 15 * 60_000;
+const REPORT_ROWS_CHECK_MS = 5_000;
+
+let rowsState: { version: string; builtAt: number; checkedAt: number } | null = null;
+let rowsBuilding: Promise<boolean> | null = null;
+
+/** What the merged rows depend on: row counts and the Ad groups save counter (fees are applied at read time). */
+async function reportRowsVersion(): Promise<string> {
+  return `rows2|${await rowsDataVersion()}`;
+}
+
+/** True when facebook_report_rows is current (building it first if needed); false → use the live blend. */
+export async function ensureReportRows(): Promise<boolean> {
+  if (mongoose.connection.readyState !== 1) return false;
+  const now = Date.now();
+  if (rowsState && now - rowsState.checkedAt < REPORT_ROWS_CHECK_MS && now - rowsState.builtAt < REPORT_ROWS_MAX_AGE_MS) {
+    return true;
+  }
+  try {
+    const version = await reportRowsVersion();
+    const meta = mongoose.connection.collection<{ _id: string; version: string; builtAt: Date }>('app_meta');
+    const stored = await meta.findOne({ _id: REPORT_ROWS });
+    if (stored && stored.version === version && now - stored.builtAt.getTime() < REPORT_ROWS_MAX_AGE_MS) {
+      rowsState = { version, builtAt: stored.builtAt.getTime(), checkedAt: now };
+      return true;
+    }
+    rowsBuilding ??= buildReportRows(version).finally(() => {
+      rowsBuilding = null;
+    });
+    return await rowsBuilding;
+  } catch (err) {
+    console.warn('[report-rows] check failed, using the live blend:', err instanceof Error ? err.message : err);
+    return false;
+  }
+}
+
+/** (Re)builds facebook_report_rows from the three source collections. $out swaps it in atomically. */
+export async function buildReportRows(version?: string): Promise<boolean> {
+  const t = Date.now();
+  try {
+    const v = version ?? (await reportRowsVersion());
+    await FacebookAdReport.aggregate([...MERGED_ROWS_NO_FEE, { $out: REPORT_ROWS }]).option({ allowDiskUse: true });
+    const coll = mongoose.connection.collection(REPORT_ROWS);
+    await Promise.all([
+      coll.createIndex({ report_date: 1 }),
+      coll.createIndex({ ad_name: 1, report_date: 1 }),
+      coll.createIndex({ category: 1, report_date: 1 }),
+      coll.createIndex({ offer_name: 1 }),
+      coll.createIndex({ access_group: 1 }),
+    ]);
+    const builtAt = new Date();
+    await mongoose.connection
+      .collection<{ _id: string; version: string; builtAt: Date }>('app_meta')
+      .updateOne({ _id: REPORT_ROWS }, { $set: { version: v, builtAt } }, { upsert: true });
+    rowsState = { version: v, builtAt: builtAt.getTime(), checkedAt: Date.now() };
+    console.log(`[report-rows] rebuilt ${REPORT_ROWS} in ${Date.now() - t} ms`);
+    return true;
+  } catch (err) {
+    console.warn('[report-rows] build failed, using the live blend:', err instanceof Error ? err.message : err);
+    return false;
+  }
 }
 
 /**
@@ -263,6 +464,14 @@ let latestMemo: { at: number; value: Date | null } | null = null;
  */
 async function latestOverall(): Promise<Date | null> {
   if (latestMemo && Date.now() - latestMemo.at < 30_000) return latestMemo.value;
+  if (DEMO) {
+    await refreshDemoStore();
+    const { facebook_ad_reports: r = [], facebook_conversions: c = [] } = demoStore();
+    const days = [...r.map((d) => d.report_date), ...c.map((d) => d.event_date)].filter((d): d is Date => d instanceof Date);
+    const value = days.length ? new Date(Math.max(...days.map((d) => d.getTime()))) : null;
+    latestMemo = { at: Date.now(), value };
+    return value;
+  }
   const reports = FacebookAdReport.collection;
   const conversions = FacebookConversion.collection;
   const [textReport, textConversion] = await Promise.all([
@@ -321,6 +530,18 @@ export function textMatch(value: string): unknown {
   return values.length > 1 ? { $in: values } : value;
 }
 
+/** Match one value or any of several (each also in its numeric form, see textValues). */
+function anyOf(value: string | string[]): unknown {
+  const list = Array.isArray(value) ? value : [value];
+  return list.length === 1 ? textMatch(list[0]!) : { $in: list.flatMap(textValues) };
+}
+
+/** How a single / multiple ad or offer filter is echoed back in `filters` (display text, null = all). */
+export function filterLabel(value: string | string[] | undefined): string | null {
+  if (!value || (Array.isArray(value) && value.length === 0)) return null;
+  return Array.isArray(value) ? value.join(', ') : value;
+}
+
 /** The stored representations a text value may have: itself, plus the number when it looks like one. */
 export function textValues(value: string): (string | number)[] {
   const asNumber = Number(value);
@@ -329,10 +550,10 @@ export function textValues(value: string): (string | number)[] {
 
 /** Mongo match for the ad / offer / access part of a query. */
 export function reportBaseMatch(
-  query: Pick<FbStatisticsQuery, 'ad' | 'offer' | 'allowedAds' | 'allowedGroups'>,
+  query: Pick<FbStatisticsQuery, 'ad' | 'offer' | 'category' | 'allowedAds' | 'allowedGroups'>,
 ): ReportFilter {
   const baseMatch: ReportFilter = {};
-  if (query.ad) baseMatch.ad_name = textMatch(query.ad);
+  if (query.ad) baseMatch.ad_name = anyOf(query.ad);
   if (query.allowedAds) {
     // a row's own access_group (set by hand) wins; otherwise its ad name must be in the caller's groups
     baseMatch.$or = [
@@ -340,7 +561,8 @@ export function reportBaseMatch(
       { access_group: { $in: [null, ''] }, ad_name: { $in: query.allowedAds.flatMap(textValues) } },
     ];
   }
-  if (query.offer) baseMatch.offer_name = textMatch(query.offer);
+  if (query.offer) baseMatch.offer_name = anyOf(query.offer);
+  if (query.category) baseMatch.category = query.category.toUpperCase();
   return baseMatch;
 }
 
@@ -415,7 +637,7 @@ export async function getFbStatistics(query: FbStatisticsQuery): Promise<FbStati
   ]);
 
   const range = describeRange(query, bounds);
-  const filters = { ad: query.ad ?? null, offer: query.offer ?? null };
+  const filters = { ad: filterLabel(query.ad), offer: filterLabel(query.offer) };
   const providers = await providerFees(match);
 
   if (!agg) {
@@ -469,7 +691,17 @@ const NO_PROVIDER = 'No provider';
 
 async function providerFees(match: ReportFilter): Promise<ProviderFeeStat[]> {
   const [table, known, inRange] = await Promise.all([
-    FacebookProvider.find({}, { provider_name: 1, fee_pct: 1, is_default: 1, _id: 0 }).lean(),
+    DEMO
+      ? refreshDemoStore().then(() =>
+          (demoStore().facebook_providers ?? []).map((p) => ({
+            provider_name: String(p.provider_name),
+            fee_pct: Number(p.fee_pct) || 0,
+            is_default: p.is_default === true,
+          })),
+        )
+      : FacebookProvider.find({}, { provider_name: 1, fee_pct: 1, is_default: 1, _id: 0 }).lean().then((rows) =>
+          rows.map((p) => ({ ...p, fee_pct: Number(p.fee_pct) || 0 })),
+        ),
     reportAggregate<{ _id: string | null }>([{ $group: { _id: { $toString: '$provider_name' } } }]),
     reportAggregate<{
       _id: string | null;

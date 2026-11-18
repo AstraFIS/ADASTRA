@@ -7,8 +7,7 @@ import {
   reportAggregate,
   reportBaseMatch,
   resolveReportBounds,
-  TOTAL_SPEND,
-} from './fbStatistics.service.js';
+  TOTAL_SPEND, filterLabel } from './fbStatistics.service.js';
 
 export interface SegmentStat {
   key: string; // normalised (lower-case) key, "unknown" when the source had no value
@@ -27,15 +26,31 @@ export interface SegmentStat {
   revenue_usd: number;
 }
 
+/** One ad's partner events on one placement (partner sub2). */
+export interface AdPlacementStat {
+  ad_name: string;
+  placement: string;
+  first_page_views: number;
+  questionnaire_starts: number;
+  questionnaire_completed: number;
+  add_to_carts: number;
+  purchase_events: number;
+  revenue_usd: number;
+}
+
 export interface FbGeoDeviceResult {
   range: { key: DateRangeKey; label: string; from: string | null; to: string | null };
   filters: { ad: string | null; offer: string | null };
   by_region: SegmentStat[]; // sorted by link clicks, descending
   by_device: SegmentStat[];
-  meta: { report_rows: number; region_rows: number; device_rows: number };
+  /** Partner sub2 (Meta placement). Facebook rows have no placement, so only partner events are counted. */
+  by_placement: SegmentStat[];
+  /** Ad × placement (partner events only), largest first. */
+  by_ad_placement: AdPlacementStat[];
+  meta: { report_rows: number; region_rows: number; device_rows: number; placement_rows: number };
 }
 
-type Segment = 'region' | 'device';
+type Segment = 'region' | 'device' | 'placement';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -44,13 +59,16 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
  * in rows written by the app, so both spellings are read.
  */
 const rawField = (segment: Segment) => {
-  const capitalised = segment === 'region' ? '$Region' : '$Device';
+  const capitalised = segment === 'region' ? '$Region' : segment === 'device' ? '$Device' : '$Placement';
   return { $trim: { input: { $toString: { $ifNull: [capitalised, { $ifNull: [`$${segment}`, ''] }] } } } };
 };
 
 const UNKNOWN_TOKENS = ['', 'unknown', 'not available', 'notavailable', 'n/a', 'na', 'null', 'undefined', '-', 'none'];
 
 async function groupBySegment(segment: Segment, match: Record<string, unknown>): Promise<SegmentStat[]> {
+  // placement only exists on partner rows; counting Facebook rows would only add an "Unknown" bar
+  const segMatch =
+    segment === 'placement' ? { ...match, placement: { $exists: true, $type: 'string', $nin: ['', 'unknown', 'Unknown'] } } : match;
   const rows = await reportAggregate<{
     _id: string;
     label: string;
@@ -126,18 +144,56 @@ export async function getFbGeoDevice(query: FbStatisticsQuery): Promise<FbGeoDev
   const bounds = await resolveReportBounds(query);
   const match = { ...baseMatch, ...dateMatch(bounds) };
 
-  const [by_region, by_device] = await Promise.all([groupBySegment('region', match), groupBySegment('device', match)]);
+  const [by_region, by_device, by_placement, by_ad_placement] = await Promise.all([
+    groupBySegment('region', match),
+    groupBySegment('device', match),
+    groupBySegment('placement', match),
+    adPlacements(match),
+  ]);
   const known = (list: SegmentStat[]) => list.filter((s) => s.key !== 'unknown').reduce((n, s) => n + s.rows, 0);
 
   return {
     range: describeRange(query, bounds),
-    filters: { ad: query.ad ?? null, offer: query.offer ?? null },
+    filters: { ad: filterLabel(query.ad), offer: filterLabel(query.offer) },
     by_region,
     by_device,
+    by_placement,
+    by_ad_placement,
     meta: {
       report_rows: by_region.reduce((n, s) => n + s.rows, 0),
       region_rows: known(by_region),
       device_rows: known(by_device),
+      placement_rows: known(by_placement),
     },
   };
+}
+
+/** Partner events per ad × placement (rows without a placement are left out). */
+async function adPlacements(match: Record<string, unknown>): Promise<AdPlacementStat[]> {
+  const rows = await reportAggregate<AdPlacementStat & { _id: { ad: string; placement: string } }>([
+    { $match: { ...match, placement: { $exists: true, $type: 'string', $nin: ['', 'unknown', 'Unknown'] } } },
+    {
+      $group: {
+        _id: { ad: { $toString: '$ad_name' }, placement: { $trim: { input: { $toString: '$placement' } } } },
+        first_page_views: { $sum: num('first_page_views') },
+        questionnaire_starts: { $sum: num('questionnaire_starts') },
+        questionnaire_completed: { $sum: num('questionnaire_completed') },
+        add_to_carts: { $sum: num('add_to_carts') },
+        purchase_events: { $sum: num('purchase_events') },
+        revenue_usd: { $sum: num('revenue_usd') },
+      },
+    },
+    { $sort: { first_page_views: -1 } },
+    { $limit: 2000 },
+  ]);
+  return rows.map((r) => ({
+    ad_name: r._id.ad,
+    placement: r._id.placement,
+    first_page_views: r.first_page_views,
+    questionnaire_starts: r.questionnaire_starts,
+    questionnaire_completed: r.questionnaire_completed,
+    add_to_carts: r.add_to_carts,
+    purchase_events: r.purchase_events,
+    revenue_usd: round2(r.revenue_usd),
+  }));
 }

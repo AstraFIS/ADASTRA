@@ -51,6 +51,8 @@ export interface FbOptionsResult {
   ads: string[];
   offers: string[];
   providers: string[];
+  /** "ED", "GLP", … (older API versions may not send it). */
+  categories?: string[];
   dataThrough: string | null;
   rows: number;
 }

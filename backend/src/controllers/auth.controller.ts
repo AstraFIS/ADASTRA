@@ -1,3 +1,4 @@
+import { DEMO, DEMO_USER } from '../config/demo.js';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { User, toPublicUser } from '../models/user.model.js';
@@ -17,6 +18,10 @@ const setupSchema = z.object({
 
 /** GET /api/auth/status — tells the login page whether the first admin still has to be created. */
 export async function status(_req: Request, res: Response): Promise<void> {
+  if (DEMO) {
+    res.json({ needsSetup: false, demo: true });
+    return;
+  }
   const userCount = await User.estimatedDocumentCount();
   res.json({ needsSetup: userCount === 0 });
 }
@@ -47,6 +52,11 @@ export async function setup(req: Request, res: Response): Promise<void> {
 /** POST /api/auth/login */
 export async function login(req: Request, res: Response): Promise<void> {
   const { email, password } = loginSchema.parse(req.body);
+  if (DEMO) {
+    // demo mode: any email / password signs in as the demo admin (no user database)
+    res.json({ token: signToken({ id: DEMO_USER.id, email: DEMO_USER.email, role: 'admin' }), user: DEMO_USER });
+    return;
+  }
 
   const user = await User.findOne({ email }).select('+passwordHash');
   // Same message for unknown email and wrong password so we don't leak which emails exist.
@@ -66,6 +76,10 @@ export async function login(req: Request, res: Response): Promise<void> {
 
 /** GET /api/auth/me — requires auth */
 export async function me(req: Request, res: Response): Promise<void> {
+  if (DEMO) {
+    res.json({ user: DEMO_USER });
+    return;
+  }
   const user = await User.findById(req.user!.id);
   if (!user) {
     throw new HttpError(404, 'User not found');

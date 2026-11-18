@@ -1,3 +1,4 @@
+import { COLLECTIONS } from '../config/collections.js';
 import { Schema, model, type Model } from 'mongoose';
 
 /**
@@ -18,7 +19,7 @@ const facebookProviderSchema = new Schema<IFacebookProvider>(
     fee_pct: { type: Number, required: true, min: 0, max: 100 },
     is_default: { type: Boolean, required: true, default: false },
   },
-  { collection: 'facebook_providers', timestamps: true },
+  { collection: COLLECTIONS.providers, timestamps: true },
 );
 
 facebookProviderSchema.index({ provider_name: 1 }, { unique: true });

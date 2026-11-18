@@ -9,8 +9,7 @@ import {
   reportAggregate,
   reportBaseMatch,
   resolveReportBounds,
-  TOTAL_SPEND,
-} from './fbStatistics.service.js';
+  TOTAL_SPEND, filterLabel } from './fbStatistics.service.js';
 
 /** An ad is "active" if it reported within this many days of the latest day in the result. */
 export const ACTIVE_WINDOW_DAYS = 7;
@@ -154,7 +153,7 @@ export async function getFbFunnel(query: FbStatisticsQuery): Promise<FbFunnelRes
 
   return {
     range: describeRange(query, bounds),
-    filters: { ad: query.ad ?? null, offer: query.offer ?? null },
+    filters: { ad: filterLabel(query.ad), offer: filterLabel(query.offer) },
     rows,
     meta: {
       rows: rows.length,

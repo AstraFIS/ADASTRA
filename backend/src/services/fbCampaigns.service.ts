@@ -9,8 +9,7 @@ import {
   reportAggregate,
   reportBaseMatch,
   resolveReportBounds,
-  TOTAL_SPEND,
-} from './fbStatistics.service.js';
+  TOTAL_SPEND, filterLabel } from './fbStatistics.service.js';
 
 /**
  * "By campaign" view of the Facebook table: campaign → ad set → ad (× offer), each level
@@ -324,7 +323,7 @@ export async function getFbCampaigns(query: FbStatisticsQuery): Promise<FbCampai
   const ads = adSets.flatMap((s) => s.ads);
   return {
     range: describeRange(query, bounds),
-    filters: { ad: query.ad ?? null, offer: query.offer ?? null },
+    filters: { ad: filterLabel(query.ad), offer: filterLabel(query.offer) },
     campaigns: rows,
     meta: {
       campaigns: rows.length,

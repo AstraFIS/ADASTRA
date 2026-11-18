@@ -1,3 +1,4 @@
+import { DEMO, demoStore, refreshDemoStore } from '../config/demo.js';
 import { AdAccess, type FacebookAccessGroup } from '../models/adAccess.model.js';
 import type { UserAccess, UserRole } from '../models/user.model.js';
 import type { PlatformId } from '../types/platforms.js';
@@ -46,6 +47,14 @@ export async function facebookScope(
 }
 
 async function adsInGroups(groups: FacebookAccessGroup[]): Promise<string[]> {
+  if (DEMO) {
+    await refreshDemoStore();
+    const names = (demoStore().ad_access ?? [])
+      .filter((r) => (groups as string[]).includes(String(r.user_access_type)))
+      .map((r) => String(r.ad_name ?? '').trim())
+      .filter(Boolean);
+    return [...new Set(names)];
+  }
   const rows = await AdAccess.find({ user_access_type: { $in: groups } }, { ad_name: 1, _id: 0 }).lean();
   const names = rows.map((r) => String(r.ad_name ?? '').trim()).filter(Boolean);
   return [...new Set(names)];

@@ -8,14 +8,26 @@ import { DATE_RANGE_KEYS } from '../types/facebook.js';
 const emptyToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD');
 
+/** ?ad=a or ?ad=a&ad=b → 'a' or ['a', 'b'] (blank values dropped; nothing left → no filter). */
+const oneOrMany = z.preprocess(
+  (v) => {
+    const list = (Array.isArray(v) ? v : [v]).filter((x): x is string => typeof x === 'string' && x.trim() !== '');
+    if (list.length === 0) return undefined;
+    return list.length === 1 ? list[0] : list;
+  },
+  z.union([z.string().trim().max(200), z.array(z.string().trim().max(200)).max(500)]).optional(),
+);
+
 /** Shared by every endpoint that reads the report collections. */
 export const reportQuerySchema = z
   .object({
     range: z.preprocess(emptyToUndefined, z.enum(DATE_RANGE_KEYS).default('this_month')),
     from: z.preprocess(emptyToUndefined, isoDate.optional()),
     to: z.preprocess(emptyToUndefined, isoDate.optional()),
-    ad: z.preprocess(emptyToUndefined, z.string().trim().max(200).optional()),
-    offer: z.preprocess(emptyToUndefined, z.string().trim().max(200).optional()),
+    ad: oneOrMany,
+    offer: oneOrMany,
+    /** ED / GLP: only that product category. */
+    category: z.preprocess(emptyToUndefined, z.string().trim().max(20).optional()),
     /** Meta1 / Meta2: only that ad_access group's ads. */
     group: z.preprocess(emptyToUndefined, z.enum(FACEBOOK_ACCESS_GROUPS).optional()),
   })

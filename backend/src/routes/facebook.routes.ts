@@ -24,10 +24,13 @@ const emptyToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === 
 
 const rangeSchema = z.preprocess(emptyToUndefined, z.enum(DATE_RANGE_KEYS).default('this_month'));
 
+// several ads / offers (?ad=a&ad=b) are filtered by the report endpoints; this legacy demo
+// endpoint only narrows on a single value
+const single = (v: unknown) => emptyToUndefined(Array.isArray(v) ? (v.length === 1 ? v[0] : undefined) : v);
 const dashboardQuerySchema = z.object({
-  range: rangeSchema,
-  ad: z.preprocess(emptyToUndefined, z.string().trim().max(120).optional()),
-  offer: z.preprocess(emptyToUndefined, z.string().trim().max(120).optional()),
+  range: z.preprocess(emptyToUndefined, z.enum(DATE_RANGE_KEYS).catch('this_month').default('this_month')),
+  ad: z.preprocess(single, z.string().trim().max(200).optional()),
+  offer: z.preprocess(single, z.string().trim().max(200).optional()),
 });
 
 /** GET /api/platforms/facebook/statistics — KPIs computed from the facebook_ad_reports collection */

@@ -6,6 +6,7 @@ import { FacebookConversion } from '../models/facebookConversion.model.js';
 import { FacebookProvider } from '../models/facebookProvider.model.js';
 import { BingAdReport } from '../models/bingAdReport.model.js';
 import { BingConversion } from '../models/bingConversion.model.js';
+import { DEMO, demoVersion, refreshDemoStore } from '../config/demo.js';
 
 /**
  * Speed-ups for the Facebook dashboard.
@@ -26,7 +27,7 @@ import { BingConversion } from '../models/bingConversion.model.js';
  */
 
 /** Bump when an API answer's shape changes, so a deploy never serves answers cached by the old code. */
-const API_SHAPE = '4';
+const API_SHAPE = '5';
 const CACHE_TTL_MS = 5 * 60_000;
 const VERSION_MEMO_MS = 5_000;
 const NORMALIZE_EVERY_MS = 10 * 60_000;
@@ -57,7 +58,12 @@ export async function dataVersion(): Promise<string> {
   const [reports, conversions, providers, bingAds, bingConv, meta] = await Promise.all([
     FacebookAdReport.collection.estimatedDocumentCount(),
     FacebookConversion.collection.estimatedDocumentCount(),
-    FacebookProvider.collection.estimatedDocumentCount(),
+    // the fee values too (tiny table): a fee edit must not be served from the answer cache
+    FacebookProvider.collection
+      .find({}, { projection: { _id: 0, provider_name: 1, fee_pct: 1 } })
+      .sort({ provider_name: 1 })
+      .toArray()
+      .then((rows) => createHash('sha1').update(JSON.stringify(rows)).digest('hex').slice(0, 10)),
     BingAdReport.collection.estimatedDocumentCount(),
     BingConversion.collection.estimatedDocumentCount(),
     metaColl().findOne({ _id: 'fb_cache' }),
@@ -65,6 +71,16 @@ export async function dataVersion(): Promise<string> {
   const value = `${reports}.${conversions}.${providers}.${bingAds}.${bingConv}.${meta?.v ?? 0}`;
   versionMemo = { value, at: Date.now() };
   return value;
+}
+
+/**
+ * dataVersion without the provider fees: what the pre-merged facebook_report_rows depend on
+ * (fees are applied when reading, so a fee edit needs no rebuild).
+ */
+export async function rowsDataVersion(): Promise<string> {
+  const parts = (await dataVersion()).split('.');
+  parts.splice(2, 1);
+  return parts.join('.');
 }
 
 /** Call after anything that changes what the reports show without changing row counts (group edits). */
@@ -162,7 +178,9 @@ function send(res: Response, body: string, how: string) {
 }
 
 export async function cacheReports(req: Request, res: Response, next: NextFunction): Promise<void> {
-  if (req.method !== 'GET' || mongoose.connection.readyState !== 1) return next();
+  if (req.method !== 'GET') return next();
+  if (DEMO) return excelCache(req, res, next);
+  if (mongoose.connection.readyState !== 1) return next();
   try {
     const version = await dataVersion();
     await ensureDatesNormalized(version);
@@ -203,5 +221,24 @@ export async function cacheReports(req: Request, res: Response, next: NextFuncti
   } catch (err) {
     console.warn('[cache] bypassed:', err instanceof Error ? err.message : err);
     next();
+  }
+}
+
+/** Excel mode: answers kept in memory until the workbook is saved again. */
+async function excelCache(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    await refreshDemoStore();
+    const version = demoVersion();
+    const key = keyFor(req);
+    const hit = mem.get(key);
+    if (hit && hit.version === version) return send(res, hit.body, 'hit-memory');
+    const json = res.json.bind(res);
+    res.json = ((body: unknown) => {
+      if (res.statusCode === 200) remember(key, version, JSON.stringify(body));
+      return json(body);
+    }) as Response['json'];
+    next();
+  } catch (err) {
+    next(err);
   }
 }

@@ -1,3 +1,4 @@
+import { COLLECTIONS } from '../config/collections.js';
 import { Schema, model, type HydratedDocument, type Model } from 'mongoose';
 
 /**
@@ -41,6 +42,8 @@ export interface IFacebookAdReport {
   campaign_name: string;
   ad_set_name: string;
   provider_name: string | null; // null when no provider is attached
+  /** Product category ("ED" / "GLP"); optional — derived from offer / campaign / ad name when missing. */
+  category?: string | null;
   /** Meta group set by hand on this row (Ad groups → Rows without an ad name); overrides ad_access. */
   access_group?: string | null;
   age: string; // "18-24" … "65+", or "unknown" (normalised on save)
@@ -192,6 +195,7 @@ const facebookAdReportSchema = new Schema<IFacebookAdReport, FacebookAdReportMod
     ad_set_name: label,
     provider_name: { type: String, trim: true, maxlength: 200, default: null },
     access_group: { type: String, trim: true, maxlength: 50, default: undefined },
+    category: { type: String, trim: true, maxlength: 20, default: undefined },
     age: { type: String, required: true, maxlength: 20, default: 'unknown', set: normaliseBucket },
     gender: { type: String, required: true, maxlength: 20, default: 'unknown', set: normaliseBucket },
     image_url: { type: String, trim: true, maxlength: 2048, default: null, set: emptyToNull },
@@ -224,7 +228,7 @@ const facebookAdReportSchema = new Schema<IFacebookAdReport, FacebookAdReportMod
     cac_usd: derivedNullable,
   },
   {
-    collection: 'facebook_ad_reports',
+    collection: COLLECTIONS.meta,
     timestamps: true,
     statics: {
       deriveFields,

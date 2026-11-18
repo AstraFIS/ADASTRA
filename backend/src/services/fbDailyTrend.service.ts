@@ -9,8 +9,7 @@ import {
   reportBaseMatch,
   resolveReportBounds,
   TOTAL_SPEND,
-  type FbStatisticsQuery,
-} from './fbStatistics.service.js';
+  type FbStatisticsQuery, filterLabel } from './fbStatistics.service.js';
 
 /** One reporting day, summed over every row that matched the filters. */
 export interface DailyTrendPoint {
@@ -125,7 +124,7 @@ export async function getFbDailyTrend(query: FbStatisticsQuery): Promise<FbDaily
 
   return {
     range: describeRange(query, bounds),
-    filters: { ad: query.ad ?? null, offer: query.offer ?? null },
+    filters: { ad: filterLabel(query.ad), offer: filterLabel(query.offer) },
     daily,
     meta: { rows: daily.reduce((n, d) => n + d.rows, 0), days: daily.length },
   };

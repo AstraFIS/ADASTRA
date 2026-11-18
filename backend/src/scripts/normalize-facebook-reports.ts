@@ -18,6 +18,7 @@
  *   npm run normalize:facebook -w backend            # dry run
  *   npm run normalize:facebook -w backend -- --apply
  */
+import { COLLECTIONS } from '../config/collections.js';
 import 'dotenv/config';
 import mongoose from 'mongoose';
 import { connectDb, disconnectDb } from '../config/db.js';
@@ -28,7 +29,7 @@ const TEXT_FIELDS = ['ad_name', 'offer_name', 'campaign_name', 'ad_set_name', 'p
 
 await connectDb();
 try {
-  const col = mongoose.connection.db!.collection('facebook_ad_reports');
+  const col = mongoose.connection.db!.collection(COLLECTIONS.meta);
   console.log(`[normalize] ${APPLY ? 'APPLY' : 'DRY RUN'} on ${mongoose.connection.name}.facebook_ad_reports (${await col.countDocuments()} docs)`);
 
   // ---- empty rows: no date and no ad name (blank spreadsheet lines) are unusable ----

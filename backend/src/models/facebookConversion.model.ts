@@ -1,3 +1,4 @@
+import { COLLECTIONS } from '../config/collections.js';
 import { Schema, model, type Model } from 'mongoose';
 import { parseDayMonthYear } from '../utils/bingDate.js';
 
@@ -31,6 +32,12 @@ export interface IFacebookConversion {
   revenue_usd: number;
   device: string | null;
   region: string | null;
+  /** Partner sub2: Meta placement ("Audience Network", "Facebook_Mobile_Feed", …). */
+  placement?: string | null;
+  /** Partner "Category" column: product line, e.g. "ED" / "GLP". */
+  category?: string | null;
+  /** Partner account (login) the event was reported under. Never a password. */
+  login_user?: string | null;
   /** Meta group set by hand on this row (Ad groups → Rows without an ad name); overrides ad_access. */
   access_group?: string | null;
 }
@@ -50,9 +57,12 @@ const facebookConversionSchema = new Schema<IFacebookConversion>(
     revenue_usd: { type: Number, required: true, min: 0, default: 0 },
     device: optional,
     region: optional,
+    placement: optional,
+    category: { type: String, trim: true, maxlength: 20, default: null },
+    login_user: optional,
     access_group: { type: String, trim: true, maxlength: 50, default: undefined },
   },
-  { collection: 'facebook_conversions', timestamps: true },
+  { collection: COLLECTIONS.partner, timestamps: true },
 );
 
 facebookConversionSchema.index({ event_date: 1, ad_name: 1 });

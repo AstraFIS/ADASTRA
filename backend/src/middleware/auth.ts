@@ -1,3 +1,4 @@
+import { DEMO, DEMO_USER } from '../config/demo.js';
 import type { NextFunction, Request, Response } from 'express';
 import { User, effectiveAccess, type UserAccess, type UserRole } from '../models/user.model.js';
 import { hasPlatformAccess } from '../services/access.service.js';
@@ -23,6 +24,11 @@ declare global {
 
 /** Requires a valid `Authorization: Bearer <token>` header and an active user. */
 export async function requireAuth(req: Request, _res: Response, next: NextFunction): Promise<void> {
+  // demo mode has no user database: every request is the demo admin
+  if (DEMO) {
+    req.user = { id: DEMO_USER.id, email: DEMO_USER.email, role: 'admin', access: effectiveAccess({ role: 'admin' }) };
+    return next();
+  }
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) {
     return next(new HttpError(401, 'Authentication required'));

@@ -21,6 +21,8 @@ export default function GeoDeviceSection({ data, busy = false, error = null, cap
   const [metricKey, setMetricKey] = useState<SegmentMetricKey>('first_page_views');
   const metric = SEGMENT_METRICS.find((m) => m.key === metricKey) ?? SEGMENT_METRICS[0]!;
   const empty = data !== null && (data?.meta?.report_rows ?? 0) === 0;
+  // only events that really carry a placement; rows without sub2 would all land in one "Unknown" bar
+  const placements = (Array.isArray(data?.by_placement) ? data.by_placement : []).filter((s) => s.key !== 'unknown');
 
   return (
     <section
@@ -32,9 +34,9 @@ export default function GeoDeviceSection({ data, busy = false, error = null, cap
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 id={id} className="text-base font-bold text-ink">
-              Country / Region &amp; Device
+              Country / Region, Device &amp; Placement
             </h2>
-            <p className="text-xs text-ink-2">Pick a funnel stage — both charts below update together.</p>
+            <p className="text-xs text-ink-2">Pick a funnel stage — every chart and table below updates together.</p>
           </div>
           <div role="group" aria-label="Funnel stage for the country and device charts" className="flex flex-wrap gap-2">
             {SEGMENT_METRICS.map((m) => {
@@ -64,12 +66,14 @@ export default function GeoDeviceSection({ data, busy = false, error = null, cap
           Country / device data unavailable: {error}
         </div>
       ) : (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <>
+        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
           <SegmentCard
             title="Users by Country / Region"
             caption={caption}
             segments={Array.isArray(data?.by_region) ? data.by_region : []}
             metric={metric}
+            hideZero
             color="var(--color-revenue)"
             empty={empty}
           />
@@ -78,10 +82,22 @@ export default function GeoDeviceSection({ data, busy = false, error = null, cap
             caption={caption}
             segments={Array.isArray(data?.by_device) ? data.by_device : []}
             metric={metric}
+            hideZero
             color="var(--color-spend)"
             empty={empty}
           />
+          <SegmentCard
+            title="Users by Placement (sub2)"
+            caption={caption}
+            segments={placements}
+            metric={metric}
+            hideZero
+            color="var(--color-violet)"
+            empty={empty || (data !== null && placements.length === 0)}
+            emptyText="No placement data for this selection: the partner rows in the database have no sub2. Upload the partner export with its sub2 column (build_from_exports.py keeps it)."
+          />
         </div>
+        </>
       )}
     </section>
   );

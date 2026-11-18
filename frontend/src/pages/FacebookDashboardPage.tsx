@@ -7,10 +7,11 @@ import CampaignTable from '@/components/CampaignTable';
 import ChartLegend from '@/components/ChartLegend';
 import CustomDateRange from '@/components/CustomDateRange';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import FilterSelect from '@/components/FilterSelect';
+import FilterSelect from '@/components/SearchSelect';
 import FunnelTable from '@/components/FunnelTable';
 import GeoDeviceSection from '@/components/GeoDeviceSection';
 import KpiPanel from '@/components/KpiPanel';
+import MultiSearchSelect from '@/components/MultiSearchSelect';
 import LineChart from '@/components/LineChart';
 import ProviderTable from '@/components/ProviderTable';
 import { api } from '@/lib/api';
@@ -89,8 +90,13 @@ export default function FacebookDashboardPage() {
   const from = dayParam(params.get('from'));
   const to = dayParam(params.get('to'));
   const custom = from !== '' || to !== '';
-  const ad = params.get('ad') ?? ALL;
-  const offer = params.get('offer') ?? ALL;
+  // several ads / offers can be picked: ?ad=a&ad=b (none = all)
+  const ads = params.getAll('ad').filter(Boolean);
+  const offers = params.getAll('offer').filter(Boolean);
+  const adsKey = ads.join('\u0001');
+  const offersKey = offers.join('\u0001');
+  // product category (ED / GLP): narrows every number on the page
+  const category = params.get('category') ?? ALL;
   // Meta1 / Meta2 (ad_access groups): admins can narrow the whole page to one group's ads
   const { user } = useAuth();
   const canFilterGroup = user?.role === 'admin';
@@ -108,7 +114,9 @@ export default function FacebookDashboardPage() {
   useEffect(() => {
     let cancelled = false;
     api
-      .get<FbOptionsResult>(`/platforms/facebook/options${group ? `?group=${encodeURIComponent(group)}` : ''}`)
+      .get<FbOptionsResult>(
+        `/platforms/facebook/options?${new URLSearchParams({ ...(group ? { group } : {}), ...(category ? { category } : {}) }).toString()}`,
+      )
       .then((o) => {
         if (!cancelled) setOptions(o);
       })
@@ -118,7 +126,7 @@ export default function FacebookDashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [group]);
+  }, [group, category]);
   const [reloadKey, setReloadKey] = useState(0);
   // bottom table: per ad & offer (default) or the campaign → ad set → ad tree; remembered per browser
   const [tableView, setTableView] = useState<TableView>(readTableView);
@@ -139,8 +147,9 @@ export default function FacebookDashboardPage() {
     const qs = new URLSearchParams(custom ? {} : { range });
     if (from) qs.set('from', from);
     if (to) qs.set('to', to);
-    if (ad) qs.set('ad', ad);
-    if (offer) qs.set('offer', offer);
+    ads.forEach((a) => qs.append('ad', a));
+    offers.forEach((o) => qs.append('offer', o));
+    if (category) qs.set('category', category);
     if (group) qs.set('group', group);
 
     api
@@ -221,14 +230,22 @@ export default function FacebookDashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [range, from, to, custom, ad, offer, group, reloadKey]);
+  }, [range, from, to, custom, adsKey, offersKey, category, group, reloadKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function setFilter(key: 'ad' | 'offer' | 'group', value: string) {
+  function setMulti(key: 'ad' | 'offer', values: string[]) {
+    const next = new URLSearchParams(params);
+    next.delete(key);
+    values.forEach((v) => next.append(key, v));
+    setParams(next, { replace: true });
+  }
+
+  function setFilter(key: 'ad' | 'offer' | 'group' | 'category', value: string) {
     const next = new URLSearchParams(params);
     if (value === ALL) next.delete(key);
     else next.set(key, value);
-    // the selected ad may not belong to the new group
-    if (key === 'group') next.delete('ad');
+    // the selected ad (and offer) may not belong to the new group / category
+    if (key === 'group' || key === 'category') next.delete('ad');
+    if (key === 'category') next.delete('offer');
     setParams(next, { replace: true });
   }
 
@@ -295,8 +312,9 @@ export default function FacebookDashboardPage() {
         ? `from ${formatDate(from, 'medium')}`
         : `up to ${formatDate(to, 'medium')}`;
   const periodLabel = custom ? customLabel : (namedLabel?.toLowerCase() ?? 'selected period');
-  const audienceCaption = `${filters.ad ?? 'All ads'} · ${periodLabel}`;
-  const trendCaption = `${custom ? customLabel : (namedLabel ?? 'Selected period')} · ${filters.ad ?? 'all ads'}`;
+  const adsLabel = ads.length === 0 ? null : ads.length === 1 ? ads[0]! : `${ads.length} ads`;
+  const audienceCaption = `${adsLabel ?? 'All ads'} · ${periodLabel}`;
+  const trendCaption = `${custom ? customLabel : (namedLabel ?? 'Selected period')} · ${adsLabel ?? 'all ads'}`;
 
   const chartsData = charts.kind === 'ok' ? charts.data : charts.kind === 'loading' ? charts.previous : null;
   const chartsBusy = charts.kind === 'loading';
@@ -329,8 +347,9 @@ export default function FacebookDashboardPage() {
     const qs = new URLSearchParams(custom ? {} : { range });
     if (from) qs.set('from', from);
     if (to) qs.set('to', to);
-    if (ad) qs.set('ad', ad);
-    if (offer) qs.set('offer', offer);
+    ads.forEach((a) => qs.append('ad', a));
+    offers.forEach((o) => qs.append('offer', o));
+    if (category) qs.set('category', category);
     if (group) qs.set('group', group);
     return qs.toString();
   })();
@@ -339,6 +358,7 @@ export default function FacebookDashboardPage() {
   // once the real options have loaded they are authoritative, even when empty (e.g. a group with no rows yet)
   const adOptions = options ? options.ads : filters.options.ads;
   const offerOptions = options ? options.offers : filters.options.offers;
+  const categoryOptions = options?.categories ?? [];
   const withCurrent = (list: string[], current: string | null) =>
     current && !list.includes(current) ? [current, ...list] : list;
 
@@ -390,23 +410,37 @@ export default function FacebookDashboardPage() {
             className="w-full sm:w-auto sm:min-w-[200px]"
           />
         )}
-        <FilterSelect
+        {(categoryOptions.length > 1 || category !== ALL) && (
+          <FilterSelect
+            id="category"
+            label="Category"
+            value={category}
+            options={[
+              { value: ALL, label: 'All Categories' },
+              ...withCurrent(categoryOptions, category || null).map((c) => ({ value: c, label: c })),
+            ]}
+            onChange={(v) => setFilter('category', v)}
+            className="w-full sm:w-auto sm:min-w-[180px]"
+          />
+        )}
+        <MultiSearchSelect
           id="ad-name"
           label="Filter by Ad Name"
-          value={filters.ad ?? ALL}
-          options={[{ value: ALL, label: 'All Ads' }, ...withCurrent(adOptions, filters.ad).map((a) => ({ value: a, label: a }))]}
-          onChange={(v) => setFilter('ad', v)}
+          values={ads}
+          options={adOptions}
+          allLabel="All Ads"
+          noun="ads"
+          onChange={(v) => setMulti('ad', v)}
           className="w-full sm:w-auto sm:min-w-[360px]"
         />
-        <FilterSelect
+        <MultiSearchSelect
           id="offer"
           label="Filter by Offer"
-          value={filters.offer ?? ALL}
-          options={[
-            { value: ALL, label: 'All Offers' },
-            ...withCurrent(offerOptions, filters.offer).map((o) => ({ value: o, label: o })),
-          ]}
-          onChange={(v) => setFilter('offer', v)}
+          values={offers}
+          options={offerOptions}
+          allLabel="All Offers"
+          noun="offers"
+          onChange={(v) => setMulti('offer', v)}
           className="w-full flex-1 sm:min-w-[360px]"
         />
         <div className="flex gap-3">

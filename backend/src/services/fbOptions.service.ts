@@ -1,4 +1,5 @@
 import type { FacebookScope } from './access.service.js';
+import { DEMO, demoStore, refreshDemoStore } from '../config/demo.js';
 import { FacebookAdReport } from '../models/facebookAdReport.model.js';
 import type { DateRangeOption } from '../types/facebook.js';
 import { DATE_RANGE_OPTIONS, isoDay } from '../utils/dateRange.js';
@@ -9,6 +10,7 @@ export interface FbOptionsResult {
   ads: string[]; // every ad_name ever reported, as text, sorted
   offers: string[];
   providers: string[];
+  categories: string[]; // "ED", "GLP", … (see CATEGORY); not narrowed by the category filter itself
   dataThrough: string | null; // latest report_date in the collection
   rows: number;
 }
@@ -32,21 +34,24 @@ async function countRows(match: ReportFilter): Promise<number> {
 }
 
 /** `allowedAds` limits every list to the ads the caller may see (null = every ad). */
-export async function getFbOptions(scope: FacebookScope): Promise<FbOptionsResult> {
+export async function getFbOptions(scope: FacebookScope & { category?: string | undefined }): Promise<FbOptionsResult> {
   const { allowedAds } = scope;
   const match = reportBaseMatch(scope);
-  const [ads, offers, providers, latest, rows] = await Promise.all([
+  const { category: _category, ...unfiltered } = match;
+  const [ads, offers, providers, categories, latest, rows] = await Promise.all([
     distinctText('ad_name', match),
     distinctText('offer_name', match),
     distinctText('provider_name', match),
+    distinctText('category', unfiltered),
     latestReportDate({}),
-    allowedAds ? countRows(match) : FacebookAdReport.estimatedDocumentCount(),
+    allowedAds ? countRows(match) : DEMO ? refreshDemoStore().then(() => demoStore().facebook_ad_reports!.length) : FacebookAdReport.estimatedDocumentCount(),
   ]);
   return {
     dateRanges: DATE_RANGE_OPTIONS,
     ads,
     offers,
     providers,
+    categories,
     dataThrough: latest ? isoDay(latest) : null,
     rows,
   };

@@ -1,3 +1,4 @@
+import { COLLECTIONS } from '../config/collections.js';
 import { Schema, model } from 'mongoose';
 
 /** Facebook ad groups a user can be given access to (values as stored in `ad_access.user_access_type`). */
@@ -19,7 +20,7 @@ const adAccessSchema = new Schema<IAdAccess>(
     ad_name: { type: Schema.Types.Mixed, required: true },
     user_access_type: { type: String, required: true, enum: FACEBOOK_ACCESS_GROUPS },
   },
-  { collection: 'ad_access', versionKey: false },
+  { collection: COLLECTIONS.adGroups, versionKey: false },
 );
 
 export const AdAccess = model<IAdAccess>('AdAccess', adAccessSchema);
