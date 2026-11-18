@@ -54,6 +54,14 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   }
 
   try {
+    // Excel mode (DATA_SOURCE=excel): no database at all — the reports read backend/demo-data/*.xlsx
+    const { DEMO } = await import('../src/config/demo.js');
+    if (DEMO) {
+      const mongoose = (await import('mongoose')).default;
+      mongoose.set('bufferCommands', false); // pages that need the database fail fast
+      app(req, res);
+      return;
+    }
     const { connectDb } = await import('../src/config/db.js');
     await connectDb();
   } catch (err) {

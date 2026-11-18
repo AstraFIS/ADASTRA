@@ -1,9 +1,9 @@
 # Excel mode – the dashboard without MongoDB
 
 When you run the app on your own computer, the backend does **not connect to MongoDB**.
-The Facebook reports are filled straight from the Excel workbook in this folder:
+The Facebook reports are filled straight from the Excel workbook
 
-`GLP1_DAMS_merged_13-17Nov.xlsx`
+`backend/demo-data/GLP1_DAMS_merged_13-17Nov.xlsx`
 
 | Sheet | Used for |
 |---|---|

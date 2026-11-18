@@ -1,6 +1,6 @@
 /**
  * Excel mode: the backend runs WITHOUT MongoDB and fills the Facebook reports straight from
- * the merged Excel workbook (tools/facebook/demo/GLP1_DAMS_merged_13-17Nov.xlsx):
+ * the merged Excel workbook (backend/demo-data/GLP1_DAMS_merged_13-17Nov.xlsx):
  *
  *   "Meta raw"    → Facebook rows (day × campaign × ad set × ad × gender × age: spend, delivery)
  *   "Partner raw" → partner events (day × ad × event, placement = sub2, device, region, category)
@@ -31,10 +31,10 @@ const WORKBOOK = 'GLP1_DAMS_merged_13-17Nov.xlsx';
 function excelPath(): string {
   if (process.env.EXCEL_DATA) return path.resolve(process.env.EXCEL_DATA);
   const candidates = [
-    path.resolve(here, '../../../tools/facebook/demo', WORKBOOK), // backend/src/config (tsx)
-    path.resolve(here, '../../../../tools/facebook/demo', WORKBOOK), // backend/dist/src/config (build)
-    path.resolve(process.cwd(), '../tools/facebook/demo', WORKBOOK),
-    path.resolve(process.cwd(), 'tools/facebook/demo', WORKBOOK),
+    path.resolve(here, '../../demo-data', WORKBOOK), // backend/src/config (tsx)
+    path.resolve(here, '../../../demo-data', WORKBOOK), // backend/dist/src/config (build)
+    path.resolve(process.cwd(), 'demo-data', WORKBOOK), // backend/ (npm run dev, Vercel function)
+    path.resolve(process.cwd(), 'backend/demo-data', WORKBOOK), // repo root
   ];
   return candidates.find((c) => existsSync(c)) ?? candidates[0]!;
 }

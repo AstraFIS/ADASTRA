@@ -20,7 +20,7 @@ Inputs
 
 Usage
   python3 tools/facebook/build_from_exports.py --out tools/facebook/demo/data \
-      --provider "DAMS Aleph" --excel tools/facebook/demo/GLP1_DAMS_merged_13-17Nov.xlsx
+      --provider "DAMS Aleph" --excel backend/demo-data/GLP1_DAMS_merged_13-17Nov.xlsx
 
   python3 tools/facebook/build_from_exports.py --out tools/facebook/demo/data \
       --provider "DAMS Aleph" [--fee 6] \
