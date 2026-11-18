@@ -2,9 +2,12 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { useAuth } from '@/auth/AuthContext';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { canSeePlatform } from '@/lib/access';
+import { OFFLINE } from '@/lib/offline';
 import type { PlatformId } from '@/types/platforms';
 
-const navItems: { to: string; label: string; end: boolean; adminOnly: boolean; platform?: PlatformId }[] = [
+type NavItem = { to: string; label: string; end: boolean; adminOnly: boolean; platform?: PlatformId };
+
+const allNavItems: NavItem[] = [
   { to: '/', label: 'Overview', end: true, adminOnly: false },
   { to: '/platforms/facebook', label: 'Facebook', end: false, adminOnly: false, platform: 'facebook' },
   { to: '/platforms/microsoft', label: 'Bing', end: false, adminOnly: false, platform: 'microsoft' },
@@ -12,6 +15,8 @@ const navItems: { to: string; label: string; end: boolean; adminOnly: boolean; p
   { to: '/users', label: 'Users', end: false, adminOnly: true },
   { to: '/ad-access', label: 'Ad groups', end: false, adminOnly: true },
 ];
+// the single-file copy holds only Facebook data
+const navItems = OFFLINE ? allNavItems.filter((item) => item.to === '/platforms/facebook') : allNavItems;
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();

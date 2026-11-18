@@ -5,3 +5,5 @@ dist/
 !.env.example
 .DS_Store
 *.log
+frontend/dist-offline
+backend/Facebook_Dashboard_offline.html

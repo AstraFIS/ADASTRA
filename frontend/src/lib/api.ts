@@ -1,5 +1,6 @@
 import { API_BASE_URL } from '@/config';
 import { getToken } from './auth-storage';
+import { OFFLINE, offlineApi } from './offline';
 
 const BASE_URL = API_BASE_URL;
 
@@ -23,6 +24,12 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): voi
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  if (OFFLINE) {
+    // single-file copy: the same endpoints answer inside the page
+    const { status, body } = await offlineApi().handle(init.method ?? 'GET', path);
+    if (status >= 400) throw new ApiError(status, (body as { error?: string } | null)?.error ?? `Request failed (${status})`);
+    return body as T;
+  }
   const token = getToken();
   const url = `${BASE_URL}${path}`;
 

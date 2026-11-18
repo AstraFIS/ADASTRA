@@ -1,7 +1,10 @@
+import { OFFLINE } from './offline';
+
 const TOKEN_KEY = 'adastra.token';
 
 // localStorage can be unavailable (private mode, blocked storage); never let that crash the app.
 export function getToken(): string | null {
+  if (OFFLINE) return 'offline'; // single-file copy: always signed in as the demo user
   try {
     return window.localStorage.getItem(TOKEN_KEY);
   } catch {

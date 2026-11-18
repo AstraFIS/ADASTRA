@@ -139,7 +139,7 @@ function mode(values: string[]): string | null {
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 }
 
-async function readWorkbook(file: string): Promise<Record<string, Doc[]>> {
+export async function readWorkbook(file: string): Promise<Record<string, Doc[]>> {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(file);
 
@@ -283,6 +283,15 @@ export function demoVersion(): string {
   return `excel:${loadedMtime}`;
 }
 
+/**
+ * Static (offline HTML) build: the data is handed over directly instead of being read from the
+ * workbook. `mtime` must equal what statSync reports in that build so refreshDemoStore keeps it.
+ */
+export function useStaticStore(data: Record<string, Doc[]>, mtime = 1): void {
+  store = data;
+  loadedMtime = mtime;
+}
+
 /** The loaded collections (call refreshDemoStore first). */
 export function demoStore(): Record<string, Doc[]> {
   return store;
@@ -298,6 +307,7 @@ const STORE_KEY: Record<string, string> = {
 const storeKey = (name: string) => STORE_KEY[name] ?? name;
 
 let reportRows: { mtime: number; rows: Doc[] } | null = null;
+let merging: { mtime: number; rows: Promise<Doc[]> } | null = null;
 
 /**
  * Runs a report pipeline over the merged rows (Meta + partner, fees applied), which are built
@@ -306,9 +316,19 @@ let reportRows: { mtime: number; rows: Doc[] } | null = null;
 export async function demoReportAggregate<T>(blend: unknown[], pipeline: unknown[]): Promise<T[]> {
   await refreshDemoStore();
   if (!reportRows || reportRows.mtime !== loadedMtime) {
-    const t = Date.now();
-    reportRows = { mtime: loadedMtime, rows: await demoAggregate<Doc>(COLLECTIONS.meta, blend) };
-    console.log(`[excel] merged ${reportRows.rows.length} report rows in ${Date.now() - t} ms`);
+    // one merge per workbook version, even when several reports ask at the same moment
+    const mtime = loadedMtime;
+    if (!merging || merging.mtime !== mtime) {
+      const t = Date.now();
+      merging = {
+        mtime,
+        rows: demoAggregate<Doc>(COLLECTIONS.meta, blend).then((rows) => {
+          console.log(`[excel] merged ${rows.length} report rows in ${Date.now() - t} ms`);
+          return rows;
+        }),
+      };
+    }
+    reportRows = { mtime, rows: await merging.rows };
   }
   const data = store;
   const agg = new Aggregator(pipeline as never, { collectionResolver: (name: string) => data[storeKey(name)] ?? [] } as never);

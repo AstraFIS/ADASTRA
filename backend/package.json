@@ -14,7 +14,8 @@
     "normalize:facebook": "tsx src/scripts/normalize-facebook-reports.ts",
     "import:bing": "tsx src/scripts/import-bing.ts",
     "import:facebook": "tsx src/scripts/import-facebook.ts",
-    "build:report-rows": "tsx src/scripts/build-report-rows.ts"
+    "build:report-rows": "tsx src/scripts/build-report-rows.ts",
+    "build:offline": "node static-build/make-offline.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
