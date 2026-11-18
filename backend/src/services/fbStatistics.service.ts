@@ -11,12 +11,14 @@ export interface FbStatisticsQuery {
   /** Explicit bounds (YYYY-MM-DD) take precedence over `range`. */
   from?: string | undefined;
   to?: string | undefined;
-  ad?: string | undefined;
-  offer?: string | undefined;
-  /** "ED" / "GLP" / "Other": only that product category (see CATEGORY). */
-  category?: string | undefined;
-  /** Only this ad platform provider (see reportBaseMatch / providerScope). */
-  provider?: string | undefined;
+  /** One ad name, or several (any of them). */
+  ad?: string | string[] | undefined;
+  /** One offer, or several (any of them). */
+  offer?: string | string[] | undefined;
+  /** "ED" / "GLP" / "Other" — one or several (see CATEGORY). */
+  category?: string | string[] | undefined;
+  /** Ad platform provider(s) (see reportBaseMatch / providerScope). */
+  provider?: string | string[] | undefined;
   /** Ad names that ever spent under `provider` (set by providerScope); their partner events count for it. */
   providerAds?: string[] | undefined;
   /** Ad names the caller may see (from facebookScope); null / undefined means every ad. */
@@ -354,12 +356,26 @@ export function textValues(value: string): (string | number)[] {
   return value.trim() !== '' && Number.isFinite(asNumber) ? [value, asNumber] : [value];
 }
 
+const asList = (value: string | string[]) => (Array.isArray(value) ? value : [value]);
+
+/** Match one value or any of several (each also as a number when it looks like one). */
+function anyOf(value: string | string[]): unknown {
+  const list = asList(value);
+  return list.length === 1 ? textMatch(list[0]!) : { $in: list.flatMap(textValues) };
+}
+
+/** How a single / multiple filter is echoed back in `filters` (display text, null = all). */
+export function filterLabel(value: string | string[] | undefined): string | null {
+  if (!value || (Array.isArray(value) && value.length === 0)) return null;
+  return Array.isArray(value) ? value.join(', ') : value;
+}
+
 /** Mongo match for the ad / offer / access part of a query. */
 export function reportBaseMatch(
   query: Pick<FbStatisticsQuery, 'ad' | 'offer' | 'category' | 'provider' | 'providerAds' | 'allowedAds' | 'allowedGroups'>,
 ): ReportFilter {
   const baseMatch: ReportFilter = {};
-  if (query.ad) baseMatch.ad_name = textMatch(query.ad);
+  if (query.ad) baseMatch.ad_name = anyOf(query.ad);
   if (query.allowedAds) {
     // a row's own access_group (set by hand) wins; otherwise its ad name must be in the caller's groups
     baseMatch.$or = [
@@ -367,15 +383,15 @@ export function reportBaseMatch(
       { access_group: { $in: [null, ''] }, ad_name: { $in: query.allowedAds.flatMap(textValues) } },
     ];
   }
-  if (query.offer) baseMatch.offer_name = textMatch(query.offer);
-  if (query.category) baseMatch.category = query.category;
+  if (query.offer) baseMatch.offer_name = anyOf(query.offer);
+  if (query.category) baseMatch.category = { $in: asList(query.category) };
   if (query.provider) {
     // Facebook rows carry their provider; partner events don't, so they count for a provider
     // through their ad name (the ads that spent under it)
     baseMatch.$and = [
       {
         $or: [
-          { provider_name: query.provider },
+          { provider_name: { $in: asList(query.provider) } },
           { provider_name: null, ad_name: { $in: (query.providerAds ?? []).flatMap(textValues) } },
         ],
       },
@@ -384,11 +400,13 @@ export function reportBaseMatch(
   return baseMatch;
 }
 
-/** Provider filter → the ad names that ever spent under that provider (any date). */
-export async function providerScope(provider: string | undefined): Promise<Pick<FbStatisticsQuery, 'provider' | 'providerAds'>> {
+/** Provider filter → the ad names that ever spent under those providers (any date). */
+export async function providerScope(
+  provider: string | string[] | undefined,
+): Promise<Pick<FbStatisticsQuery, 'provider' | 'providerAds'>> {
   if (!provider) return {};
   const rows = await reportAggregate<{ _id: unknown }>([
-    { $match: { provider_name: provider } },
+    { $match: { provider_name: { $in: asList(provider) } } },
     { $group: { _id: '$ad_name' } },
   ]);
   const providerAds = [...new Set(rows.map((r) => String(r._id ?? '').trim()).filter(Boolean))];
@@ -466,7 +484,7 @@ export async function getFbStatistics(query: FbStatisticsQuery): Promise<FbStati
   ]);
 
   const range = describeRange(query, bounds);
-  const filters = { ad: query.ad ?? null, offer: query.offer ?? null };
+  const filters = { ad: filterLabel(query.ad), offer: filterLabel(query.offer) };
   const providers = await providerFees(match);
 
   if (!agg) {

@@ -3,6 +3,7 @@ import {
   dateMatch,
   describeRange,
   type FbStatisticsQuery,
+  filterLabel,
   num,
   reportAggregate,
   reportBaseMatch,
@@ -131,7 +132,7 @@ export async function getFbGeoDevice(query: FbStatisticsQuery): Promise<FbGeoDev
 
   return {
     range: describeRange(query, bounds),
-    filters: { ad: query.ad ?? null, offer: query.offer ?? null },
+    filters: { ad: filterLabel(query.ad), offer: filterLabel(query.offer) },
     by_region,
     by_device,
     meta: {

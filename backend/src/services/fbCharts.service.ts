@@ -4,6 +4,7 @@ import {
   dateMatch,
   describeRange,
   type FbStatisticsQuery,
+  filterLabel,
   num,
   reportAggregate,
   reportBaseMatch,
@@ -139,7 +140,7 @@ export async function getFbCharts(query: FbStatisticsQuery): Promise<FbChartsRes
 
   return {
     range: describeRange(query, bounds),
-    filters: { ad: query.ad ?? null, offer: query.offer ?? null },
+    filters: { ad: filterLabel(query.ad), offer: filterLabel(query.offer) },
     revenue_vs_spend_by_ad: byAd.map((a) => ({
       ad_name: a._id,
       revenue_usd: round2(a.revenue_usd),

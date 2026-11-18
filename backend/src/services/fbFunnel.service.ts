@@ -4,6 +4,7 @@ import {
   dateMatch,
   describeRange,
   type FbStatisticsQuery,
+  filterLabel,
   FEE_USD,
   num,
   reportAggregate,
@@ -154,7 +155,7 @@ export async function getFbFunnel(query: FbStatisticsQuery): Promise<FbFunnelRes
 
   return {
     range: describeRange(query, bounds),
-    filters: { ad: query.ad ?? null, offer: query.offer ?? null },
+    filters: { ad: filterLabel(query.ad), offer: filterLabel(query.offer) },
     rows,
     meta: {
       rows: rows.length,

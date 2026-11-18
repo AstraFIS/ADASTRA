@@ -8,20 +8,39 @@ import { DATE_RANGE_KEYS } from '../types/facebook.js';
 const emptyToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD');
 
+/** ?ad=a or ?ad=a&ad=b → 'a' or ['a', 'b'] (blank values dropped; nothing left → no filter). */
+export const oneOrMany = z.preprocess(
+  (v) => {
+    const list = (Array.isArray(v) ? v : [v]).filter((x): x is string => typeof x === 'string' && x.trim() !== '');
+    if (list.length === 0) return undefined;
+    return list.length === 1 ? list[0] : list;
+  },
+  z.union([z.string().trim().max(200), z.array(z.string().trim().max(200)).max(500)]).optional(),
+);
+/** Same for a fixed set of values (?group=Meta1&group=Meta2). */
+export const someOf = <T extends readonly [string, ...string[]]>(values: T) =>
+  z.preprocess(
+    (v) => {
+      const list = (Array.isArray(v) ? v : [v]).filter((x): x is string => typeof x === 'string' && x.trim() !== '');
+      return list.length === 0 ? undefined : list;
+    },
+    z.array(z.enum(values)).max(values.length * 2).optional(),
+  );
+
 /** Shared by every endpoint that reads the report collections. */
 export const reportQuerySchema = z
   .object({
     range: z.preprocess(emptyToUndefined, z.enum(DATE_RANGE_KEYS).default('this_month')),
     from: z.preprocess(emptyToUndefined, isoDate.optional()),
     to: z.preprocess(emptyToUndefined, isoDate.optional()),
-    ad: z.preprocess(emptyToUndefined, z.string().trim().max(200).optional()),
-    offer: z.preprocess(emptyToUndefined, z.string().trim().max(200).optional()),
+    ad: oneOrMany,
+    offer: oneOrMany,
     /** ED / GLP / Other (from the offer and ad names). */
-    category: z.preprocess(emptyToUndefined, z.enum(CATEGORIES).optional()),
+    category: someOf(CATEGORIES),
     /** Only this ad platform provider. */
-    provider: z.preprocess(emptyToUndefined, z.string().trim().max(200).optional()),
+    provider: oneOrMany,
     /** Meta1 / Meta2: only that ad_access group's ads. */
-    group: z.preprocess(emptyToUndefined, z.enum(FACEBOOK_ACCESS_GROUPS).optional()),
+    group: someOf(FACEBOOK_ACCESS_GROUPS),
   })
   .refine((q) => !(q.from && q.to) || q.from <= q.to, { message: '`from` must not be after `to`', path: ['from'] });
 
