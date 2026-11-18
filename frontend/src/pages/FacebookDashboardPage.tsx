@@ -358,7 +358,8 @@ export default function FacebookDashboardPage() {
   // once the real options have loaded they are authoritative, even when empty (e.g. a group with no rows yet)
   const adOptions = options ? options.ads : filters.options.ads;
   const offerOptions = options ? options.offers : filters.options.offers;
-  const categoryOptions = options?.categories ?? [];
+  // ED and GLP are always offered (a period may hold only one of them), plus any other category in the data
+  const categoryOptions = [...new Set(['ED', 'GLP', ...(options?.categories ?? [])])];
   const withCurrent = (list: string[], current: string | null) =>
     current && !list.includes(current) ? [current, ...list] : list;
 
@@ -410,19 +411,17 @@ export default function FacebookDashboardPage() {
             className="w-full sm:w-auto sm:min-w-[200px]"
           />
         )}
-        {(categoryOptions.length > 1 || category !== ALL) && (
-          <FilterSelect
-            id="category"
-            label="Category"
-            value={category}
-            options={[
-              { value: ALL, label: 'All Categories' },
-              ...withCurrent(categoryOptions, category || null).map((c) => ({ value: c, label: c })),
-            ]}
-            onChange={(v) => setFilter('category', v)}
-            className="w-full sm:w-auto sm:min-w-[180px]"
-          />
-        )}
+        <FilterSelect
+          id="category"
+          label="Category (ED / GLP)"
+          value={category}
+          options={[
+            { value: ALL, label: 'ED + GLP' },
+            ...withCurrent(categoryOptions, category || null).map((c) => ({ value: c, label: c })),
+          ]}
+          onChange={(v) => setFilter('category', v)}
+          className="w-full sm:w-auto sm:min-w-[180px]"
+        />
         <MultiSearchSelect
           id="ad-name"
           label="Filter by Ad Name"
