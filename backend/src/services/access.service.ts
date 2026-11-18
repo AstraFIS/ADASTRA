@@ -14,17 +14,27 @@ export function hasPlatformAccess(access: UserAccess, platform: PlatformId): boo
  * listed in `ad_access` are hidden from non-admins. Read on every request so
  * access changes apply immediately.
  *
- * `group` narrows the result to one group's ads (the dashboard's Meta1 / Meta2
+ * `group` narrows the result to one or several groups' ads (the dashboard's Meta1 / Meta2
  * filter); asking for a group the user does not have yields no ads.
  */
 export async function facebookAdScope(
   user: { role: UserRole; access: UserAccess },
-  group?: FacebookAccessGroup,
+  group?: FacebookAccessGroup | FacebookAccessGroup[],
 ): Promise<string[] | null> {
   const isAdmin = user.role === 'admin';
-  if (group) return isAdmin || user.access.facebook.includes(group) ? adsInGroups([group]) : [];
+  const wanted = pickGroups(group);
+  if (wanted) {
+    const ok = wanted.filter((g) => isAdmin || user.access.facebook.includes(g));
+    return ok.length ? adsInGroups(ok) : [];
+  }
   if (isAdmin) return null;
   return user.access.facebook.length ? adsInGroups(user.access.facebook) : [];
+}
+
+/** The groups asked for (one or several), or null for "no group filter". */
+function pickGroups(group?: FacebookAccessGroup | FacebookAccessGroup[]): FacebookAccessGroup[] | null {
+  const list = group === undefined ? [] : Array.isArray(group) ? group : [group];
+  return list.length ? [...new Set(list)] : null;
 }
 
 /** What the caller may see: ad names (via ad_access) plus the groups themselves (for rows with their own group). */
@@ -36,12 +46,13 @@ export interface FacebookScope {
 /** facebookAdScope plus the groups behind it; spread into any Facebook statistics query. */
 export async function facebookScope(
   user: { role: UserRole; access: UserAccess },
-  group?: FacebookAccessGroup,
+  group?: FacebookAccessGroup | FacebookAccessGroup[],
 ): Promise<FacebookScope> {
   const allowedAds = await facebookAdScope(user, group);
   if (allowedAds === null) return { allowedAds: null, allowedGroups: null };
   const isAdmin = user.role === 'admin';
-  const groups = group ? (isAdmin || user.access.facebook.includes(group) ? [group] : []) : user.access.facebook;
+  const wanted = pickGroups(group);
+  const groups = wanted ? wanted.filter((g) => isAdmin || user.access.facebook.includes(g)) : user.access.facebook;
   return { allowedAds, allowedGroups: [...groups] };
 }
 

@@ -4,6 +4,7 @@ import {
   dateMatch,
   describeRange,
   type FbStatisticsQuery,
+  filterLabel,
   FEE_USD,
   num,
   reportAggregate,
@@ -324,7 +325,7 @@ export async function getFbCampaigns(query: FbStatisticsQuery): Promise<FbCampai
   const ads = adSets.flatMap((s) => s.ads);
   return {
     range: describeRange(query, bounds),
-    filters: { ad: query.ad ?? null, offer: query.offer ?? null },
+    filters: { ad: filterLabel(query.ad), offer: filterLabel(query.offer) },
     campaigns: rows,
     meta: {
       campaigns: rows.length,
