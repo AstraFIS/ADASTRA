@@ -13,5 +13,5 @@ import { providerScope } from '../services/fbStatistics.service.js';
  */
 export async function getDailyTrend(req: Request, res: Response): Promise<void> {
   const q = reportQuerySchema.parse(req.query);
-  res.json(await getFbDailyTrend({ ...q, ...(await facebookScope(req.user!, q.group)), ...(await providerScope(q.provider)) }));
+  res.json(await getFbDailyTrend({ ...q, ...(await facebookScope(req.user!, q.group)), ...(await providerScope(q.provider, q.account)) }));
 }

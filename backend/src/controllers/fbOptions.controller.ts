@@ -11,13 +11,14 @@ const querySchema = z.object({
   group: someOf(FACEBOOK_ACCESS_GROUPS),
   category: someOf(CATEGORIES),
   provider: oneOrMany,
+  account: oneOrMany,
 });
 
 /**
- * GET /api/platforms/facebook/options?group=Meta1 — filter choices (ads, offers, providers, date ranges)
+ * GET /api/platforms/facebook/options?group=Meta1 — filter choices (ads, offers, providers with their ad accounts, date ranges)
  * from the report collection, limited to the ads the caller may see (and to one group's ads when given)
  */
 export async function getOptions(req: Request, res: Response): Promise<void> {
-  const { group, category, provider } = querySchema.parse(req.query);
-  res.json(await getFbOptions({ ...(await facebookScope(req.user!, group)), category, ...(await providerScope(provider)) }));
+  const { group, category, provider, account } = querySchema.parse(req.query);
+  res.json(await getFbOptions({ ...(await facebookScope(req.user!, group)), category, ...(await providerScope(provider, account)) }));
 }
