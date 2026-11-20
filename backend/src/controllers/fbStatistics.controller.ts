@@ -39,6 +39,8 @@ export const reportQuerySchema = z
     category: someOf(CATEGORIES),
     /** Only this ad platform provider. */
     provider: oneOrMany,
+    /** Single ad accounts within a provider ("Provider||Account"). */
+    account: oneOrMany,
     /** Meta1 / Meta2: only that ad_access group's ads. */
     group: someOf(FACEBOOK_ACCESS_GROUPS),
   })
@@ -54,5 +56,5 @@ export const reportQuerySchema = z
  */
 export async function getStatistics(req: Request, res: Response): Promise<void> {
   const q = reportQuerySchema.parse(req.query);
-  res.json(await getFbStatistics({ ...q, ...(await facebookScope(req.user!, q.group)), ...(await providerScope(q.provider)) }));
+  res.json(await getFbStatistics({ ...q, ...(await facebookScope(req.user!, q.group)), ...(await providerScope(q.provider, q.account)) }));
 }

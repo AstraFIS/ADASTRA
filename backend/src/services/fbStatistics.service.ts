@@ -19,7 +19,13 @@ export interface FbStatisticsQuery {
   category?: string | string[] | undefined;
   /** Ad platform provider(s) (see reportBaseMatch / providerScope). */
   provider?: string | string[] | undefined;
-  /** Ad names that ever spent under `provider` (set by providerScope); their partner events count for it. */
+  /**
+   * Single ad accounts within a provider, as "Provider||Account" (see ACCOUNT_SEP); the account
+   * part is NO_ACCOUNT for that provider's rows without an account_name. Combined with `provider`
+   * as "any of": a whole provider, or just some of its accounts.
+   */
+  account?: string | string[] | undefined;
+  /** Ad names that ever spent under `provider` / `account` (set by providerScope); their partner events count for it. */
   providerAds?: string[] | undefined;
   /** Ad names the caller may see (from facebookScope); null / undefined means every ad. */
   allowedAds?: string[] | null | undefined;
@@ -372,7 +378,7 @@ export function filterLabel(value: string | string[] | undefined): string | null
 
 /** Mongo match for the ad / offer / access part of a query. */
 export function reportBaseMatch(
-  query: Pick<FbStatisticsQuery, 'ad' | 'offer' | 'category' | 'provider' | 'providerAds' | 'allowedAds' | 'allowedGroups'>,
+  query: Pick<FbStatisticsQuery, 'ad' | 'offer' | 'category' | 'provider' | 'account' | 'providerAds' | 'allowedAds' | 'allowedGroups'>,
 ): ReportFilter {
   const baseMatch: ReportFilter = {};
   if (query.ad) baseMatch.ad_name = anyOf(query.ad);
@@ -385,32 +391,54 @@ export function reportBaseMatch(
   }
   if (query.offer) baseMatch.offer_name = anyOf(query.offer);
   if (query.category) baseMatch.category = { $in: asList(query.category) };
-  if (query.provider) {
-    // Facebook rows carry their provider; partner events don't, so they count for a provider
-    // through their ad name (the ads that spent under it)
+  const rowsOf = providerRows(query.provider, query.account);
+  if (rowsOf) {
+    // Facebook rows carry their provider (and account); partner events don't, so they count for a
+    // provider / account through their ad name (the ads that spent under it)
     baseMatch.$and = [
       {
-        $or: [
-          { provider_name: { $in: asList(query.provider) } },
-          { provider_name: null, ad_name: { $in: (query.providerAds ?? []).flatMap(textValues) } },
-        ],
+        $or: [...rowsOf, { provider_name: null, ad_name: { $in: (query.providerAds ?? []).flatMap(textValues) } }],
       },
     ];
   }
   return baseMatch;
 }
 
-/** Provider filter → the ad names that ever spent under those providers (any date). */
+/** "Provider||Account" in the `account` filter; NO_ACCOUNT stands for a provider's rows without an account. */
+export const ACCOUNT_SEP = '||';
+export const NO_ACCOUNT = '(no account)';
+
+/** Facebook-row conditions for the provider / account filter (null = no such filter). */
+function providerRows(provider: string | string[] | undefined, account: string | string[] | undefined) {
+  const whole = provider ? asList(provider) : [];
+  const parts = (account ? asList(account) : [])
+    .map((a) => {
+      const at = a.indexOf(ACCOUNT_SEP);
+      return at > 0 ? { p: a.slice(0, at), a: a.slice(at + ACCOUNT_SEP.length) } : null;
+    })
+    .filter((x): x is { p: string; a: string } => x !== null && !whole.includes(x.p));
+  if (whole.length === 0 && parts.length === 0) return null;
+  const rows: Record<string, unknown>[] = [];
+  if (whole.length) rows.push({ provider_name: { $in: whole } });
+  for (const { p, a } of parts) {
+    rows.push({ provider_name: p, account_name: a === NO_ACCOUNT ? { $in: [null, ''] } : a });
+  }
+  return rows;
+}
+
+/** Provider / account filter → the ad names that ever spent under them (any date). */
 export async function providerScope(
   provider: string | string[] | undefined,
-): Promise<Pick<FbStatisticsQuery, 'provider' | 'providerAds'>> {
-  if (!provider) return {};
+  account?: string | string[] | undefined,
+): Promise<Pick<FbStatisticsQuery, 'provider' | 'account' | 'providerAds'>> {
+  const rowsOf = providerRows(provider, account);
+  if (!rowsOf) return {};
   const rows = await reportAggregate<{ _id: unknown }>([
-    { $match: { provider_name: { $in: asList(provider) } } },
+    { $match: { $or: rowsOf } },
     { $group: { _id: '$ad_name' } },
   ]);
   const providerAds = [...new Set(rows.map((r) => String(r._id ?? '').trim()).filter(Boolean))];
-  return { provider, providerAds };
+  return { provider, account, providerAds };
 }
 
 /**

@@ -9,6 +9,7 @@ import CustomDateRange from '@/components/CustomDateRange';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import FilterSelect from '@/components/FilterSelect';
 import MultiSearchSelect from '@/components/MultiSearchSelect';
+import ProviderAccountSelect from '@/components/ProviderAccountSelect';
 import FunnelTable from '@/components/FunnelTable';
 import GeoDeviceSection from '@/components/GeoDeviceSection';
 import KpiPanel from '@/components/KpiPanel';
@@ -66,7 +67,7 @@ const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const dayParam = (value: string | null) => (value && ISO_DAY.test(value) ? value : '');
 const isGroup = (value: string) => (FACEBOOK_ACCESS_GROUPS as readonly string[]).includes(value);
 const CATEGORY_OPTIONS = ['ED', 'GLP'];
-type MultiKey = 'ad' | 'offer' | 'group' | 'category' | 'provider';
+type MultiKey = 'ad' | 'offer' | 'group' | 'category' | 'provider' | 'account';
 /** Every multi-value filter, as repeated query parameters (?ad=a&ad=b). */
 function appendFilters(qs: URLSearchParams, f: Record<MultiKey, string[]>) {
   for (const [key, values] of Object.entries(f)) values.forEach((v) => qs.append(key, v));
@@ -101,14 +102,23 @@ export default function FacebookDashboardPage() {
   // ED / GLP (from the offer and ad names) and ad platform provider: narrow every number on the page
   const categories = params.getAll('category').filter(Boolean);
   const providers = params.getAll('provider').filter(Boolean);
+  // single ad accounts within a provider ("Provider||Account")
+  const accounts = params.getAll('account').filter(Boolean);
   // Meta1 / Meta2 (ad_access groups): admins can narrow the whole page to one group's ads
   const { user } = useAuth();
   const canFilterGroup = user?.role === 'admin';
   const groups = canFilterGroup ? params.getAll('group').filter(isGroup) : [];
-  const picked: Record<MultiKey, string[]> = { ad: ads, offer: offers, group: groups, category: categories, provider: providers };
+  const picked: Record<MultiKey, string[]> = {
+    ad: ads,
+    offer: offers,
+    group: groups,
+    category: categories,
+    provider: providers,
+    account: accounts,
+  };
   // one string per filter set for the effects' dependency lists
   const filterKey = JSON.stringify(picked);
-  const optionsKey = JSON.stringify([groups, categories, providers]);
+  const optionsKey = JSON.stringify([groups, categories, providers, accounts]);
 
   const [state, setState] = useState<State>({ kind: 'loading', previous: null });
   const [stats, setStats] = useState<StatsState>({ kind: 'loading', previous: null });
@@ -129,6 +139,7 @@ export default function FacebookDashboardPage() {
           group: groups,
           category: categories,
           provider: providers,
+          account: accounts,
         }).toString()}`,
       )
       .then((o) => {
@@ -250,6 +261,17 @@ export default function FacebookDashboardPage() {
     // the selected ad (and offer) may not belong to the new group / category / provider
     if (key === 'group' || key === 'category' || key === 'provider') next.delete('ad');
     if (key === 'category') next.delete('offer');
+    setParams(next, { replace: true });
+  }
+
+  /** Provider filter: whole providers and / or single accounts of a provider. */
+  function setProviderFilter(nextProviders: string[], nextAccounts: string[]) {
+    const next = new URLSearchParams(params);
+    next.delete('provider');
+    next.delete('account');
+    nextProviders.forEach((v) => next.append('provider', v));
+    nextAccounts.forEach((v) => next.append('account', v));
+    next.delete('ad');
     setParams(next, { replace: true });
   }
 
@@ -417,14 +439,16 @@ export default function FacebookDashboardPage() {
           onChange={(v) => setFilter('category', v)}
           className="w-full sm:w-auto sm:min-w-[180px]"
         />
-        <MultiSearchSelect
+        <ProviderAccountSelect
           id="provider"
           label="Provider"
-          values={providers}
-          options={options?.providers ?? []}
+          providers={providers}
+          accounts={accounts}
+          options={
+            options?.providerAccounts ?? (options?.providers ?? []).map((provider) => ({ provider, accounts: [] }))
+          }
           allLabel="All Providers"
-          noun="providers"
-          onChange={(v) => setFilter('provider', v)}
+          onChange={setProviderFilter}
           className="w-full sm:w-auto sm:min-w-[220px]"
         />
         <MultiSearchSelect

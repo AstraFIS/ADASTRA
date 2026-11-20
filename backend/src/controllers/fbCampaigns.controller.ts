@@ -12,5 +12,5 @@ import { providerScope } from '../services/fbStatistics.service.js';
  */
 export async function getCampaigns(req: Request, res: Response): Promise<void> {
   const q = reportQuerySchema.parse(req.query);
-  res.json(await getFbCampaigns({ ...q, ...(await facebookScope(req.user!, q.group)), ...(await providerScope(q.provider)) }));
+  res.json(await getFbCampaigns({ ...q, ...(await facebookScope(req.user!, q.group)), ...(await providerScope(q.provider, q.account)) }));
 }

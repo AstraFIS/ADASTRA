@@ -51,6 +51,8 @@ export interface FbOptionsResult {
   ads: string[];
   offers: string[];
   providers: string[];
+  /** Each provider with its ad accounts; "(no account)" = rows without one. Missing on older APIs. */
+  providerAccounts?: { provider: string; accounts: string[] }[];
   dataThrough: string | null;
   rows: number;
 }
