@@ -41,6 +41,7 @@ export interface IFacebookAdReport {
   campaign_name: string;
   ad_set_name: string;
   provider_name: string | null; // null when no provider is attached
+  account_name?: string | null; // the provider's ad account (from the Meta report file name)
   /** Meta group set by hand on this row (Ad groups → Rows without an ad name); overrides ad_access. */
   access_group?: string | null;
   age: string; // "18-24" … "65+", or "unknown" (normalised on save)
@@ -191,6 +192,7 @@ const facebookAdReportSchema = new Schema<IFacebookAdReport, FacebookAdReportMod
     campaign_name: label,
     ad_set_name: label,
     provider_name: { type: String, trim: true, maxlength: 200, default: null },
+    account_name: { type: String, trim: true, maxlength: 200, default: undefined },
     access_group: { type: String, trim: true, maxlength: 50, default: undefined },
     age: { type: String, required: true, maxlength: 20, default: 'unknown', set: normaliseBucket },
     gender: { type: String, required: true, maxlength: 20, default: 'unknown', set: normaliseBucket },
