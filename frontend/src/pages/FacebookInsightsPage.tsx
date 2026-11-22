@@ -289,9 +289,8 @@ function Insights({ data }: { data: FbInsightsResult }) {
             ['#decide', 'What to do'],
             ['#new', 'New creatives'],
             ['#rules', 'Rules'],
-            ['#make', 'What to make'],
             ['#scorecard', 'All creatives'],
-            ['#traits', 'What wins'],
+            ['#traits', 'What wins & what to make'],
             ['#budget', 'Budget & timing'],
             ['#funnel', 'Funnel & money'],
             ['#campaigns', 'Campaigns'],
@@ -312,7 +311,6 @@ function Insights({ data }: { data: FbInsightsResult }) {
       <DecisionBoard ed={ed} be={BE} />
       <NewCreatives creatives={data.creatives} from={data.last7_from} to={data.data_through} />
       <Rules data={data} fstep={fstep} />
-      <MakeNext data={data} />
       <Scorecard creatives={data.creatives} be={BE} />
       <Traits data={data} />
 
@@ -578,7 +576,10 @@ function Rules({ data, fstep }: { data: FbInsightsResult; fstep: (s: string) => 
         {winners.length > 0 && <> Winners that are switched off now: {winners.join(', ')}.</>}
       </>,
     ],
-    ['Make more of what wins.', <>See “What to make next” below. It ranks every hook, angle, offer, style and button by return on spend.</>],
+    [
+      'Make more of what wins.',
+      <>See “Creative traits” below: it ranks every hook, angle, offer, style and button by return on spend and shows the creatives behind each.</>,
+    ],
     [
       'Fix the landing-page leak.',
       <>
@@ -617,72 +618,6 @@ const strength = (r: number | null) =>
 
 // ===========================================================================
 // what to make next (from the traits)
-
-function MakeNext({ data }: { data: FbInsightsResult }) {
-  const BE = data.break_even_cpa;
-  const dims = [...new Set(data.traits.map((t) => t.dimension))];
-  const rows = dims
-    .map((dim) => {
-      const xs = data.traits.filter((t) => t.dimension === dim);
-      const more = xs
-        .filter((t) => t.purchases >= 3 && (t.roas ?? 0) >= 0.9)
-        .sort((a, b) => (b.roas ?? 0) - (a.roas ?? 0))
-        .slice(0, 3);
-      const avoid = xs
-        .filter((t) => t.cost >= BE * 2 && (t.roas ?? 0) < 0.5)
-        .sort((a, b) => (a.roas ?? 0) - (b.roas ?? 0))
-        .slice(0, 3);
-      return { dim, more, avoid };
-    })
-    .filter((r) => r.more.length || r.avoid.length);
-  const chip = (t: InsightRow, good: boolean) => (
-    <span
-      key={t.label}
-      title={`${t.label.replace(/_/g, ' ')}: ${times(t.roas)} return, ${plural(t.purchases, 'sale')}, ${usd(t.cost)} spent, ${usd(t.cpa)} per sale`}
-      className={`inline-flex items-baseline gap-1.5 rounded-lg border px-2.5 py-1 text-sm ${good ? 'border-revenue/30 bg-revenue/10' : 'border-loss/30 bg-loss/10'}`}
-    >
-      <span className="font-semibold text-ink">{t.label.replace(/_/g, ' ')}</span>
-      <span className={`text-xs font-bold tabular-nums ${good ? 'text-revenue' : 'text-loss'}`}>{times(t.roas)}</span>
-      <span className="text-xs tabular-nums text-ink-3">{plural(t.purchases, 'sale')}</span>
-    </span>
-  );
-  return (
-    <Card
-      id="make"
-      title="What to make next"
-      sub="Per trait, from each ED creative’s taxonomy: what returns the most per dollar (brief new creatives with it) and what loses money. Hover a label for spend and cost per sale."
-    >
-      {rows.length === 0 ? (
-        <p className="text-sm text-ink-3">Not enough data yet.</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] border-collapse text-left">
-            <thead>
-              <tr className="text-xs font-semibold uppercase tracking-wider">
-                <th className="w-40 pb-2 pr-4 text-ink-3">Trait</th>
-                <th className="pb-2 pr-4 text-revenue">Make more of</th>
-                <th className="pb-2 text-loss">Avoid</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.dim} className="border-t border-line/60 align-top">
-                  <td className="py-2.5 pr-4 text-sm font-semibold text-ink-2">{r.dim}</td>
-                  <td className="py-2 pr-4">
-                    <div className="flex flex-wrap gap-1.5">{r.more.length ? r.more.map((t) => chip(t, true)) : <span className="text-sm text-ink-3">—</span>}</div>
-                  </td>
-                  <td className="py-2">
-                    <div className="flex flex-wrap gap-1.5">{r.avoid.length ? r.avoid.map((t) => chip(t, false)) : <span className="text-sm text-ink-3">—</span>}</div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </Card>
-  );
-}
 
 // ===========================================================================
 // scorecard
@@ -766,91 +701,186 @@ function Scorecard({ creatives, be }: { creatives: InsightCreative[]; be: number
 // ===========================================================================
 // traits
 
+/** A trait value worth repeating: 3+ sales at break-even or better. */
+const isWinner = (t: InsightRow) => t.purchases >= 3 && (t.roas ?? 0) >= 1;
+/** A trait value that loses money: 2 break-evens spent and under half of it back. */
+const isLoser = (t: InsightRow, be: number) => t.cost >= be * 2 && (t.roas ?? 0) < 0.5;
+const nice = (v: string | null | undefined) => (v ?? '').replace(/_/g, ' ');
+
 function Traits({ data }: { data: FbInsightsResult }) {
+  const BE = data.break_even_cpa;
   const dims = [...new Set(data.traits.map((t) => t.dimension))];
   const [dim, setDim] = useState(dims[0] ?? 'Hook type');
-  const rows = data.traits.filter((t) => t.dimension === dim).sort((a, b) => (b.roas ?? 0) - (a.roas ?? 0));
-  // the bar whose creatives are shown on the right; the best one until another is clicked
+  // the row whose creatives are shown on the right; the best one until another is clicked
   const [picked, setPicked] = useState<string | null>(null);
+  const rows = data.traits.filter((t) => t.dimension === dim).sort((a, b) => (b.roas ?? 0) - (a.roas ?? 0) || b.cost - a.cost);
   const value = picked && rows.some((t) => t.label === picked) ? picked : (rows[0]?.label ?? null);
   const row = rows.find((t) => t.label === value) ?? null;
-  const shown = value ? data.creatives.filter((c) => c.traits?.[dim] === value).sort((a, b) => b.cost - a.cost) : [];
-  const cols: Column<InsightRow>[] = [
-    { key: 'l', label: 'Trait', align: 'left', render: (t) => t.label.replace(/_/g, ' '), sort: (t) => t.label },
-    { key: 'ads', label: 'Ads', render: (t) => int(t.ads), sort: (t) => t.ads },
-    { key: 'cost', label: 'Cost', render: (t) => usd(t.cost), sort: (t) => t.cost },
-    { key: 'pur', label: 'Sales', render: (t) => int(t.purchases), sort: (t) => t.purchases },
-    { key: 'cpa', label: '$/sale', render: (t) => usd(t.cpa), sort: (t) => t.cpa, className: (t) => cpaTone(t.cpa, data.break_even_cpa) },
-    { key: 'roas', label: 'Return', render: (t) => times(t.roas), sort: (t) => t.roas, className: (t) => roasTone(t.roas, t.purchases) },
-    { key: 'atc', label: 'ATC', render: (t) => int(t.add_to_carts), sort: (t) => t.add_to_carts },
-    { key: 'cpatc', label: '$/ATC', render: (t) => usd(t.cost_per_atc), sort: (t) => t.cost_per_atc },
-    { key: 'qs', label: 'Quiz start', render: (t) => pct(t.quiz_start_rate), sort: (t) => t.quiz_start_rate },
-    { key: 'ctr', label: 'CTR', render: (t) => pct(t.ctr, 2), sort: (t) => t.ctr },
-  ];
+  const shown = value ? data.creatives.filter((c) => c.traits?.[dim] === value) : [];
+  const maxRoas = Math.max(1.2, ...rows.map((t) => t.roas ?? 0));
+
+  // the brief: best and worst value of every trait type
+  const brief = dims.map((d) => {
+    const xs = data.traits.filter((t) => t.dimension === d);
+    const best = xs.filter(isWinner).sort((a, b) => (b.roas ?? 0) - (a.roas ?? 0))[0];
+    const worst = xs.filter((t) => isLoser(t, BE)).sort((a, b) => (a.roas ?? 0) - (b.roas ?? 0) || b.cost - a.cost)[0];
+    return { d, best, worst };
+  });
+  const go = (d: string, label: string) => {
+    setDim(d);
+    setPicked(label);
+  };
+  const briefChip = (d: string, t: InsightRow, good: boolean) => (
+    <button
+      key={`${d}|${t.label}`}
+      type="button"
+      onClick={() => go(d, t.label)}
+      title={`${nice(t.label)}: ${times(t.roas)} return, ${plural(t.purchases, 'sale')}, ${usd(t.cost)} spent. Click to see its creatives.`}
+      className={`inline-flex items-baseline gap-1.5 rounded-lg border px-2 py-1 text-xs transition-colors ${
+        good ? 'border-revenue/30 bg-revenue/10 hover:border-revenue/70' : 'border-loss/30 bg-loss/10 hover:border-loss/70'
+      }`}
+    >
+      <span className="text-ink-3">{d}</span>
+      <span className="font-semibold text-ink">{nice(t.label)}</span>
+      <span className={`font-bold tabular-nums ${good ? 'text-revenue' : 'text-loss'}`}>{times(t.roas)}</span>
+    </button>
+  );
+
   return (
     <Card
       id="traits"
-      title="What winning creatives have in common"
-      sub="Return on spend by creative trait, taken from each ad’s taxonomy. ED ads, groups with $300+ spend. Bars past the dashed line make money."
-      right={
-        <FilterSelect
-          id="trait-dim"
-          label="Trait"
-          value={dim}
-          options={dims.map((d) => ({ value: d, label: d }))}
-          onChange={(d) => {
-            setDim(d);
-            setPicked(null);
-          }}
-          className="sm:min-w-[220px]"
-        />
-      }
+      title="Creative traits: what wins and what to make next"
+      sub={`From each ED creative’s taxonomy; trait values with $300+ spend. Return = revenue ÷ cost (1.00× = break-even, ${usd(BE)} per sale). Click any label or row to see its creatives.`}
     >
-      {rows.length === 0 ? (
+      {data.traits.length === 0 ? (
         <p className="text-sm text-ink-3">No taxonomy data for this selection.</p>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="min-w-0">
-            <p className="mb-3 text-xs text-ink-3">Click a bar to see its creatives.</p>
-            <HBars
-              selected={value}
-              onSelect={setPicked}
-              bars={rows.map((t) => ({
-                label: t.label.replace(/_/g, ' '),
-                sub: `${plural(t.ads, 'ad')} · ${plural(t.purchases, 'sale')}`,
-                value: t.roas,
-                text: t.cpa == null ? `${times(t.roas)} · no sales` : `${times(t.roas)} · ${usd(t.cpa)}/sale`,
-                id: t.label,
-                tone: (t.roas ?? 0) >= 1 ? 'good' : 'bad',
-              }))}
-              reference={1}
-              referenceLabel="break-even 1.00×"
-            />
-          </div>
-          <div className="min-w-0 lg:border-l lg:border-line lg:pl-6">
-            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-              <h3 className="font-bold text-ink">
-                {dim}: {value?.replace(/_/g, ' ')}
-              </h3>
-              {row && (
-                <p className="text-xs text-ink-3">
-                  {plural(mergeTwins(shown, data.break_even_cpa).length, 'creative')} · {usd(row.cost)} · {plural(row.purchases, 'sale')} ·{' '}
-                  <span className={roasTone(row.roas, row.purchases)}>{times(row.roas)}</span>
-                </p>
+        <>
+          {/* brief */}
+          <div className="mb-5 grid gap-2 rounded-xl border border-line bg-surface-2/40 p-3 md:grid-cols-[auto_1fr]">
+            <span className="pt-1 text-xs font-bold uppercase tracking-wider text-revenue">Brief next</span>
+            <div className="flex flex-wrap gap-1.5">{brief.filter((b) => b.best).map((b) => briefChip(b.d, b.best!, true))}</div>
+            <span className="pt-1 text-xs font-bold uppercase tracking-wider text-loss">Avoid</span>
+            <div className="flex flex-wrap gap-1.5">
+              {brief.some((b) => b.worst) ? (
+                brief.filter((b) => b.worst).map((b) => briefChip(b.d, b.worst!, false))
+              ) : (
+                <span className="text-xs text-ink-3">Nothing clearly losing yet.</span>
               )}
             </div>
-            <div className="max-h-[760px] overflow-y-auto pr-1">
-              <CreativeGallery creatives={shown} breakEven={data.break_even_cpa} empty="No creative with this trait in the selection." />
+          </div>
+
+          {/* trait type tabs */}
+          <div role="tablist" aria-label="Trait type" className="mb-4 flex flex-wrap gap-1.5">
+            {dims.map((d) => (
+              <button
+                key={d}
+                type="button"
+                role="tab"
+                aria-selected={d === dim}
+                onClick={() => {
+                  setDim(d);
+                  setPicked(null);
+                }}
+                className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+                  d === dim ? 'bg-surface-2 text-ink ring-1 ring-line-strong' : 'text-ink-3 hover:bg-surface-2/60 hover:text-ink'
+                }`}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+            {/* ranked table */}
+            <div className="min-w-0 overflow-x-auto">
+              <table className="w-full min-w-[560px] border-collapse text-sm tabular-nums">
+                <thead>
+                  <tr className="text-[11px] font-semibold uppercase tracking-wider text-ink-3">
+                    <th className="pb-2 text-left">{dim}</th>
+                    <th className="w-[34%] pb-2 text-left">Return</th>
+                    <th className="pb-2 text-right">Sales</th>
+                    <th className="pb-2 text-right">$/sale</th>
+                    <th className="pb-2 text-right">$/ATC</th>
+                    <th className="pb-2 text-right">Quiz</th>
+                    <th className="pb-2 text-right">Ads</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((t) => {
+                    const sel = t.label === value;
+                    const win = isWinner(t);
+                    const lose = isLoser(t, BE);
+                    const good = (t.roas ?? 0) >= 1;
+                    return (
+                      <tr
+                        key={t.label}
+                        onClick={() => setPicked(t.label)}
+                        aria-selected={sel}
+                        className={`cursor-pointer border-t border-line/50 transition-colors ${sel ? 'bg-surface-2' : 'hover:bg-surface-2/50'}`}
+                      >
+                        <td className={`max-w-[260px] py-1.5 pl-2 pr-2 ${sel ? 'border-l-2 border-revenue' : 'border-l-2 border-transparent'}`}>
+                          <span className="flex min-w-0 items-center gap-2">
+                            <button type="button" className="min-w-0 truncate text-left font-medium text-ink" title={nice(t.label)}>
+                              {nice(t.label)}
+                            </button>
+                            {(win || lose) && (
+                              <span
+                                className={`shrink-0 rounded px-1.5 text-[10px] font-bold uppercase tracking-wider ${win ? 'bg-revenue/15 text-revenue' : 'bg-loss/15 text-loss'}`}
+                              >
+                                {win ? 'Make more' : 'Avoid'}
+                              </span>
+                            )}
+                          </span>
+                        </td>
+                        <td className="py-1.5 pr-3">
+                          <div className="relative flex h-4 items-center">
+                            <span
+                              className={`block h-full rounded-r ${good ? 'bg-revenue' : 'bg-loss'} opacity-80`}
+                              style={{ width: `${Math.max(1, ((t.roas ?? 0) / maxRoas) * 78)}%` }}
+                            />
+                            <span className={`ml-1.5 text-xs font-bold ${good ? 'text-revenue' : 'text-loss'}`}>{times(t.roas)}</span>
+                            <span
+                              className="pointer-events-none absolute inset-y-[-3px] border-l border-dashed border-ink-3"
+                              style={{ left: `${(1 / maxRoas) * 78}%` }}
+                            />
+                          </div>
+                        </td>
+                        <td className="py-1.5 text-right text-ink">{int(t.purchases)}</td>
+                        <td className={`py-1.5 text-right ${cpaTone(t.cpa, BE)}`}>{usd(t.cpa)}</td>
+                        <td className="py-1.5 text-right text-ink-2">{usd(t.cost_per_atc)}</td>
+                        <td className="py-1.5 text-right text-ink-2">{pct(t.quiz_start_rate, 0)}</td>
+                        <td className="py-1.5 text-right text-ink-3">{int(t.ads)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <p className="mt-2 text-xs text-ink-3">
+                Dashed line = break-even. “Make more”: 3+ sales at break-even or better. “Avoid”: 2× break-even spent, under half returned.
+              </p>
+            </div>
+
+            {/* creatives of the selected row */}
+            <div className="min-w-0 xl:border-l xl:border-line xl:pl-6">
+              <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+                <h3 className="font-bold text-ink">
+                  {dim}: {nice(value)}
+                </h3>
+                {row && (
+                  <p className="text-xs text-ink-3">
+                    {plural(mergeTwins(shown, BE).length, 'creative')} · {usd(row.cost)} · {plural(row.purchases, 'sale')} ·{' '}
+                    <span className={roasTone(row.roas, row.purchases)}>{times(row.roas)}</span>
+                  </p>
+                )}
+              </div>
+              <div className="max-h-[720px] overflow-y-auto pr-1">
+                <CreativeGallery creatives={shown} breakEven={BE} empty="No creative with this trait in the selection." />
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
-      <details className="mt-5">
-        <summary className="cursor-pointer text-sm font-semibold text-ink-2 hover:text-ink">Full numbers for this trait</summary>
-        <div className="mt-3">
-          <DataTable rows={rows} columns={cols} rowKey={(t) => t.label} />
-        </div>
-      </details>
     </Card>
   );
 }
