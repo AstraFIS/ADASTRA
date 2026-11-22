@@ -78,9 +78,9 @@ function Thumb({ c }: { c: InsightCreative }) {
   }
   return (
     <div className={`hatch flex flex-col items-center justify-center gap-2 border border-line ${box}`}>
-      <span className="rounded bg-surface/90 px-2 py-1 text-center text-xs text-ink-3">{video ? 'This video can’t play here' : 'No creative stored'}</span>
-      {video && (
-        <a href={video} target="_blank" rel="noopener noreferrer" className="rounded bg-surface/90 px-2 py-1 text-xs font-semibold text-revenue hover:underline">
+      <span className="rounded bg-surface/90 px-2 py-1 text-center text-xs text-ink-3">{video ? 'This video can’t play here' : poster ? 'The picture could not be loaded' : 'No creative stored'}</span>
+      {(video || poster) && (
+        <a href={video ?? poster ?? undefined} target="_blank" rel="noopener noreferrer" className="rounded bg-surface/90 px-2 py-1 text-xs font-semibold text-revenue hover:underline">
           Open the file ↗
         </a>
       )}
