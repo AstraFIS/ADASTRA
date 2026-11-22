@@ -174,7 +174,7 @@ export default function CreativeGallery({ creatives, breakEven, empty }: { creat
   const cards = mergeTwins(creatives, breakEven);
   if (cards.length === 0) return <p className="py-6 text-sm text-ink-3">{empty}</p>;
   return (
-    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-2 2xl:grid-cols-3">
+    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-3">
       {cards.map((k) => (
         <li key={k.main.ad} className="flex flex-col gap-2 rounded-xl border border-line bg-surface-2/40 p-2.5">
           <Thumb c={k.main} />
