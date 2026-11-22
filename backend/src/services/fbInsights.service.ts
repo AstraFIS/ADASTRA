@@ -1,3 +1,4 @@
+import { AdCreative } from '../models/adCreative.model.js';
 import { AdTaxonomy } from '../models/adTaxonomy.model.js';
 import { isoDay } from '../utils/dateRange.js';
 import {
@@ -74,6 +75,13 @@ export interface InsightCreative {
   angle: string | null;
   offer_type: string | null;
   cta: string | null;
+  /** Trait value per dimension ("Hook type" → "Pattern_Interrupt"), as grouped in `traits`. */
+  traits: Record<string, string>;
+  /**
+   * Links saved on the Ad groups page (ad_creatives); null when none are saved. Each field: null =
+   * no override (the frontend falls back to creatives.json), "" = cleared on purpose.
+   */
+  links: { image: string | null; video: string | null; landing: string | null } | null;
   /** Same name with other capital letters that ran earlier (likely the same creative relaunched). */
   earlier_name: string | null;
   /** Set for creatives whose first day is in the last 7 days of the period. */
@@ -254,7 +262,7 @@ export async function getFbInsights(query: FbStatisticsQuery): Promise<FbInsight
   const match = { ...reportBaseMatch(query), ...dateMatch(bounds) };
   const sum = (f: string) => ({ $sum: num(f) });
 
-  const [groups, audienceDocs, deviceDocs, regionDocs, taxDocs] = await Promise.all([
+  const [groups, audienceDocs, deviceDocs, regionDocs, taxDocs, linkDocs] = await Promise.all([
     reportAggregate<GroupDoc>([
       { $match: match },
       {
@@ -302,9 +310,10 @@ export async function getFbInsights(query: FbStatisticsQuery): Promise<FbInsight
       { $group: { _id: '$region', fpv: sum('first_page_views'), atc: sum('add_to_carts'), pur: sum('purchase_events') } },
     ]),
     AdTaxonomy.find({}, { ad_name: 1, intention_message: 1, physical_execution: 1 }).lean(),
+    AdCreative.find({}, { _id: 0, ad_name: 1, image_url: 1, video_url: 1, landing_url: 1 }).lean(),
   ]);
 
-  return computeInsights({ groups, audienceDocs, deviceDocs, regionDocs, taxDocs }, describeRange(query, bounds));
+  return computeInsights({ groups, audienceDocs, deviceDocs, regionDocs, taxDocs, linkDocs }, describeRange(query, bounds));
 }
 
 type AudienceDoc = { _id: { age: string | null; g: string | null }; cost: number; im: number; lc: number; lpv: number };
@@ -317,11 +326,15 @@ export interface InsightsInput {
   deviceDocs: DeviceDoc[];
   regionDocs: RegionDoc[];
   taxDocs: TaxDoc[];
+  linkDocs?: LinkDoc[];
 }
+type LinkDoc = { ad_name: string; image_url?: string | null; video_url?: string | null; landing_url?: string | null };
 
 /** The whole analysis from the grouped rows (no database access, so it can be tested). */
 export function computeInsights(input: InsightsInput, range: FbInsightsResult['range']): FbInsightsResult {
   const { groups, audienceDocs, deviceDocs, regionDocs, taxDocs } = input;
+  const links = new Map<string, LinkDoc>();
+  for (const l of input.linkDocs ?? []) links.set(l.ad_name, l);
   // ---- per ad, per ad-day, per ad-day-placement
   interface AdAcc {
     t: Totals;
@@ -553,6 +566,11 @@ export function computeInsights(input: InsightsInput, range: FbInsightsResult['r
       angle: tv(im, 'angle')?.split('/')[0]?.trim() ?? null,
       offer_type: tv(im, 'offer_type'),
       cta: tv(pe, 'cta_type', 'cta_text'),
+      traits: {},
+      links: (() => {
+        const l = links.get(name);
+        return l ? { image: l.image_url ?? null, video: l.video_url ?? null, landing: l.landing_url ?? null } : null;
+      })(),
       earlier_name: null,
       new_decision: null,
       new_why: null,
@@ -711,6 +729,7 @@ export function computeInsights(input: InsightsInput, range: FbInsightsResult['r
     for (const c of edCr) {
       const k = key(c);
       if (!k) continue;
+      c.traits[dimension] = k;
       const x = g.get(k) ?? { t: zero(), n: 0 };
       add(x.t, adTotals.get(c.ad)!);
       x.n++;
