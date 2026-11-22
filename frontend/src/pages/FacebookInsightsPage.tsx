@@ -791,19 +791,19 @@ function Traits({ data }: { data: FbInsightsResult }) {
             ))}
           </div>
 
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+          <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
             {/* ranked table */}
             <div className="min-w-0 overflow-x-auto">
-              <table className="w-full min-w-[560px] border-collapse text-sm tabular-nums">
+              <table className="w-full min-w-[700px] table-fixed border-collapse text-sm tabular-nums">
                 <thead>
                   <tr className="text-[11px] font-semibold uppercase tracking-wider text-ink-3">
-                    <th className="pb-2 text-left">{dim}</th>
-                    <th className="w-[34%] pb-2 text-left">Return</th>
-                    <th className="pb-2 text-right">Sales</th>
-                    <th className="pb-2 text-right">$/sale</th>
-                    <th className="pb-2 text-right">$/ATC</th>
-                    <th className="pb-2 text-right">Quiz</th>
-                    <th className="pb-2 text-right">Ads</th>
+                    <th className="pb-2 pl-2 text-left">{dim}</th>
+                    <th className="w-[27%] pb-2 pl-3 text-left">Return</th>
+                    <th className="w-[58px] whitespace-nowrap pb-2 pl-3 text-right">Sales</th>
+                    <th className="w-[78px] whitespace-nowrap pb-2 pl-3 text-right">$/sale</th>
+                    <th className="w-[70px] whitespace-nowrap pb-2 pl-3 text-right">$/ATC</th>
+                    <th className="w-[58px] whitespace-nowrap pb-2 pl-3 text-right">Quiz</th>
+                    <th className="w-[56px] whitespace-nowrap pb-2 pl-3 pr-2 text-right">Ads</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -819,7 +819,7 @@ function Traits({ data }: { data: FbInsightsResult }) {
                         aria-selected={sel}
                         className={`cursor-pointer border-t border-line/50 transition-colors ${sel ? 'bg-surface-2' : 'hover:bg-surface-2/50'}`}
                       >
-                        <td className={`max-w-[260px] py-1.5 pl-2 pr-2 ${sel ? 'border-l-2 border-revenue' : 'border-l-2 border-transparent'}`}>
+                        <td className={`py-2 pl-2 pr-2 ${sel ? 'border-l-2 border-revenue' : 'border-l-2 border-transparent'}`}>
                           <span className="flex min-w-0 items-center gap-2">
                             <button type="button" className="min-w-0 truncate text-left font-medium text-ink" title={nice(t.label)}>
                               {nice(t.label)}
@@ -833,7 +833,7 @@ function Traits({ data }: { data: FbInsightsResult }) {
                             )}
                           </span>
                         </td>
-                        <td className="py-1.5 pr-3">
+                        <td className="py-1.5 pl-3 pr-2">
                           <div className="relative flex h-4 items-center">
                             <span
                               className={`block h-full rounded-r ${good ? 'bg-revenue' : 'bg-loss'} opacity-80`}
@@ -846,11 +846,11 @@ function Traits({ data }: { data: FbInsightsResult }) {
                             />
                           </div>
                         </td>
-                        <td className="py-1.5 text-right text-ink">{int(t.purchases)}</td>
-                        <td className={`py-1.5 text-right ${cpaTone(t.cpa, BE)}`}>{usd(t.cpa)}</td>
-                        <td className="py-1.5 text-right text-ink-2">{usd(t.cost_per_atc)}</td>
-                        <td className="py-1.5 text-right text-ink-2">{pct(t.quiz_start_rate, 0)}</td>
-                        <td className="py-1.5 text-right text-ink-3">{int(t.ads)}</td>
+                        <td className="whitespace-nowrap py-2 pl-3 text-right text-ink">{int(t.purchases)}</td>
+                        <td className={`whitespace-nowrap py-2 pl-3 text-right ${cpaTone(t.cpa, BE)}`}>{usd(t.cpa)}</td>
+                        <td className="whitespace-nowrap py-2 pl-3 text-right text-ink-2">{usd(t.cost_per_atc)}</td>
+                        <td className="whitespace-nowrap py-2 pl-3 text-right text-ink-2">{pct(t.quiz_start_rate, 0)}</td>
+                        <td className="whitespace-nowrap py-2 pl-3 pr-2 text-right text-ink-3">{int(t.ads)}</td>
                       </tr>
                     );
                   })}
@@ -862,7 +862,7 @@ function Traits({ data }: { data: FbInsightsResult }) {
             </div>
 
             {/* creatives of the selected row */}
-            <div className="min-w-0 xl:border-l xl:border-line xl:pl-6">
+            <div className="min-w-0 border-t border-line pt-5 2xl:border-l 2xl:border-t-0 2xl:pl-6 2xl:pt-0">
               <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
                 <h3 className="font-bold text-ink">
                   {dim}: {nice(value)}
