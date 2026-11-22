@@ -45,6 +45,10 @@ export interface InsightCreative {
   angle: string | null;
   offer_type: string | null;
   cta: string | null;
+  /** Trait value per dimension, as grouped in `traits` (ED creatives with taxonomy). */
+  traits: Record<string, string>;
+  /** Ad groups page links; null = none saved. Field null = use creatives.json, "" = cleared. */
+  links: { image: string | null; video: string | null; landing: string | null } | null;
   earlier_name: string | null;
   new_decision: NewDecision | null;
   new_why: string | null;
