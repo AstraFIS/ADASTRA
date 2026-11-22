@@ -6,6 +6,7 @@ import FacebookViewSwitch from '@/components/FacebookViewSwitch';
 import FilterSelect from '@/components/FilterSelect';
 import MultiSearchSelect from '@/components/MultiSearchSelect';
 import ProviderAccountSelect from '@/components/ProviderAccountSelect';
+import CreativeGallery from '@/components/insights/CreativeGallery';
 import {
   AdLink,
   Card,
@@ -69,7 +70,13 @@ export default function FacebookInsightsPage() {
     const qs = new URLSearchParams(custom ? {} : { range });
     if (from) qs.set('from', from);
     if (to) qs.set('to', to);
-    for (const [k, vs] of [['category', categories], ['provider', providers], ['account', accounts], ['group', groups]] as const) vs.forEach((v) => qs.append(k, v));
+    for (const [k, vs] of [
+      ['category', categories],
+      ['provider', providers],
+      ['account', accounts],
+      ['group', groups],
+    ] as const)
+      vs.forEach((v) => qs.append(k, v));
     return qs.toString();
   }, [params]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -197,7 +204,11 @@ export default function FacebookInsightsPage() {
         <div className="rounded-xl border border-loss/40 bg-surface p-6">
           <p className="font-semibold text-loss">Could not load the creative insights</p>
           <p className="mt-1 text-sm text-ink-2">{load.message}</p>
-          <button type="button" onClick={() => setReload((k) => k + 1)} className="mt-4 rounded-lg border border-line bg-surface-2 px-4 py-2 text-sm font-semibold text-ink hover:bg-line">
+          <button
+            type="button"
+            onClick={() => setReload((k) => k + 1)}
+            className="mt-4 rounded-lg border border-line bg-surface-2 px-4 py-2 text-sm font-semibold text-ink hover:bg-line"
+          >
             Retry
           </button>
         </div>
@@ -248,15 +259,17 @@ function Insights({ data }: { data: FbInsightsResult }) {
             <>
               ED offers (DirectMax and MEDVi), {period.toLowerCase()}: each purchase cost <b className={cpaTone(t.cpa, BE)}>{usd(t.cpa)}</b> while one purchase brings in{' '}
               <b className="text-ink">{usd(BE)}</b>, so every $1 returned <b className={roasTone(t.roas, t.purchases)}>{times(t.roas)}</b>.{' '}
-              {(t.roas ?? 0) >= 1 ? 'The account is profitable: keep scaling the winners below.' : 'Winners exist; the lists below say which to scale, relaunch, test longer or stop.'}
+              {(t.roas ?? 0) >= 1
+                ? 'The account is profitable: keep scaling the winners below.'
+                : 'Winners exist; the lists below say which to scale, relaunch, test longer or stop.'}
             </>
           ) : (
             'No ED spend in this selection, so purchase-based verdicts are not available. Pick another range or category.'
           )}
         </p>
         <p className="text-xs text-ink-3">
-          Data through {data.data_through ? formatDate(data.data_through, 'medium') : '—'}. Cost = Meta spend + provider fee. Purchases are partner events joined to ads by
-          exact ad name. Break-even = average revenue per ED purchase{data.break_even_is_fallback ? ' (no purchases in this selection, so $240 is assumed)' : ''}.
+          Data through {data.data_through ? formatDate(data.data_through, 'medium') : '—'}. Cost = Meta spend + provider fee. Purchases are partner events joined to ads
+          by exact ad name. Break-even = average revenue per ED purchase{data.break_even_is_fallback ? ' (no purchases in this selection, so $240 is assumed)' : ''}.
         </p>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
           <Tile label="Cost" value={usd(t.cost)} sub="ED offers" />
@@ -285,7 +298,11 @@ function Insights({ data }: { data: FbInsightsResult }) {
             ['#audience', 'Audience'],
             ['#products', 'Products & tracking'],
           ].map(([href, label]) => (
-            <a key={href} href={href} className="rounded-full border border-line bg-surface px-3 py-1 text-xs font-semibold text-ink-2 hover:border-line-strong hover:text-ink">
+            <a
+              key={href}
+              href={href}
+              className="rounded-full border border-line bg-surface px-3 py-1 text-xs font-semibold text-ink-2 hover:border-line-strong hover:text-ink"
+            >
               {label}
             </a>
           ))}
@@ -314,7 +331,10 @@ function Insights({ data }: { data: FbInsightsResult }) {
             referenceLabel="break-even"
           />
         </Card>
-        <Card title="Cost per purchase, by days since launch" sub="ED ads. The first days cost the most while Meta learns; a rise later would mean the creative is wearing out.">
+        <Card
+          title="Cost per purchase, by days since launch"
+          sub="ED ads. The first days cost the most while Meta learns; a rise later would mean the creative is wearing out."
+        >
           <HBars
             bars={data.ad_age.map((a) => ({
               label: a.stage,
@@ -459,7 +479,13 @@ function NewCreatives({ creatives, from, to }: { creatives: InsightCreative[]; f
     .sort((a, b) => NEW_ORDER.indexOf(a.new_decision!) - NEW_ORDER.indexOf(b.new_decision!) || b.cost - a.cost);
   const cols: Column<InsightCreative>[] = [
     { key: 'ad', label: 'Ad', align: 'left', render: (c) => <AdLink name={c.ad} />, sort: (c) => c.ad },
-    { key: 'd', label: 'Decision', align: 'left', render: (c) => <Pill tone={VERDICT_TONE[c.new_decision!]}>{c.new_decision}</Pill>, sort: (c) => NEW_ORDER.indexOf(c.new_decision!) },
+    {
+      key: 'd',
+      label: 'Decision',
+      align: 'left',
+      render: (c) => <Pill tone={VERDICT_TONE[c.new_decision!]}>{c.new_decision}</Pill>,
+      sort: (c) => NEW_ORDER.indexOf(c.new_decision!),
+    },
     { key: 'why', label: 'Why / next step', align: 'left', wrap: true, render: (c) => <span className="text-ink-2">{c.new_why}</span> },
     { key: 'p', label: 'Product', align: 'left', render: (c) => c.product, sort: (c) => c.product },
     { key: 'first', label: 'Started', render: (c) => shortDay(c.first_day), sort: (c) => c.first_day },
@@ -476,9 +502,10 @@ function NewCreatives({ creatives, from, to }: { creatives: InsightCreative[]; f
       title="New creatives: a decision for each"
       sub={
         <>
-          Creatives whose first day is {from ? `${shortDay(from)} – ${shortDay(to)}` : 'in the last 7 days'}. They are judged on early signals because most haven’t had time
-          to sell. Scale: a sale at up to 1.25× break-even. Keep: cheap add-to-carts. Watch: pricey add-to-carts. Too early: not enough spend. Not spending: Meta barely
-          delivers it. Cut: no add-to-cart after half a break-even CPA, or no sale by the point where 9 in 10 winners had sold. Turn back on: good signs, but stopped.
+          Creatives whose first day is {from ? `${shortDay(from)} – ${shortDay(to)}` : 'in the last 7 days'}. They are judged on early signals because most haven’t had
+          time to sell. Scale: a sale at up to 1.25× break-even. Keep: cheap add-to-carts. Watch: pricey add-to-carts. Too early: not enough spend. Not spending: Meta
+          barely delivers it. Cut: no add-to-cart after half a break-even CPA, or no sale by the point where 9 in 10 winners had sold. Turn back on: good signs, but
+          stopped.
         </>
       }
     >
@@ -517,7 +544,10 @@ function NewCreatives({ creatives, from, to }: { creatives: InsightCreative[]; f
 function Rules({ data, fstep }: { data: FbInsightsResult; fstep: (s: string) => number | null }) {
   const ind = data.indicators;
   const BE = data.break_even_cpa;
-  const winners = data.creatives.filter((c) => (c.verdict === 'Scale' || c.verdict === 'Keep & watch') && !c.live_last7).slice(0, 3).map((c) => c.ad);
+  const winners = data.creatives
+    .filter((c) => (c.verdict === 'Scale' || c.verdict === 'Keep & watch') && !c.live_last7)
+    .slice(0, 3)
+    .map((c) => c.ad);
   const rules: [string, ReactNode][] = [
     [
       'Judge a creative by add-to-carts and quiz starts, not by CTR.',
@@ -529,15 +559,16 @@ function Rules({ data, fstep }: { data: FbInsightsResult; fstep: (s: string) => 
     [
       'Test fairly, then decide.',
       <>
-        Creatives that sold needed a median of {usd(ind.median_spend_to_first_purchase)} to their first sale, and 9 in 10 sold within {usd(ind.p90_spend_to_first_purchase)}. Don’t
-        judge on days 1–3. Cut at about {usd(BE / 2)} with no add-to-cart, and at about {usd(ind.p90_spend_to_first_purchase ?? BE)} with no sale.
+        Creatives that sold needed a median of {usd(ind.median_spend_to_first_purchase)} to their first sale, and 9 in 10 sold within{' '}
+        {usd(ind.p90_spend_to_first_purchase)}. Don’t judge on days 1–3. Cut at about {usd(BE / 2)} with no add-to-cart, and at about{' '}
+        {usd(ind.p90_spend_to_first_purchase ?? BE)} with no sale.
       </>,
     ],
     [
       'Test fewer creatives, properly.',
       <>
-        {int(ind.ads_under_break_even_spend)} of {int(ind.ed_ads)} ED ads spent less than one break-even CPA ({usd(ind.spend_under_break_even)} in total) and taught us little. Launch
-        4–6 new creatives a week per account, each with enough budget to reach about {usd(BE)}.
+        {int(ind.ads_under_break_even_spend)} of {int(ind.ed_ads)} ED ads spent less than one break-even CPA ({usd(ind.spend_under_break_even)} in total) and taught us
+        little. Launch 4–6 new creatives a week per account, each with enough budget to reach about {usd(BE)}.
       </>,
     ],
     [
@@ -551,15 +582,15 @@ function Rules({ data, fstep }: { data: FbInsightsResult; fstep: (s: string) => 
     [
       'Fix the landing-page leak.',
       <>
-        Only {pct(fstep('Questionnaire started'))} of visitors start the questionnaire, and {pct(fstep('Purchase'))} of add-to-carts become purchases. Raising either rate cuts cost
-        per sale as much as a better creative would.
+        Only {pct(fstep('Questionnaire started'))} of visitors start the questionnaire, and {pct(fstep('Purchase'))} of add-to-carts become purchases. Raising either rate
+        cuts cost per sale as much as a better creative would.
       </>,
     ],
     [
       'Fix tracking so every dollar can be judged.',
       <>
-        {data.unmatched.length > 0 ? `${data.unmatched.length} partner ad names never appear in Meta (list at the bottom). ` : ''}TrimRX sends no partner events. Use the exact
-        Meta ad name as the sub-ID on every link.
+        {data.unmatched.length > 0 ? `${data.unmatched.length} partner ad names never appear in Meta (list at the bottom). ` : ''}TrimRX sends no partner events. Use the
+        exact Meta ad name as the sub-ID on every link.
       </>,
     ],
   ];
@@ -568,7 +599,9 @@ function Rules({ data, fstep }: { data: FbInsightsResult; fstep: (s: string) => 
       <ol className="grid gap-3 lg:grid-cols-2">
         {rules.map(([h, body], i) => (
           <li key={h} className="flex gap-3 rounded-xl border border-line bg-surface-2/40 p-4">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-2 text-sm font-bold text-revenue ring-1 ring-line-strong">{i + 1}</span>
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-2 text-sm font-bold text-revenue ring-1 ring-line-strong">
+              {i + 1}
+            </span>
             <div className="text-sm leading-relaxed text-ink-2">
               <b className="block text-ink">{h}</b>
               {body}
@@ -579,7 +612,8 @@ function Rules({ data, fstep }: { data: FbInsightsResult; fstep: (s: string) => 
     </Card>
   );
 }
-const strength = (r: number | null) => (r == null ? 'can’t yet be compared with' : Math.abs(r) < 0.15 ? 'barely relates to' : Math.abs(r) < 0.35 ? 'loosely tracks' : 'closely tracks');
+const strength = (r: number | null) =>
+  r == null ? 'can’t yet be compared with' : Math.abs(r) < 0.15 ? 'barely relates to' : Math.abs(r) < 0.35 ? 'loosely tracks' : 'closely tracks';
 
 // ===========================================================================
 // what to make next (from the traits)
@@ -620,7 +654,11 @@ function MakeNext({ data }: { data: FbInsightsResult }) {
     </ul>
   );
   return (
-    <Card id="make" title="What to make next" sub="From each ED creative’s taxonomy: traits that return the most per dollar, and traits that lose money. Brief new creatives with the left column.">
+    <Card
+      id="make"
+      title="What to make next"
+      sub="From each ED creative’s taxonomy: traits that return the most per dollar, and traits that lose money. Brief new creatives with the left column."
+    >
       <div className="grid gap-6 md:grid-cols-2">
         <div>
           <h3 className="mb-3 font-bold text-revenue">Make more of</h3>
@@ -701,7 +739,15 @@ function Scorecard({ creatives, be }: { creatives: InsightCreative[]; be: number
           className="rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-ink placeholder:text-ink-3 focus:border-revenue focus:outline-none"
         />
       </div>
-      <DataTable rows={rows} columns={cols} rowKey={(c) => c.ad} initialSort={{ key: 'cost', dir: -1 }} limit={40} maxHeight={640} empty="No creative matches these filters." />
+      <DataTable
+        rows={rows}
+        columns={cols}
+        rowKey={(c) => c.ad}
+        initialSort={{ key: 'cost', dir: -1 }}
+        limit={40}
+        maxHeight={640}
+        empty="No creative matches these filters."
+      />
     </Card>
   );
 }
@@ -713,6 +759,11 @@ function Traits({ data }: { data: FbInsightsResult }) {
   const dims = [...new Set(data.traits.map((t) => t.dimension))];
   const [dim, setDim] = useState(dims[0] ?? 'Hook type');
   const rows = data.traits.filter((t) => t.dimension === dim).sort((a, b) => (b.roas ?? 0) - (a.roas ?? 0));
+  // the bar whose creatives are shown on the right; the best one until another is clicked
+  const [picked, setPicked] = useState<string | null>(null);
+  const value = picked && rows.some((t) => t.label === picked) ? picked : (rows[0]?.label ?? null);
+  const row = rows.find((t) => t.label === value) ?? null;
+  const shown = value ? data.creatives.filter((c) => c.traits?.[dim] === value).sort((a, b) => b.cost - a.cost) : [];
   const cols: Column<InsightRow>[] = [
     { key: 'l', label: 'Trait', align: 'left', render: (t) => t.label.replace(/_/g, ' '), sort: (t) => t.label },
     { key: 'ads', label: 'Ads', render: (t) => int(t.ads), sort: (t) => t.ads },
@@ -731,23 +782,57 @@ function Traits({ data }: { data: FbInsightsResult }) {
       title="What winning creatives have in common"
       sub="Return on spend by creative trait, taken from each ad’s taxonomy. ED ads, groups with $300+ spend. Bars past the dashed line make money."
       right={
-        <FilterSelect id="trait-dim" label="Trait" value={dim} options={dims.map((d) => ({ value: d, label: d }))} onChange={setDim} className="sm:min-w-[220px]" />
+        <FilterSelect
+          id="trait-dim"
+          label="Trait"
+          value={dim}
+          options={dims.map((d) => ({ value: d, label: d }))}
+          onChange={(d) => {
+            setDim(d);
+            setPicked(null);
+          }}
+          className="sm:min-w-[220px]"
+        />
       }
     >
       {rows.length === 0 ? (
         <p className="text-sm text-ink-3">No taxonomy data for this selection.</p>
       ) : (
-        <HBars
-          bars={rows.map((t) => ({
-            label: t.label.replace(/_/g, ' '),
-            sub: `${plural(t.ads, 'ad')} · ${plural(t.purchases, 'sale')}`,
-            value: t.roas,
-            text: t.cpa == null ? `${times(t.roas)} · no sales` : `${times(t.roas)} · ${usd(t.cpa)}/sale`,
-            tone: (t.roas ?? 0) >= 1 ? 'good' : 'bad',
-          }))}
-          reference={1}
-          referenceLabel="break-even 1.00×"
-        />
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="min-w-0">
+            <p className="mb-3 text-xs text-ink-3">Click a bar to see its creatives.</p>
+            <HBars
+              selected={value}
+              onSelect={setPicked}
+              bars={rows.map((t) => ({
+                label: t.label.replace(/_/g, ' '),
+                sub: `${plural(t.ads, 'ad')} · ${plural(t.purchases, 'sale')}`,
+                value: t.roas,
+                text: t.cpa == null ? `${times(t.roas)} · no sales` : `${times(t.roas)} · ${usd(t.cpa)}/sale`,
+                id: t.label,
+                tone: (t.roas ?? 0) >= 1 ? 'good' : 'bad',
+              }))}
+              reference={1}
+              referenceLabel="break-even 1.00×"
+            />
+          </div>
+          <div className="min-w-0 lg:border-l lg:border-line lg:pl-6">
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+              <h3 className="font-bold text-ink">
+                {dim}: {value?.replace(/_/g, ' ')}
+              </h3>
+              {row && (
+                <p className="text-xs text-ink-3">
+                  {plural(shown.length, 'creative')} · {usd(row.cost)} · {plural(row.purchases, 'sale')} ·{' '}
+                  <span className={roasTone(row.roas, row.purchases)}>{times(row.roas)}</span>
+                </p>
+              )}
+            </div>
+            <div className="max-h-[760px] overflow-y-auto pr-1">
+              <CreativeGallery creatives={shown} breakEven={data.break_even_cpa} empty="No creative with this trait in the selection." />
+            </div>
+          </div>
+        </div>
       )}
       <details className="mt-5">
         <summary className="cursor-pointer text-sm font-semibold text-ink-2 hover:text-ink">Full numbers for this trait</summary>
