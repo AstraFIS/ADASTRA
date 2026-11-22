@@ -3,35 +3,67 @@ import { getAdCreative, mergeCreative } from '@/lib/creatives';
 import type { InsightCreative } from '@/types/fbInsights';
 import { AdLink, cpaTone, int, Pill, roasTone, times, usd, VERDICT_TONE } from './parts';
 
+const CLOUDINARY_VIDEO = /^(https?:\/\/res\.cloudinary\.com\/[^/]+\/video\/upload\/)(.+?)(\.(mp4|mov|webm|m4v|avi|mkv))?(\?.*)?$/i;
+
+/** A link to a video file rather than a picture (some ads store the video in the image field too). */
+const isVideoUrl = (url: string) => /\/video\/upload\//i.test(url) || /\.(mp4|mov|webm|m4v|avi|mkv)(\?.*)?$/i.test(url);
+
 /**
- * A Cloudinary video's first frame as an image (…/video/upload/so_1,w_480/<id>.jpg), so a
- * grid of videos shows stills instead of loading every video file.
+ * A Cloudinary video delivered through a transformation: `so_1,w_480` + .jpg gives its first
+ * frame as a picture; `vc_h264` + .mp4 re-encodes it so every browser can play it (.mov files
+ * are often HEVC / ProRes, which Chrome and Firefox can't play as uploaded).
  */
-function videoPoster(url: string | null): string | null {
-  if (!url || !/res\.cloudinary\.com\/[^/]+\/video\/upload\//i.test(url)) return null;
-  return url.replace('/video/upload/', '/video/upload/so_1,w_480/').replace(/\.(mp4|mov|webm|m4v)(\?.*)?$/i, '.jpg');
+function cloudinaryVideo(url: string | null, transform: string, ext: string): string | null {
+  const m = url ? CLOUDINARY_VIDEO.exec(url) : null;
+  return m ? `${m[1]}${transform}/${m[2]}.${ext}` : null;
 }
 
 /** Creative links: the Ad groups page override wins, else frontend/creatives.json (same rule as the ad page). */
 function mediaOf(c: InsightCreative) {
   const m = mergeCreative(getAdCreative(c.ad), c.links);
-  return { image: m.image_url, video: m.video_url, poster: m.image_url ?? videoPoster(m.video_url) };
+  const image = m.image_url && !isVideoUrl(m.image_url) ? m.image_url : null;
+  // a video stored only in the image field still counts as the video
+  const video = m.video_url ?? (m.image_url && isVideoUrl(m.image_url) ? m.image_url : null);
+  return {
+    image,
+    video,
+    play: video ? (cloudinaryVideo(video, 'vc_h264,q_auto', 'mp4') ?? video) : null,
+    poster: image ?? cloudinaryVideo(video, 'so_1,w_480', 'jpg'),
+  };
 }
 
 function Thumb({ c }: { c: InsightCreative }) {
-  const { image, video, poster } = mediaOf(c);
+  const { video, play, poster } = mediaOf(c);
   const [playing, setPlaying] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [posterFailed, setPosterFailed] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
+  // the re-encoded .mp4 first; if Cloudinary can't serve it, the file as uploaded
+  const [original, setOriginal] = useState(false);
+  const src = original ? video : play;
   const box = 'aspect-[4/5] w-full rounded-lg bg-canvas object-contain';
 
-  if (video && playing) {
-    return <video src={video} poster={poster ?? undefined} controls autoPlay playsInline className={box} aria-label={`Video creative for ${c.ad}`} />;
+  if (play && !videoFailed && (playing || !poster || posterFailed)) {
+    // playing, or no still to show: the browser loads only the first frame until ▶ is pressed
+    return (
+      <video
+        key={src}
+        src={src ?? undefined}
+        poster={poster && !posterFailed ? poster : undefined}
+        controls
+        autoPlay={playing}
+        preload="metadata"
+        playsInline
+        onError={() => (!original && video && video !== play ? setOriginal(true) : setVideoFailed(true))}
+        className={box}
+        aria-label={`Video creative for ${c.ad}`}
+      />
+    );
   }
-  if ((poster || image) && !failed) {
+  if (poster && !posterFailed) {
     return (
       <div className="relative">
-        <img src={poster ?? image ?? ''} alt={`Creative for ${c.ad}`} loading="lazy" onError={() => setFailed(true)} className={box} />
-        {video && (
+        <img src={poster} alt={`Creative for ${c.ad}`} loading="lazy" onError={() => setPosterFailed(true)} className={box} />
+        {play && !videoFailed && (
           <button
             type="button"
             onClick={() => setPlaying(true)}
@@ -44,13 +76,14 @@ function Thumb({ c }: { c: InsightCreative }) {
       </div>
     );
   }
-  if (video && !failed) {
-    // a video with no still: let the browser fetch only its first frame
-    return <video src={video} controls preload="metadata" playsInline onError={() => setFailed(true)} className={box} aria-label={`Video creative for ${c.ad}`} />;
-  }
   return (
-    <div className={`hatch flex items-center justify-center border border-line ${box}`}>
-      <span className="rounded bg-surface/90 px-2 py-1 text-center text-xs text-ink-3">{failed ? 'Could not load the creative' : 'No creative stored'}</span>
+    <div className={`hatch flex flex-col items-center justify-center gap-2 border border-line ${box}`}>
+      <span className="rounded bg-surface/90 px-2 py-1 text-center text-xs text-ink-3">{video ? 'This video can’t play here' : 'No creative stored'}</span>
+      {video && (
+        <a href={video} target="_blank" rel="noopener noreferrer" className="rounded bg-surface/90 px-2 py-1 text-xs font-semibold text-revenue hover:underline">
+          Open the file ↗
+        </a>
+      )}
     </div>
   );
 }
