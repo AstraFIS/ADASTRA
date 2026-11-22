@@ -6,7 +6,7 @@ import FacebookViewSwitch from '@/components/FacebookViewSwitch';
 import FilterSelect from '@/components/FilterSelect';
 import MultiSearchSelect from '@/components/MultiSearchSelect';
 import ProviderAccountSelect from '@/components/ProviderAccountSelect';
-import CreativeGallery from '@/components/insights/CreativeGallery';
+import CreativeGallery, { mergeTwins } from '@/components/insights/CreativeGallery';
 import {
   AdLink,
   Card,
@@ -621,54 +621,65 @@ const strength = (r: number | null) =>
 function MakeNext({ data }: { data: FbInsightsResult }) {
   const BE = data.break_even_cpa;
   const dims = [...new Set(data.traits.map((t) => t.dimension))];
-  const more: { dim: string; t: InsightRow }[] = [];
-  const avoid: { dim: string; t: InsightRow }[] = [];
-  for (const dim of dims) {
-    const xs = data.traits.filter((t) => t.dimension === dim);
-    xs.filter((t) => t.purchases >= 3 && (t.roas ?? 0) >= 0.9)
-      .sort((a, b) => (b.roas ?? 0) - (a.roas ?? 0))
-      .slice(0, 2)
-      .forEach((t) => more.push({ dim, t }));
-    xs.filter((t) => t.cost >= BE * 2 && (t.roas ?? 0) < 0.5)
-      .sort((a, b) => (a.roas ?? 0) - (b.roas ?? 0))
-      .slice(0, 2)
-      .forEach((t) => avoid.push({ dim, t }));
-  }
-  const list = (items: { dim: string; t: InsightRow }[], good: boolean) => (
-    <ul className="space-y-2">
-      {items.length === 0 && <li className="text-sm text-ink-3">Not enough data yet.</li>}
-      {items.map(({ dim, t }) => (
-        <li key={`${dim}|${t.label}`} className="flex items-baseline justify-between gap-3 border-b border-line/60 pb-2 text-sm last:border-0">
-          <span>
-            <span className="text-xs uppercase tracking-wider text-ink-3">{dim}</span>
-            <span className="block font-semibold text-ink">{t.label.replace(/_/g, ' ')}</span>
-          </span>
-          <span className="whitespace-nowrap text-right tabular-nums">
-            <b className={good ? 'text-revenue' : 'text-loss'}>{times(t.roas)}</b>
-            <span className="block text-xs text-ink-3">
-              {plural(t.purchases, 'sale')} · {usd(t.cost)}
-            </span>
-          </span>
-        </li>
-      ))}
-    </ul>
+  const rows = dims
+    .map((dim) => {
+      const xs = data.traits.filter((t) => t.dimension === dim);
+      const more = xs
+        .filter((t) => t.purchases >= 3 && (t.roas ?? 0) >= 0.9)
+        .sort((a, b) => (b.roas ?? 0) - (a.roas ?? 0))
+        .slice(0, 3);
+      const avoid = xs
+        .filter((t) => t.cost >= BE * 2 && (t.roas ?? 0) < 0.5)
+        .sort((a, b) => (a.roas ?? 0) - (b.roas ?? 0))
+        .slice(0, 3);
+      return { dim, more, avoid };
+    })
+    .filter((r) => r.more.length || r.avoid.length);
+  const chip = (t: InsightRow, good: boolean) => (
+    <span
+      key={t.label}
+      title={`${t.label.replace(/_/g, ' ')}: ${times(t.roas)} return, ${plural(t.purchases, 'sale')}, ${usd(t.cost)} spent, ${usd(t.cpa)} per sale`}
+      className={`inline-flex items-baseline gap-1.5 rounded-lg border px-2.5 py-1 text-sm ${good ? 'border-revenue/30 bg-revenue/10' : 'border-loss/30 bg-loss/10'}`}
+    >
+      <span className="font-semibold text-ink">{t.label.replace(/_/g, ' ')}</span>
+      <span className={`text-xs font-bold tabular-nums ${good ? 'text-revenue' : 'text-loss'}`}>{times(t.roas)}</span>
+      <span className="text-xs tabular-nums text-ink-3">{plural(t.purchases, 'sale')}</span>
+    </span>
   );
   return (
     <Card
       id="make"
       title="What to make next"
-      sub="From each ED creative’s taxonomy: traits that return the most per dollar, and traits that lose money. Brief new creatives with the left column."
+      sub="Per trait, from each ED creative’s taxonomy: what returns the most per dollar (brief new creatives with it) and what loses money. Hover a label for spend and cost per sale."
     >
-      <div className="grid gap-6 md:grid-cols-2">
-        <div>
-          <h3 className="mb-3 font-bold text-revenue">Make more of</h3>
-          {list(more, true)}
+      {rows.length === 0 ? (
+        <p className="text-sm text-ink-3">Not enough data yet.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] border-collapse text-left">
+            <thead>
+              <tr className="text-xs font-semibold uppercase tracking-wider">
+                <th className="w-40 pb-2 pr-4 text-ink-3">Trait</th>
+                <th className="pb-2 pr-4 text-revenue">Make more of</th>
+                <th className="pb-2 text-loss">Avoid</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.dim} className="border-t border-line/60 align-top">
+                  <td className="py-2.5 pr-4 text-sm font-semibold text-ink-2">{r.dim}</td>
+                  <td className="py-2 pr-4">
+                    <div className="flex flex-wrap gap-1.5">{r.more.length ? r.more.map((t) => chip(t, true)) : <span className="text-sm text-ink-3">—</span>}</div>
+                  </td>
+                  <td className="py-2">
+                    <div className="flex flex-wrap gap-1.5">{r.avoid.length ? r.avoid.map((t) => chip(t, false)) : <span className="text-sm text-ink-3">—</span>}</div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <div>
-          <h3 className="mb-3 font-bold text-loss">Avoid</h3>
-          {list(avoid, false)}
-        </div>
-      </div>
+      )}
     </Card>
   );
 }
@@ -823,7 +834,7 @@ function Traits({ data }: { data: FbInsightsResult }) {
               </h3>
               {row && (
                 <p className="text-xs text-ink-3">
-                  {plural(shown.length, 'creative')} · {usd(row.cost)} · {plural(row.purchases, 'sale')} ·{' '}
+                  {plural(mergeTwins(shown, data.break_even_cpa).length, 'creative')} · {usd(row.cost)} · {plural(row.purchases, 'sale')} ·{' '}
                   <span className={roasTone(row.roas, row.purchases)}>{times(row.roas)}</span>
                 </p>
               )}
