@@ -7,6 +7,7 @@ import CampaignTable from '@/components/CampaignTable';
 import ChartLegend from '@/components/ChartLegend';
 import CustomDateRange from '@/components/CustomDateRange';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import FacebookViewSwitch from '@/components/FacebookViewSwitch';
 import FilterSelect from '@/components/FilterSelect';
 import MultiSearchSelect from '@/components/MultiSearchSelect';
 import ProviderAccountSelect from '@/components/ProviderAccountSelect';
@@ -384,7 +385,8 @@ export default function FacebookDashboardPage() {
 
   return (
     <div className={`space-y-8 transition-opacity ${busy ? 'opacity-60' : ''}`} aria-busy={busy}>
-      <header>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
         <p className="text-sm font-medium uppercase tracking-[0.12em] text-ink-3">
           <Link to="/" className="hover:text-ink-2">
             {data.client}
@@ -395,6 +397,8 @@ export default function FacebookDashboardPage() {
           {data.title}
           <span className="text-spend"> — {data.subtitle}</span>
         </h1>
+        </div>
+        <FacebookViewSwitch current="dashboard" />
       </header>
 
       <section aria-label="Filters" className="flex flex-wrap items-center gap-x-6 gap-y-4">

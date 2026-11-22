@@ -7,6 +7,7 @@ import AdAccessPage from '@/pages/AdAccessPage';
 import BingDashboardPage from '@/pages/BingDashboardPage';
 import FacebookAdDetailPage from '@/pages/FacebookAdDetailPage';
 import FacebookDashboardPage from '@/pages/FacebookDashboardPage';
+import FacebookInsightsPage from '@/pages/FacebookInsightsPage';
 import FinancePage from '@/pages/FinancePage';
 import HomePage from '@/pages/HomePage';
 import LoginPage from '@/pages/LoginPage';
@@ -24,6 +25,7 @@ export default function App() {
           <Route index element={<HomePage />} />
           <Route element={<RequirePlatform platform="facebook" />}>
             <Route path="platforms/facebook" element={<FacebookDashboardPage />} />
+            <Route path="platforms/facebook/insights" element={<FacebookInsightsPage />} />
             <Route path="platforms/facebook/ads/:adName" element={<FacebookAdDetailPage />} />
           </Route>
           <Route element={<RequirePlatform platform="microsoft" />}>

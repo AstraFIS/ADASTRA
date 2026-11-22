@@ -4,6 +4,7 @@ import { getAdStatistics } from '../controllers/fbAdStatistics.controller.js';
 import { getCampaigns } from '../controllers/fbCampaigns.controller.js';
 import { getCharts } from '../controllers/fbCharts.controller.js';
 import { getGeoDevice } from '../controllers/fbGeoDevice.controller.js';
+import { getInsights } from '../controllers/fbInsights.controller.js';
 import { getDailyTrend } from '../controllers/fbDailyTrend.controller.js';
 import { getFunnel } from '../controllers/fbFunnel.controller.js';
 import { getOptions } from '../controllers/fbOptions.controller.js';
@@ -50,6 +51,9 @@ facebookRouter.get('/campaigns', getCampaigns);
 
 /** GET /api/platforms/facebook/funnel — one row per ad × offer with funnel stage counts */
 facebookRouter.get('/funnel', getFunnel);
+
+/** GET /api/platforms/facebook/insights — per-creative verdicts and decisions, computed from the report collections */
+facebookRouter.get('/insights', getInsights);
 
 /** GET /api/platforms/facebook/options — dropdown choices from the report collection */
 facebookRouter.get('/options', getOptions);
