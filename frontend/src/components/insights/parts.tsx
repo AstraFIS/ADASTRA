@@ -22,8 +22,7 @@ export const shortDay = (iso: string | null | undefined) => {
 };
 
 /** Green when at or under break-even return, red when it lost money (only when there were sales). */
-export const roasTone = (roas: number | null, purchases: number) =>
-  roas == null ? '' : roas >= 1 ? 'text-revenue' : purchases > 0 ? 'text-loss' : '';
+export const roasTone = (roas: number | null, purchases: number) => (roas == null ? '' : roas >= 1 ? 'text-revenue' : purchases > 0 ? 'text-loss' : '');
 export const cpaTone = (cpa: number | null, be: number) => (cpa == null ? '' : cpa <= be ? 'text-revenue' : cpa <= be * 1.25 ? 'text-spend' : 'text-loss');
 
 // ---------------------------------------------------------------------------
@@ -55,11 +54,7 @@ export const VERDICT_TONE: Record<string, Tone> = {
   'No tracking': 'muted',
 };
 export function Pill({ children, tone = 'muted' }: { children: ReactNode; tone?: Tone }) {
-  return (
-    <span className={`inline-block whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${TONE[tone]}`}>
-      {children}
-    </span>
-  );
+  return <span className={`inline-block whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${TONE[tone]}`}>{children}</span>;
 }
 export function PillButton({ children, tone = 'muted', active, onClick }: { children: ReactNode; tone?: Tone; active: boolean; onClick: () => void }) {
   return (
@@ -80,7 +75,21 @@ export function PillButton({ children, tone = 'muted', active, onClick }: { chil
 // layout
 // ---------------------------------------------------------------------------
 
-export function Card({ title, sub, right, children, id, className = '' }: { title?: ReactNode; sub?: ReactNode; right?: ReactNode; children: ReactNode; id?: string; className?: string }) {
+export function Card({
+  title,
+  sub,
+  right,
+  children,
+  id,
+  className = '',
+}: {
+  title?: ReactNode;
+  sub?: ReactNode;
+  right?: ReactNode;
+  children: ReactNode;
+  id?: string;
+  className?: string;
+}) {
   return (
     <section id={id} className={`scroll-mt-6 rounded-2xl border border-line bg-surface p-5 md:p-6 ${className}`}>
       {(title || right) && (
@@ -239,6 +248,8 @@ export function DataTable<T>({
 // ---------------------------------------------------------------------------
 
 export interface Bar {
+  /** Identifies the bar for selection; defaults to the label. */
+  id?: string;
   label: string;
   value: number | null;
   text: string;
@@ -248,28 +259,56 @@ export interface Bar {
 }
 const BAR_TONE = { good: 'bg-revenue', bad: 'bg-loss', neutral: 'bg-azure' };
 
-export function HBars({ bars, reference, referenceLabel, max }: { bars: Bar[]; reference?: number; referenceLabel?: string; max?: number }) {
+export function HBars({
+  bars,
+  reference,
+  referenceLabel,
+  max,
+  selected,
+  onSelect,
+}: {
+  bars: Bar[];
+  reference?: number;
+  referenceLabel?: string;
+  max?: number;
+  /** With onSelect, every bar is a button; the selected one is outlined and the rest dimmed. */
+  selected?: string | null;
+  onSelect?: (id: string) => void;
+}) {
   const top = Math.max(max ?? 0, reference ?? 0, ...bars.map((b) => b.value ?? 0)) || 1;
   return (
     <div className="space-y-2.5">
-      {bars.map((b) => (
-        <div key={b.label} className="grid grid-cols-[minmax(110px,34%)_1fr] items-center gap-3" title={b.title}>
-          <div className="truncate text-right text-sm text-ink-2">
-            {b.label}
-            {b.sub && <span className="block text-xs text-ink-3">{b.sub}</span>}
-          </div>
-          <div className="relative flex h-6 items-center">
-            <div
-              className={`h-full rounded-r ${BAR_TONE[b.tone ?? 'neutral']} opacity-85`}
-              style={{ width: `${Math.max(0.5, ((b.value ?? 0) / top) * 82)}%` }}
-            />
-            <span className="ml-2 whitespace-nowrap text-xs font-semibold tabular-nums text-ink">{b.text}</span>
-            {reference != null && (
-              <div className="pointer-events-none absolute inset-y-[-4px] border-l border-dashed border-ink-3" style={{ left: `${(reference / top) * 82}%` }} />
-            )}
-          </div>
-        </div>
-      ))}
+      {bars.map((b) => {
+        const id = b.id ?? b.label;
+        const isSel = selected != null && selected === id;
+        const dim = selected != null && !isSel;
+        const Row = onSelect ? 'button' : 'div';
+        return (
+          <Row
+            key={id}
+            {...(onSelect ? { type: 'button' as const, onClick: () => onSelect(id), 'aria-pressed': isSel } : {})}
+            className={`grid w-full grid-cols-[minmax(110px,34%)_1fr] items-center gap-3 rounded-lg text-left transition-opacity ${
+              onSelect ? 'cursor-pointer px-1 py-0.5 hover:bg-surface-2/70' : ''
+            } ${isSel ? 'bg-surface-2 ring-1 ring-line-strong' : ''} ${dim ? 'opacity-55 hover:opacity-100' : ''}`}
+            title={b.title}
+          >
+            <span className="block truncate text-right text-sm text-ink-2">
+              {b.label}
+              {b.sub && <span className="block text-xs text-ink-3">{b.sub}</span>}
+            </span>
+            <span className="relative flex h-6 items-center">
+              <span
+                className={`block h-full rounded-r ${BAR_TONE[b.tone ?? 'neutral']} opacity-85`}
+                style={{ width: `${Math.max(0.5, ((b.value ?? 0) / top) * 82)}%` }}
+              />
+              <span className="ml-2 whitespace-nowrap text-xs font-semibold tabular-nums text-ink">{b.text}</span>
+              {reference != null && (
+                <span className="pointer-events-none absolute inset-y-[-4px] border-l border-dashed border-ink-3" style={{ left: `${(reference / top) * 82}%` }} />
+              )}
+            </span>
+          </Row>
+        );
+      })}
       {reference != null && referenceLabel && (
         <div className="grid grid-cols-[minmax(110px,34%)_1fr] gap-3">
           <div />
